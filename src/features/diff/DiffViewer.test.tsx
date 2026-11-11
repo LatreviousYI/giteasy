@@ -62,4 +62,22 @@ describe('DiffViewer', () => {
     fireEvent.click(screen.getByText('暂存选中行'))
     expect(onApply).toHaveBeenCalledWith([{ hunk: 0, lines: [1] }])
   })
+
+  it('renders split rows in one shared grid without row-level scrollers', () => {
+    const { container } = render(
+      <DiffViewer
+        diff={diff}
+        layout="split"
+        onLayoutChange={vi.fn()}
+        contextLines={3}
+        onContextLinesChange={vi.fn()}
+      />
+    )
+
+    const grid = container.querySelector('.diff-split-grid')
+    expect(grid).not.toBeNull()
+    expect(grid?.querySelectorAll('.diff-split-cell.left')).toHaveLength(2)
+    expect(grid?.querySelectorAll('.diff-split-cell.right')).toHaveLength(2)
+    expect(container.querySelectorAll('.diff-split .half')).toHaveLength(0)
+  })
 })

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
@@ -340,6 +340,42 @@ export default function DiffViewer({
       </span>
     ))
   }
+  const renderSplitCell = (
+    entry: { line: DiffLine; index: number } | undefined,
+    side: 'left' | 'right',
+    hunkIndex: number
+  ) => {
+    if (!entry) {
+      return (
+        <div className={`diff-split-cell ${side} empty`}>
+          <div className="diff-line">
+            <span className="gutter" />
+            <span className="sign" />
+            <span className="code" />
+          </div>
+        </div>
+      )
+    }
+    const { line, index } = entry
+    return (
+      <div className={`diff-split-cell ${side}`}>
+        <div
+          className={`diff-line ${line.kind} ${
+            isSelected(hunkIndex, index) ? 'selected' : ''
+          }`}
+          onClick={() => toggleLine(hunkIndex, index, line)}
+        >
+          <span className="gutter">
+            {side === 'left' ? line.oldLineNo ?? '' : line.newLineNo ?? ''}
+          </span>
+          <span className="sign">
+            {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
+          </span>
+          <span className="code">{renderCode(hunkIndex, line.content, index)}</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="diff-pane">
@@ -609,14 +645,21 @@ export default function DiffViewer({
                 </button>
               </div>
             )}
-            {visibleHunks.map((hunk, hunkIndex) => (
+            <div className={layout === 'split' ? 'diff-split-grid' : undefined}>
+              {visibleHunks.map((hunk, hunkIndex) => (
               <div
                 key={`${hunk.header}-${hunkIndex}`}
+                className={layout === 'split' ? 'diff-split-hunk' : undefined}
                 ref={(node) => {
-                  hunkRefs.current[hunkIndex] = node
+                  if (layout === 'unified') hunkRefs.current[hunkIndex] = node
                 }}
               >
-                <div className="hunk-head">
+                <div
+                  className="hunk-head"
+                  ref={(node) => {
+                    if (layout === 'split') hunkRefs.current[hunkIndex] = node
+                  }}
+                >
                   <span className="hunk-text mono">{hunk.header}</span>
                   {onApply && (
                     <div className="hunk-actions">
@@ -651,77 +694,14 @@ export default function DiffViewer({
                       </div>
                     ))
                   : buildSplit(hunk.lines).map((row, rowIndex) => (
-                      <div className="diff-split" key={rowIndex}>
-                        <div className="half">
-                          {row.left ? (
-                            <div
-                              className={`diff-line ${row.left.line.kind} ${
-                                isSelected(hunkIndex, row.left.index) ? 'selected' : ''
-                              }`}
-                              onClick={() =>
-                                toggleLine(hunkIndex, row.left!.index, row.left!.line)
-                              }
-                            >
-                              <span className="gutter">{row.left.line.oldLineNo ?? ''}</span>
-                              <span className="sign">
-                                {row.left.line.kind === 'del' ? '-' : ' '}
-                              </span>
-                              <span className="code">
-                                {renderCode(
-                                  hunkIndex,
-                                  row.left.line.content,
-                                  row.left.index
-                                )}
-                              </span>
-                            </div>
-                          ) : (
-                            <div
-                              className="diff-line"
-                              style={{ background: 'var(--bg-alt)' }}
-                            >
-                              <span className="gutter" />
-                              <span className="sign" />
-                              <span className="code" />
-                            </div>
-                          )}
-                        </div>
-                        <div className="half">
-                          {row.right ? (
-                            <div
-                              className={`diff-line ${row.right.line.kind} ${
-                                isSelected(hunkIndex, row.right.index) ? 'selected' : ''
-                              }`}
-                              onClick={() =>
-                                toggleLine(hunkIndex, row.right!.index, row.right!.line)
-                              }
-                            >
-                              <span className="gutter">{row.right.line.newLineNo ?? ''}</span>
-                              <span className="sign">
-                                {row.right.line.kind === 'add' ? '+' : ' '}
-                              </span>
-                              <span className="code">
-                                {renderCode(
-                                  hunkIndex,
-                                  row.right.line.content,
-                                  row.right.index
-                                )}
-                              </span>
-                            </div>
-                          ) : (
-                            <div
-                              className="diff-line"
-                              style={{ background: 'var(--bg-alt)' }}
-                            >
-                              <span className="gutter" />
-                              <span className="sign" />
-                              <span className="code" />
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                      <Fragment key={rowIndex}>
+                        {renderSplitCell(row.left, 'left', hunkIndex)}
+                        {renderSplitCell(row.right, 'right', hunkIndex)}
+                      </Fragment>
                     ))}
               </div>
-            ))}
+              ))}
+            </div>
           </>
         )}
       </div>

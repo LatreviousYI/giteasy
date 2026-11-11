@@ -1028,23 +1028,33 @@ button {
   color: var(--del-fg);
 }
 
-.diff-split {
+.diff-split-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(min-content, 1fr));
+  width: 100%;
   min-width: 0;
+  align-items: stretch;
 }
-.diff-split .half {
-  min-width: 0;
+.diff-split-hunk {
+  display: contents;
+}
+.diff-split-grid > .hunk-head {
+  grid-column: 1 / -1;
+}
+.diff-split-cell {
+  min-width: min-content;
   border-right: 1px solid var(--border);
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: visible;
 }
-.diff-split .half:last-child {
+.diff-split-cell.right {
   border-right: 0;
 }
-.diff-split .diff-line .code {
+.diff-split-cell .diff-line .code {
   white-space: pre;
   word-break: normal;
+}
+.diff-split-cell.empty .diff-line {
+  background: var(--bg-alt);
 }
 .diff-empty {
   padding: 16px;
