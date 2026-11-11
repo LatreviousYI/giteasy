@@ -1,9 +1,15 @@
-import { useEffect, useState } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent
+} from 'react'
 import {
   Copy,
   ChevronDown,
   GitBranch,
   GitCommitHorizontal,
+  GripHorizontal,
   ListOrdered,
   MoreHorizontal,
   Maximize2,
@@ -23,6 +29,25 @@ import { Spinner } from '../../components/Empty'
 import DiffViewer from '../diff/DiffViewer'
 import CommitTreePane from './CommitTreePane'
 import CommitFileTree from './CommitFileTree'
+
+const COMMIT_FILES_MIN_HEIGHT = 84
+const COMMIT_FILES_DEFAULT_HEIGHT = 220
+
+function commitFilesStorageKey(repoPath: string) {
+  return `giteasy.historyFilesHeight.${encodeURIComponent(repoPath)}`
+}
+
+function clampCommitFilesHeight(height: number) {
+  const maxHeight = Math.max(COMMIT_FILES_DEFAULT_HEIGHT, Math.round(window.innerHeight * 0.58))
+  return Math.max(COMMIT_FILES_MIN_HEIGHT, Math.min(maxHeight, height))
+}
+
+function readCommitFilesHeight(repoPath: string) {
+  const saved = Number(window.localStorage.getItem(commitFilesStorageKey(repoPath)))
+  return Number.isFinite(saved) && saved > 0
+    ? clampCommitFilesHeight(saved)
+    : COMMIT_FILES_DEFAULT_HEIGHT
+}
 
 export function GraphCell({ row }: { row: GraphRow }) {
   const width = row.laneCount * 14 + 10
@@ -135,6 +160,8 @@ export function CommitDetailPane({
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [detailTab, setDetailTab] = useState<'changes' | 'tree'>('changes')
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [filesHeight, setFilesHeight] = useState(() => readCommitFilesHeight(repoPath))
+  const filesHeightRepoRef = useRef<string | null>(null)
   const diffQuery = useCommitDiff(
     repoPath,
     oid,
@@ -148,6 +175,36 @@ export function CommitDetailPane({
     setDetailTab('changes')
     setActionsOpen(false)
   }, [detail?.commit.oid])
+
+  useEffect(() => {
+    const saved = readCommitFilesHeight(repoPath)
+    filesHeightRepoRef.current = repoPath
+    setFilesHeight(saved)
+  }, [repoPath])
+
+  useEffect(() => {
+    if (filesHeightRepoRef.current !== repoPath) return
+    window.localStorage.setItem(commitFilesStorageKey(repoPath), String(filesHeight))
+  }, [repoPath, filesHeight])
+
+  const startFilesResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const startY = event.clientY
+    const startHeight = filesHeight
+    const onMove = (moveEvent: PointerEvent) => {
+      setFilesHeight(clampCommitFilesHeight(startHeight + moveEvent.clientY - startY))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
 
   if (isLoading || !detail) {
     return (
@@ -279,11 +336,21 @@ export function CommitDetailPane({
 
       {detailTab === 'changes' ? (
         <>
-          <CommitFileTree
-            files={detail.files}
-            selectedPath={selectedPath}
-            onSelect={setSelectedPath}
-          />
+          <div className="commit-files-pane" style={{ height: filesHeight }}>
+            <CommitFileTree
+              files={detail.files}
+              selectedPath={selectedPath}
+              onSelect={setSelectedPath}
+            />
+            <div
+              className="commit-files-resizer"
+              onPointerDown={startFilesResize}
+              onDoubleClick={() => setFilesHeight(COMMIT_FILES_DEFAULT_HEIGHT)}
+              title="拖动调整文件列表高度，双击恢复默认"
+            >
+              <GripHorizontal size={13} />
+            </div>
+          </div>
 
           <DiffViewer
             diff={diffQuery.data}

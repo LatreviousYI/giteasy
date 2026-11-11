@@ -1452,7 +1452,37 @@ button {
   padding: 6px 8px;
 }
 .commit-file-tree {
-  max-height: 230px;
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  border-bottom: 0;
+}
+.commit-files-pane {
+  flex: 0 0 auto;
+  min-height: 84px;
+  max-height: 58vh;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.commit-files-resizer {
+  flex: 0 0 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-top: 1px solid var(--border);
+  background: var(--bg-alt);
+  color: var(--text-subtle);
+  cursor: ns-resize;
+  touch-action: none;
+  user-select: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.commit-files-resizer:hover,
+.commit-files-resizer:active {
+  background: color-mix(in srgb, var(--accent) 12%, var(--bg-alt));
+  color: var(--accent);
 }
 .commit-file-summary {
   position: sticky;

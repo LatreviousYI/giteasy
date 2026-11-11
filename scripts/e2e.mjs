@@ -49,6 +49,48 @@ try {
   await driver.findElement(By.xpath("//button[contains(., '历史')]")).click()
   await driver.wait(until.elementLocated(By.css('.commit-row')), 10_000)
   await shot('light/history-1440.png', 1440, 900)
+
+  const initialFilesHeight = await driver.executeScript(`
+    const pane = document.querySelector('.commit-files-pane');
+    const handle = document.querySelector('.commit-files-resizer');
+    const rect = handle.getBoundingClientRect();
+    const startY = rect.top + rect.height / 2;
+    handle.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      clientY: startY,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      bubbles: true,
+      clientY: startY + 80,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1
+    }));
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      clientY: startY + 80,
+      pointerId: 1,
+      pointerType: 'mouse'
+    }));
+    return pane.getBoundingClientRect().height;
+  `)
+  await driver.sleep(100)
+  const resizedFilesHeight = await driver.executeScript(
+    "return document.querySelector('.commit-files-pane').getBoundingClientRect().height"
+  )
+  if (resizedFilesHeight < initialFilesHeight + 60) {
+    throw new Error(
+      `History files pane did not resize: ${initialFilesHeight} -> ${resizedFilesHeight}`
+    )
+  }
+  await driver.executeScript(`
+    document.querySelector('.commit-files-resizer')
+      .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  `)
+
   await driver.findElement(By.css("[title='专注详情']")).click()
   await shot('light/history-focus-1440.png', 1440, 900)
   await driver.findElement(By.css("[title='显示提交列表']")).click()
