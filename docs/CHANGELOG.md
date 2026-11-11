@@ -1,0 +1,185 @@
+# 变更记录
+
+> 规则：每完成一项功能、修复或交互调整，都必须在本文件追加一条对应记录（日期、变更内容、验证方式）。未记录的工作视为未完成。
+
+## 2026-11-11
+
+### Fork 对齐 M0-01：RepoSession 注册表
+
+- 新增按规范化仓库路径索引的 `RepoSession` 注册表，为每个仓库提供独立写锁。
+- 仓库打开与初始化流程会注册或复用对应 session，为后续串行写操作、ActivityLog 和 watcher 生命周期管理提供基础。
+- 新增注册表复用和仓库隔离单元测试。
+- 验证：`npm run test:backend` 通过，10 项测试全绿；`npm run build` 通过。
+
+### Fork 对齐 M0-02：写操作串行化
+
+- 所有修改仓库状态的命令统一获取对应 RepoSession 写锁，覆盖暂存、提交、分支、远程、Stash、冲突、Patch、Rebase、Worktree 与 Submodule 操作。
+- 增加同仓库写锁串行、不同仓库写锁并行的异步测试。
+- 测试流程继续直接复用无锁 `*_impl`，避免改变前端 IPC 契约。
+- 验证：`npm run test:backend` 通过，12 项测试全绿；`npm run build` 通过。
+
+### Fork 对齐 M0-03：仓库关闭与 watcher 生命周期
+
+- 新增 `repo_close` 命令，关闭仓库时移除 watcher 与 RepoSession。
+- 前端关闭当前仓库和切换到另一仓库时调用后端清理；新仓库打开失败时保留原仓库。
+- 测试：关闭后 session 与 watcher 均被释放。
+- 验证：`npm run test:backend` 通过，13 项测试全绿；`npm run build` 通过。
+
+### Fork 对齐 M0-04：ActivityLog 基础
+
+- 新增仓库级 ActivityLog，记录 Git 子进程命令、开始/结束时间、耗时、结果、输出和错误。
+- fetch、pull、push、Rebase 等流式操作与普通 Git 命令使用同一日志入口。
+- 对 URL 内嵌凭据进行脱敏，单仓库最多保留 200 条记录。
+- 新增 `activity_list` IPC 与前端 DTO。
+- 验证：`npm run test:backend` 通过，15 项测试全绿；`npm run build` 通过。
+
+### Fork 对齐 M0-05：libgit2 阻塞隔离
+
+- 状态、diff、提交详情、分支、Tag、远程、Stash、Blame、冲突、子模块和仓库发现改为 `spawn_blocking` 执行。
+- 部分暂存补丁解析和 SSH 远程读取同样进入阻塞线程池。
+- 新增阻塞任务结果测试，IPC DTO 与调用参数保持不变。
+- 验证：`npm run test:backend` 通过，16 项测试全绿；`npm run build` 通过。
+
+### Fork 对齐 M0-06：前端 repoId 状态边界
+
+- TanStack Query 键统一通过 `[domain, repoId, ...params]` 生成。
+- Zustand 新增仓库映射与每仓库视图状态，保留当前组件使用的顶层状态作为活动仓库投影。
+- 切换仓库会保存并恢复视图、选中文件、暂存侧、提交选择、diff 布局和 Inspector 状态。
+- 引入 Vitest 与 `npm run test:frontend`，新增仓库状态隔离和关闭后恢复测试。
+- 验证：前端 2 项测试通过；`npm run build` 通过。
+
+### Fork 对齐 M0-07：前端组件拆分
+
+- Sidebar 的分支、远程、Tag、Stash、Submodule、Worktree 拆分为独立组件。
+- Stash 预览移入独立 feature 组件；变更提交区、历史图谱和提交详情拆出。
+- Sidebar 从 1079 行降至 657 行，ChangesView 和 HistoryView 同步缩小。
+- 验证：1440px 变更页与历史页截图检查通过；前端 2 项测试与生产构建通过。
+
+### Fork 对齐 M1-01：WorkspaceStore
+
+- Workspace Store 新增 Tab 顺序与活动仓库，支持打开、激活、关闭、重排和持久化快照。
+- 切换 Tab 时保存并恢复每仓库视图状态；关闭 Tab 后释放对应仓库状态。
+- 保持现有单仓库调用方式兼容。
+- 验证：前端 3 项状态测试通过；生产构建通过。
+
+### Fork 对齐 M1-02：顶栏仓库 Tab
+
+- 顶栏改为仓库 Tab 行与当前仓库工具栏的双层结构。
+- Tab 支持点击激活、关闭、中键关闭、拖拽排序，并展示仓库名和分支。
+- 打开新仓库不再关闭已有仓库；关闭 Tab 会释放对应 watcher 与 session。
+- 验证：1440px 截图检查通过；前端 3 项测试与生产构建通过。
+
+### Fork 对齐 M1-03：工作区恢复
+
+- 工作区快照保存 Tab 顺序、活动仓库、每仓库视图状态和侧边栏宽度。
+- Tauri 启动时按快照恢复仓库；失效路径跳过，并在全部恢复失败时显示错误。
+- 侧边栏宽度改为按仓库保存，保留旧全局宽度作为兼容回退。
+- 验证：新增工作区持久化测试；前端 5 项测试与生产构建通过。
+
+### Fork 对齐 M1-04：全局命令面板
+
+- 命令面板新增仓库切换、关闭仓库、刷新、聚焦提交信息和操作记录入口。
+- 保留打开仓库、设置、主题、视图、分支、Stash、终端、Fetch/Pull/Push 命令。
+- 验证：生产构建与前端测试通过。
+
+### Fork 对齐 M1-05：Activity 面板
+
+- 新增操作记录弹窗，展示 Git 命令、耗时、结果摘要、时间与输出。
+- 支持展开详情、复制脱敏日志和 3 秒自动刷新。
+- 顶栏与命令面板均提供入口，开发 Mock 增加示例记录。
+- 验证：1440px 截图检查通过；前端 5 项测试与生产构建通过。
+
+## 2026-10-31
+
+### 初始交付：M0–M4
+
+- M0：Tauri 2 + React 19 + TypeScript + Vite + Tailwind 4 工程骨架、设计 token、三栏布局。
+- M1：仓库打开/初始化/发现接口、变更列表、统一/分栏 diff、历史图谱、提交详情、文件历史、Blame。
+- M2：文件/hunk/行级暂存、取消暂存、提交/amend/sign-off、分支操作、fetch/pull/push 进度、系统 git 认证。
+- M3：冲突三栏解决、stash 预览与应用/弹出、tag、cherry-pick/revert/reset、子模块、工作树。
+- M4：浅色/深色主题、命令面板、快捷键、设置中心、文件监听自动刷新、`.deb` 打包。
+- 验证：`cargo test` 2 项通过；`npm run build` 通过；`.deb` 产物 2.08 MB。
+
+### 交互调整
+
+- 分支切换改为双击触发，单击仅选中；本地与远程分支一致。
+- Toast 通知统一 10 秒后自动消失（含错误提示）。
+- 侧边栏宽度支持拖拽调整（220–460px），写入 `localStorage` 持久化。
+
+### 后续功能批次一
+
+- diff 头部新增「在外部编辑器中打开」。
+- 历史/提交 diff 支持「忽略空白」切换。
+- 历史支持按作者、按路径过滤。
+- 提交框新增 Conventional Commit 辅助（type / scope / 描述）。
+- 新增构建脚本 `scripts/build.sh`，为缺少 GTK 开发软链的环境自动生成链接垫片；新增 `npm run build:app`、`npm run test:backend`。
+
+### 后续功能批次二
+
+- 远程管理：新增 `RemotesDialog`，支持查看、新增、删除 remote。
+- 仓库发现：新增 `DiscoverDialog`，扫描指定目录（最多 3 层）并打开子仓库。
+- Tag 完整化：新增附注标签创建对话框；支持标签检出、推送、删除。
+- 远程分支删除：远程分支行内操作，调用 `git push <remote> --delete`，带二次确认。
+- 提交 hooks 输出：`commit_create` 返回 `{ oid, output }`，提交成功后可展开查看 hooks 输出。
+- 验证：`npm run build` 通过；`npm run test:backend` 2 项通过；`.deb` 重新打包。
+
+### 推送修复
+
+- `push` / `pull` 命令新增 `remote` 与 `branch` 参数。
+- 分支尚未设置上游时，推送自动执行 `git push -u <remote> <branch>` 建立跟踪，解决“添加远程后无法推送”。
+- 推送菜单新增「指定远程」列表，可显式选择目标 remote。
+- 无远程仓库、分离头指针场景给出明确错误提示；命令结束后立即清理进度状态。
+- 验证：新增 `push_args` 单测，`cargo test` 3 项通过；本地 bare remote 实测推送成功且 upstream 为 `origin/main`；`npm run build` 通过。
+
+### 远程交互整合
+
+- 侧边栏新增「远程」分区，与「标签」「储藏」同级，展示 remote 列表，支持行内删除与 `+` 添加。
+- 移除仓库下拉菜单中的「管理远程…」入口，避免重复。
+- 本地分支右键新增「Push 到远程…」：弹窗内可选择远程、选择已有远程分支，或输入新的远程分支名直接创建；支持「推送后设置为上游」与 force-with-lease。
+- 后端 `push` 支持 `local:remote` refspec，可将本地分支推送到任意远程分支名。
+- 验证：`npm run build` 通过；`cargo test` 3 项通过（含 refspec 参数用例）。
+
+### SSH 推送诊断与主机指纹确认
+
+- 定位 Gitee 推送失败原因：`gitee.com` 主机密钥未在 `known_hosts` 中（`Host key verification failed`），且本机 `~/.ssh/id_rsa` 未获 Gitee 授权（`Permission denied (publickey)`）。
+- 新增后端命令：`ssh_probe_remote`（ssh-keyscan + ssh-keygen 读取主机指纹）、`ssh_trust_remote`（确认后写入 `~/.ssh/known_hosts`）、`ssh_public_key`（读取本机 SSH 公钥）。
+- 新增「确认 SSH 主机密钥」弹窗：展示主机指纹，用户确认后写入 known_hosts 并自动重试原推送。
+- 设置中心新增「SSH 公钥」区域，展示公钥路径与内容，支持一键复制。
+- 认证错误提示细化：区分主机密钥未信任、主机密钥变更（疑似中间人）、SSH 公钥未授权、HTTPS 凭据失败。
+- 验证：`ssh-keyscan` 与 `ssh-keygen -lf` 实测可读取 gitee.com 指纹；`cargo test` 4 项通过；`npm run build` 通过。
+
+### 远程分支合并进「远程」分区
+
+- 移除分支分区内原有的「远程分支」折叠列表，避免与「远程」分区重复展示。
+- 「远程」分区改为按 remote 分组：每个 remote 为可折叠父节点，展开后列出该 remote 下的远程分支（显示去掉 `<remote>/` 前缀的短名）。
+- 远程分支保留双击检出、行内删除（`git push <remote> --delete`）能力。
+- 验证：`npm run build` 通过；DEV mock 环境截图确认 `origin` 分组可展开并正确展示 `main`。
+
+### 交互式变基
+
+- 后端新增 `rebase_todo`：读取 `base..HEAD` 范围内（最多 200 条）的提交，按时间正序返回。
+- 后端新增 `rebase_start`：将前端提交的计划写入临时 todo 文件，通过 `GIT_SEQUENCE_EDITOR` 注入后执行 `git rebase -i`。
+- 支持动作：`pick`、`reword`（追加 `exec git commit --amend -F`）、`squash`、`fixup`、`drop`，以及通过上移/下移调整提交顺序。
+- 校验：第一个有效提交不能为 squash/fixup；至少保留一个提交；reword 必须填写提交信息。
+- 前端新增「交互式变基」对话框，从历史视图提交详情打开；变基产生冲突时自动切换到「冲突」视图继续处理。
+- 验证：新增 todo 生成单测与 `rebase_todo` 集成测试；外部临时仓库实测 fixup 合并与 reword 改写成功；`cargo test` 8 项通过；`npm run build` 通过。
+
+### 冲突解决增强
+
+- 冲突视图新增「base 对照」开关，可显示共同祖先版本（diff3 的 base 区）。
+- 解析工作区冲突标记（兼容 merge 与 diff3 风格），按冲突块展示「我的 / 对方」内容。
+- 每个冲突块支持「采用我的 / 采用对方 / 两者保留」，并提供全部采用、全部保留的批量操作，结果仍可在编辑器中继续微调。
+- 验证：使用 mock 冲突内容渲染冲突块面板；`npm run build` 通过。
+
+### 新增文件按行暂存
+
+- 后端 `apply_selection` 支持未跟踪/新增文件：生成带 `new file mode` 与 `/dev/null` 头的补丁，通过 `git apply --cached` 只把选中行写入暂存区。
+- 变更视图对未跟踪文件开放按行/按块暂存入口；工作区文件保持完整内容，未选中的行保留为未暂存改动。
+- 验证：新增集成测试 `partial_staging_new_file_takes_selected_lines`，确认暂存结果为选中行且工作区不变；`cargo test` 8 项通过。
+
+### 本机安装（当前用户）
+
+- 将 `.deb` 解包安装到 `~/.local/opt/giteasy/giteasy`，并在 `~/.local/bin/giteasy` 建立命令入口。
+- 安装图标到 `~/.local/share/icons/hicolor/*/apps/giteasy.png`，桌面入口写入 `~/.local/share/applications/GitEasy.desktop`（Exec 指向用户目录）。
+- 验证：`~/.local/bin/giteasy` 可正常启动，进程路径为安装目录；应用菜单可通过 GitEasy 启动。
+- 说明：系统级安装需 root 权限，当前 sudo 需要交互密码，故采用用户级安装。
