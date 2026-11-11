@@ -3,6 +3,7 @@
 ## 支持环境
 
 - Ubuntu LTS / Fedora / Arch Linux
+- macOS 11+，Apple Silicon（arm64）
 - X11 与 Wayland
 - WebKitGTK 4.1
 - Git 2.30+
@@ -19,12 +20,27 @@ npm run test:e2e
 npm run build:app
 ```
 
+Apple Silicon DMG：
+
+```bash
+npm run build:macos-arm64
+```
+
+macOS CI：`.github/workflows/build-macos-arm64.yml`，产出 arm64 `.app` 和 `.dmg`。
+
 ## 安装包
 
 产物位于：
 
 ```text
 src-tauri/target/release/bundle/deb/
+```
+
+macOS：
+
+```text
+src-tauri/target/aarch64-apple-darwin/release/bundle/macos/GitEasy.app
+src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/GitEasy_0.1.0_aarch64.dmg
 ```
 
 安装：

@@ -1,6 +1,6 @@
 # GitEasy
 
-GitEasy 是一个面向 Linux 的原生 Git GUI，目标是覆盖 Fork 的核心工作流，并提供 GitHub 集成。
+GitEasy 是一个面向 Linux 和 macOS 的原生 Git GUI，目标是覆盖 Fork 的核心工作流，并提供 GitHub 集成。
 
 ## 技术栈
 
@@ -46,6 +46,14 @@ npm run build:app
 ```
 
 当前 Linux 安装包目标为 `.deb`，依赖系统 `git`、WebKitGTK 4.1 和系统 Git 凭据环境。
+
+Apple Silicon（M1/M2/M3/M4）macOS 安装包必须在 macOS/Xcode 环境构建：
+
+```bash
+npm run build:macos-arm64
+```
+
+也可以通过 GitHub Actions 的 `Build macOS Apple Silicon` 工作流构建 `.app` 和 `.dmg`。
 
 ## 凭据与隐私
 

@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "build:app": "bash scripts/build.sh build",
+    "build:macos-arm64": "bash scripts/build-macos-arm64.sh",
     "test:backend": "bash scripts/build.sh test",
     "test:frontend": "vitest run",
     "test:e2e": "node scripts/e2e.mjs",

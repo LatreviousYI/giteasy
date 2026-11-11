@@ -224,6 +224,14 @@
 - 成功生成并校验 `.deb`：GitEasy 0.1.0 amd64，3.2MB，含桌面入口、图标和 `/usr/bin/giteasy`。
 - 验证：前端 9 项、后端 23 项、E2E 与生产构建全部通过。
 
+### macOS Apple Silicon 构建支持
+
+- 增加 macOS 专属 Tauri 配置，目标为 `.app` 和 `.dmg`，最低 macOS 11。
+- Keyring 依赖按 Linux/macOS 平台分别启用 Secret Service 和 Apple Keychain。
+- 外部打开和默认终端行为适配 macOS `open` / `Terminal`。
+- 新增 `scripts/build-macos-arm64.sh` 和 GitHub Actions Apple Silicon 构建工作流。
+- 当前 Linux 环境缺少 Apple SDK/Xcode，因此不能在本机直接生成可运行的 macOS 安装包。
+
 ## 2026-10-31
 
 ### 初始交付：M0–M4

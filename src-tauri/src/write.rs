@@ -976,7 +976,7 @@ pub fn open_in_editor(
         .unwrap_or_else(|| path.clone());
     let parts: Vec<&str> = editor.split_whitespace().collect();
     let spawned = if parts.is_empty() {
-        std::process::Command::new("xdg-open").arg(&target).spawn()
+        crate::tools::open_path_default(&target)
     } else {
         std::process::Command::new(parts[0])
             .args(&parts[1..])
@@ -999,13 +999,25 @@ pub fn open_in_terminal(
     let terminal = if !configured.trim().is_empty() {
         configured
     } else {
-        std::env::var("TERMINAL").unwrap_or_else(|_| "x-terminal-emulator".to_string())
+        std::env::var("TERMINAL").unwrap_or_else(|_| {
+            if cfg!(target_os = "macos") {
+                "Terminal".to_string()
+            } else {
+                "x-terminal-emulator".to_string()
+            }
+        })
     };
-    std::process::Command::new(&terminal)
-        .current_dir(&path)
-        .spawn()
-        .map(|_| ())
-        .map_err(|e| {
+    let spawned = if cfg!(target_os = "macos") && terminal == "Terminal" {
+        std::process::Command::new("open")
+            .args(["-a", "Terminal"])
+            .arg(&path)
+            .spawn()
+    } else {
+        std::process::Command::new(&terminal)
+            .current_dir(&path)
+            .spawn()
+    };
+    spawned.map(|_| ()).map_err(|e| {
             AppError::new("io", "E_TERMINAL", "无法启动终端")
                 .with_hint("请在设置中配置终端命令")
                 .with_detail(e.to_string())

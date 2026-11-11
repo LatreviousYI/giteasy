@@ -7,10 +7,22 @@ const baseUrl = process.env.GITEASY_E2E_URL ?? 'http://127.0.0.1:1420'
 const baselineRoot = path.resolve('docs/visual-baselines')
 
 const options = new firefox.Options()
-  .setBinary('/snap/firefox/current/usr/lib/firefox/firefox')
   .addArguments('-headless')
   .addArguments('--width=1440')
   .addArguments('--height=900')
+
+const firefoxBinary =
+  process.env.FIREFOX_BINARY ??
+  (process.platform === 'darwin'
+    ? '/Applications/Firefox.app/Contents/MacOS/firefox'
+    : '/snap/firefox/current/usr/lib/firefox/firefox')
+
+try {
+  await fs.access(firefoxBinary)
+  options.setBinary(firefoxBinary)
+} catch {
+  // Selenium/geckodriver will use its PATH lookup when no explicit binary exists.
+}
 
 const driver = await new Builder()
   .forBrowser('firefox')

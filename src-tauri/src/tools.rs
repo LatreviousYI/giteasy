@@ -13,6 +13,17 @@ fn shell_quote(value: &str) -> String {
     format!("'{}'", value.replace('\'', "'\\''"))
 }
 
+pub fn open_path_default(target: &str) -> std::io::Result<std::process::Child> {
+    #[cfg(target_os = "macos")]
+    {
+        return std::process::Command::new("open").arg(target).spawn();
+    }
+    #[cfg(not(target_os = "macos"))]
+    {
+        std::process::Command::new("xdg-open").arg(target).spawn()
+    }
+}
+
 #[tauri::command]
 pub async fn run_custom_command(
     state: State<'_, crate::AppState>,
@@ -24,10 +35,7 @@ pub async fn run_custom_command(
 ) -> Result<String, AppError> {
     let expanded = expand(&command, &path, file.as_deref());
     if kind == "url" {
-        std::process::Command::new("xdg-open")
-            .arg(&expanded)
-            .spawn()
-            .map_err(|error| {
+        open_path_default(&expanded).map_err(|error| {
                 AppError::new("io", "E_OPEN_URL", "无法打开自定义 URL")
                     .with_detail(error.to_string())
             })?;

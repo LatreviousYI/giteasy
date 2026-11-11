@@ -1,0 +1,11 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "targets": ["app", "dmg"],
+    "shortDescription": "Modern Git GUI for macOS",
+    "longDescription": "GitEasy is a fast, elegant Git client for macOS built with Tauri, libgit2 and the system git CLI.",
+    "macOS": {
+      "minimumSystemVersion": "11.0"
+    }
+  }
+}
