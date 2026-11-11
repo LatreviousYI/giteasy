@@ -41,6 +41,13 @@ try {
   await driver.get(`${baseUrl}/?view=changes`)
   await driver.wait(until.elementLocated(By.css('.app-shell')), 15_000)
   await driver.wait(until.elementLocated(By.css('.file-row')), 15_000)
+  await driver.wait(until.elementLocated(By.css('.branch-tree-folder')), 10_000)
+  await driver.findElement(By.css("[title='折叠分支目录 feature']")).click()
+  await driver.wait(
+    until.elementLocated(By.css("[title='展开分支目录 feature']")),
+    5_000
+  )
+  await driver.findElement(By.css("[title='展开分支目录 feature']")).click()
 
   await shot('light/changes-1440.png', 1440, 900)
   const verticalScrollCheck = await driver.executeScript(`
@@ -207,7 +214,8 @@ try {
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth
       })),
-      fileRows: document.querySelectorAll('.file-row').length
+      fileRows: document.querySelectorAll('.file-row').length,
+      branchFolders: document.querySelectorAll('.branch-tree-folder').length
     };
   `)
   console.log(JSON.stringify(result, null, 2))

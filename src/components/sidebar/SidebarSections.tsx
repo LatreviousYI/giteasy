@@ -1,4 +1,4 @@
-import type { MouseEvent, ReactNode } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import {
   Archive,
   Boxes,
@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Cloud,
   CloudUpload,
+  Folder,
   FolderTree,
   FolderOpen,
   GitBranch,
@@ -33,6 +34,173 @@ export interface SidebarConfirmState {
   confirmLabel: string
   danger?: boolean
   action: () => Promise<void>
+}
+
+interface BranchTreeEntry {
+  branch: BranchDto
+  name: string
+}
+
+interface BranchTreeNode {
+  name: string
+  path: string
+  branch?: BranchDto
+  directories: BranchTreeNode[]
+}
+
+interface MutableBranchTreeNode {
+  name: string
+  path: string
+  branch?: BranchDto
+  directories: Map<string, MutableBranchTreeNode>
+}
+
+export function buildBranchTree(entries: BranchTreeEntry[]): BranchTreeNode[] {
+  const root = new Map<string, MutableBranchTreeNode>()
+  for (const entry of entries) {
+    const parts = entry.name.split('/').filter(Boolean)
+    if (parts.length === 0) continue
+    let directories = root
+    let current: MutableBranchTreeNode | null = null
+    for (const part of parts) {
+      const path: string = current?.path ? `${current.path}/${part}` : part
+      let node = directories.get(part)
+      if (!node) {
+        node = { name: part, path, directories: new Map() }
+        directories.set(part, node)
+      }
+      current = node
+      directories = node.directories
+    }
+    if (current) current.branch = entry.branch
+  }
+
+  const materialize = (
+    directories: Map<string, MutableBranchTreeNode>
+  ): BranchTreeNode[] =>
+    [...directories.values()]
+      .sort((left, right) => left.name.localeCompare(right.name))
+      .map((node) => ({
+        name: node.name,
+        path: node.path,
+        branch: node.branch,
+        directories: materialize(node.directories)
+      }))
+
+  return materialize(root)
+}
+
+function branchCount(node: BranchTreeNode): number {
+  return (
+    (node.branch ? 1 : 0) +
+    node.directories.reduce((total, directory) => total + branchCount(directory), 0)
+  )
+}
+
+interface BranchTreeProps {
+  entries: BranchTreeEntry[]
+  kind: 'local' | 'remote'
+  picked: string | null
+  onPick: (value: string) => void
+  onCheckout: (branch: BranchDto) => void
+  onContextMenu?: (event: MouseEvent<HTMLDivElement>, branch: BranchDto) => void
+  renderActions?: (branch: BranchDto, shortName: string) => ReactNode
+}
+
+function BranchTree({
+  entries,
+  kind,
+  picked,
+  onPick,
+  onCheckout,
+  onContextMenu,
+  renderActions
+}: BranchTreeProps) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const tree = buildBranchTree(entries)
+
+  const renderBranch = (branch: BranchDto, name: string, depth: number) => {
+    const active =
+      kind === 'local'
+        ? branch.isHead || picked === `local:${branch.name}`
+        : picked === `remote:${branch.name}`
+    return (
+      <div
+        key={`branch:${branch.name}`}
+        className={`list-row branch-tree-leaf ${active ? 'active' : ''}`}
+        style={{ paddingLeft: 8 + depth * 14 }}
+        onClick={() => onPick(`${kind}:${branch.name}`)}
+        onDoubleClick={() => {
+          if (kind === 'remote' || !branch.isHead) onCheckout(branch)
+        }}
+        onContextMenu={
+          onContextMenu ? (event) => onContextMenu(event, branch) : undefined
+        }
+        title={`${branch.subject}\n${
+          kind === 'remote' ? '双击检出并跟踪该远程分支' : '双击切换分支，右键查看更多操作'
+        }`}
+      >
+        {kind === 'remote' ? (
+          <span className="text-subtle text-[10px]">◌</span>
+        ) : (
+          <GitBranch
+            size={13}
+            className={branch.isHead ? 'text-[var(--accent)]' : 'text-subtle'}
+          />
+        )}
+        <span className="truncate" style={{ flex: 1 }}>
+          {name}
+        </span>
+        {branch.ahead > 0 && <span className="row-sub">↑{branch.ahead}</span>}
+        {branch.behind > 0 && <span className="row-sub">↓{branch.behind}</span>}
+        {kind === 'local' && branch.isHead && (
+          <Check size={12} className="text-[var(--accent)]" />
+        )}
+        {renderActions?.(branch, name)}
+      </div>
+    )
+  }
+
+  const renderNode = (node: BranchTreeNode, depth: number): ReactNode => {
+    if (node.directories.length === 0 && node.branch) {
+      return renderBranch(node.branch, node.name, depth)
+    }
+    const isCollapsed = !!collapsed[node.path]
+    return (
+      <div key={`directory:${node.path}`}>
+        <div
+          className="list-row branch-tree-folder"
+          style={{ paddingLeft: 8 + depth * 14, fontWeight: 600 }}
+          onClick={() =>
+            setCollapsed((current) => ({
+              ...current,
+              [node.path]: !current[node.path]
+            }))
+          }
+          title={`${isCollapsed ? '展开' : '折叠'}分支目录 ${node.path}`}
+        >
+          {isCollapsed ? <ChevronRight size={12} /> : <ChevronDown size={12} />}
+          {isCollapsed ? (
+            <Folder size={13} className="text-subtle" />
+          ) : (
+            <FolderOpen size={13} className="text-subtle" />
+          )}
+          <span className="truncate" style={{ flex: 1 }}>
+            {node.name}
+          </span>
+          <span className="row-sub">{branchCount(node)}</span>
+        </div>
+        {!isCollapsed && (
+          <>
+            {node.branch && renderBranch(node.branch, node.name, depth + 1)}
+            {node.directories.map((directory) => renderNode(directory, depth + 1))}
+          </>
+        )}
+      </div>
+    )
+  }
+
+  return <>{tree.map((node) => renderNode(node, 0))}</>
 }
 
 interface BranchSectionProps {
@@ -69,31 +237,14 @@ export function BranchSection({
         </button>
       </div>
       <div className="section-body">
-        {branches.map((branch) => (
-          <div
-            key={branch.name}
-            className={`list-row ${
-              branch.isHead || picked === `local:${branch.name}` ? 'active' : ''
-            }`}
-            onClick={() => onPick(`local:${branch.name}`)}
-            onDoubleClick={() => {
-              if (!branch.isHead) onCheckout(branch)
-            }}
-            onContextMenu={(event) => onContextMenu(event, branch)}
-            title={`${branch.subject}\n双击切换分支，右键查看更多操作`}
-          >
-            <GitBranch
-              size={13}
-              className={branch.isHead ? 'text-[var(--accent)]' : 'text-subtle'}
-            />
-            <span className="truncate" style={{ flex: 1 }}>
-              {branch.name}
-            </span>
-            {branch.ahead > 0 && <span className="row-sub">↑{branch.ahead}</span>}
-            {branch.behind > 0 && <span className="row-sub">↓{branch.behind}</span>}
-            {branch.isHead && <Check size={12} className="text-[var(--accent)]" />}
-          </div>
-        ))}
+        <BranchTree
+          entries={branches.map((branch) => ({ branch, name: branch.name }))}
+          kind="local"
+          picked={picked}
+          onPick={onPick}
+          onCheckout={onCheckout}
+          onContextMenu={onContextMenu}
+        />
       </div>
     </div>
   )
@@ -185,22 +336,17 @@ export function RemoteSection({
                 </div>
               </div>
 
-              {!isCollapsed &&
-                items.map(({ branch, shortName }) => (
-                  <div
-                    key={branch.name}
-                    className={`list-row ${
-                      picked === `remote:${branch.name}` ? 'active' : ''
-                    }`}
-                    style={{ paddingLeft: 28 }}
-                    onClick={() => onPick(`remote:${branch.name}`)}
-                    onDoubleClick={() => onCheckout(branch)}
-                    title={`${branch.subject}\n双击检出并跟踪该远程分支`}
-                  >
-                    <span className="text-subtle text-[10px]">◌</span>
-                    <span className="truncate" style={{ flex: 1 }}>
-                      {shortName}
-                    </span>
+              {!isCollapsed && items.length > 0 && (
+                <BranchTree
+                  entries={items.map(({ branch, shortName }) => ({
+                    branch,
+                    name: shortName
+                  }))}
+                  kind="remote"
+                  picked={picked}
+                  onPick={onPick}
+                  onCheckout={onCheckout}
+                  renderActions={(branch, shortName) => (
                     <div className="row-actions">
                       <button
                         className="icon-btn"
@@ -225,8 +371,9 @@ export function RemoteSection({
                         <Trash2 size={12} />
                       </button>
                     </div>
-                  </div>
-                ))}
+                  )}
+                />
+              )}
 
               {!isCollapsed && items.length === 0 && (
                 <div
