@@ -180,20 +180,20 @@
 
 - [x] Worktree 作为一等工作区入口，支持打开、切换和移除。
 - [x] 每 Worktree 独立设置和状态。
-- [ ] 支持把远程分支直接检出为 Worktree。
+- [x] 支持把远程分支直接检出为 Worktree。
 
 ### M4-04 Submodule 工作流
 
 - [x] 打开子仓库、查看状态和差异、更新。
-- [ ] 添加、删除与移动。
+- [x] 添加、删除与移动。
 
 ## M5 GitHub 首版集成
 
 ### M5-01 GitHub 账户与 keyring
 
-- [ ] OAuth Device Flow。
-- [ ] 系统 keyring 存储和删除 Token。
-- [ ] 多账户元数据。
+- [-] OAuth Device Flow。
+- [-] 系统 keyring 存储和删除 Token。
+- [-] 多账户元数据。
 
 ### M5-02 仓库列表与克隆
 
@@ -267,5 +267,5 @@
 
 ## 当前执行
 
-- 当前任务：`M4-04 Submodule 工作流`
-- 下一任务：`M5-01 GitHub 账户与 keyring`
+- 当前任务：`M5-01 GitHub 账户与 keyring`
+- 下一任务：`M5-02 仓库列表与克隆`

@@ -35,7 +35,7 @@ import RemotesDialog from '../features/repo/RemotesDialog'
 import DiscoverDialog from '../features/repo/DiscoverDialog'
 import PushBranchDialog from '../features/remote/PushBranchDialog'
 import TagDialog from '../features/tags/TagDialog'
-import type { BranchDto, StashDto } from '../lib/types'
+import type { BranchDto, StashDto, SubmoduleDto } from '../lib/types'
 import {
   BranchSection,
   RemoteSection,
@@ -47,6 +47,8 @@ import {
 } from './sidebar/SidebarSections'
 import StashModal from '../features/stashes/StashModal'
 import { repoSidebarWidthKey } from '../lib/workspace'
+import WorktreeDialog from '../features/repo/WorktreeDialog'
+import SubmoduleDialog from '../features/repo/SubmoduleDialog'
 
 type PromptKind = 'branch' | 'rename' | 'stash' | 'upstream'
 
@@ -103,6 +105,9 @@ export default function Sidebar() {
   const [pushBranch, setPushBranch] = useState<BranchDto | null>(null)
   const [discoverRoot, setDiscoverRoot] = useState<string | null>(null)
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
+  const [worktreeBranch, setWorktreeBranch] = useState<BranchDto | null>(null)
+  const [submoduleDialogOpen, setSubmoduleDialogOpen] = useState(false)
+  const [editingSubmodule, setEditingSubmodule] = useState<SubmoduleDto | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(() => readSidebarWidth(repo?.path ?? null))
   const widthRepoRef = useRef<string | null>(null)
@@ -216,7 +221,7 @@ export default function Sidebar() {
     if (!path) return
     const dir = await pickDirectory('选择工作树目录')
     if (!dir) return
-    await run(() => ipc.worktreeAdd(path, dir, null, false), '已添加工作树')
+    await run(() => ipc.worktreeAdd(path, dir, null, false, null), '已添加工作树')
   }
 
   if (!repo) return null
@@ -393,6 +398,7 @@ export default function Sidebar() {
               setRepo(info)
             }, `已检出 ${branch.name}`)
           }
+          onWorktree={setWorktreeBranch}
           onDeleteRemote={(remote) =>
             setConfirm({
               title: '删除远程',
@@ -499,6 +505,31 @@ export default function Sidebar() {
             openRepo(
               `${repo.path.replace(/\/$/, '')}/${submodule.path.replace(/^\/+/, '')}`
             )
+          }
+          onAdd={() => {
+            setEditingSubmodule(null)
+            setSubmoduleDialogOpen(true)
+          }}
+          onMove={(submodule) => {
+            setEditingSubmodule(submodule)
+            setSubmoduleDialogOpen(true)
+          }}
+          onRemove={(submodule) =>
+            setConfirm({
+              title: '删除 Submodule',
+              message: (
+                <span>
+                  将取消初始化并移除子模块 <span className="mono">{submodule.path}</span>
+                  。此操作会修改 `.gitmodules` 和父仓库索引。
+                </span>
+              ),
+              confirmLabel: '删除子模块',
+              danger: true,
+              action: async () => {
+                await ipc.submoduleRemove(repo.path, submodule.path)
+                toast('success', '子模块已删除')
+              }
+            })
           }
         />
 
@@ -688,6 +719,21 @@ export default function Sidebar() {
         <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />
       )}
       {tagDialogOpen && <TagDialog onClose={() => setTagDialogOpen(false)} />}
+      {worktreeBranch && (
+        <WorktreeDialog
+          branch={worktreeBranch}
+          onClose={() => setWorktreeBranch(null)}
+        />
+      )}
+      {submoduleDialogOpen && (
+        <SubmoduleDialog
+          submodule={editingSubmodule}
+          onClose={() => {
+            setSubmoduleDialogOpen(false)
+            setEditingSubmodule(null)
+          }}
+        />
+      )}
     </aside>
   )
 }

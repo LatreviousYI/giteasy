@@ -252,12 +252,26 @@ export const ipc = {
 
   submoduleUpdate: (path: string, init: boolean) =>
     invoke<void>('submodule_update', { path, init }),
+  submoduleAdd: (path: string, url: string, target: string) =>
+    invoke<void>('submodule_add', { path, url, target }),
+  submoduleRemove: (path: string, target: string) =>
+    invoke<void>('submodule_remove', { path, target }),
+  submoduleMove: (path: string, oldPath: string, newPath: string) =>
+    invoke<void>('submodule_move', { path, oldPath, newPath }),
   worktreeAdd: (
     path: string,
     dir: string,
     branch: string | null,
-    newBranch: boolean
-  ) => invoke<void>('worktree_add', { path, dir, branch, newBranch }),
+    newBranch: boolean,
+    startPoint?: string | null
+  ) =>
+    invoke<void>('worktree_add', {
+      path,
+      dir,
+      branch,
+      newBranch,
+      startPoint
+    }),
   worktreeRemove: (path: string, dir: string, force: boolean) =>
     invoke<void>('worktree_remove', { path, dir, force }),
 

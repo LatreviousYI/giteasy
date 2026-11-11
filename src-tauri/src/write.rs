@@ -797,12 +797,58 @@ pub async fn submodule_update(
 }
 
 #[tauri::command]
+pub async fn submodule_add(
+    state: State<'_, crate::AppState>,
+    path: String,
+    url: String,
+    target: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["submodule", "add", url.as_str(), target.as_str()]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn submodule_remove(
+    state: State<'_, crate::AppState>,
+    path: String,
+    target: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(
+        &path,
+        &["submodule", "deinit", "-f", "--", target.as_str()],
+    )
+    .await?;
+    util::git(&path, &["rm", "-f", "--", target.as_str()]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn submodule_move(
+    state: State<'_, crate::AppState>,
+    path: String,
+    old_path: String,
+    new_path: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(
+        &path,
+        &["mv", old_path.as_str(), new_path.as_str()],
+    )
+    .await?;
+    util::git(&path, &["submodule", "sync", "--recursive"]).await?;
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn worktree_add(
     state: State<'_, crate::AppState>,
     path: String,
     dir: String,
     branch: Option<String>,
     new_branch: bool,
+    start_point: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     let mut args: Vec<String> = vec!["worktree".into(), "add".into()];
@@ -817,6 +863,11 @@ pub async fn worktree_add(
     if !new_branch {
         if let Some(branch) = branch.as_ref() {
             args.push(branch.clone());
+        }
+    }
+    if new_branch {
+        if let Some(start_point) = start_point.filter(|value| !value.trim().is_empty()) {
+            args.push(start_point);
         }
     }
     util::git(&path, &args).await?;

@@ -10,6 +10,7 @@ import {
   FolderTree,
   FolderOpen,
   GitBranch,
+  Pencil,
   Play,
   Plus,
   RefreshCw,
@@ -107,6 +108,7 @@ interface RemoteSectionProps {
   onToggle: (name: string) => void
   onPick: (value: string) => void
   onCheckout: (branch: BranchDto) => void
+  onWorktree: (branch: BranchDto) => void
   onDeleteRemote: (remote: RemoteDto) => void
   onDeleteBranch: (remote: RemoteDto, branch: BranchDto, shortName: string) => void
 }
@@ -120,6 +122,7 @@ export function RemoteSection({
   onToggle,
   onPick,
   onCheckout,
+  onWorktree,
   onDeleteRemote,
   onDeleteBranch
 }: RemoteSectionProps) {
@@ -199,6 +202,17 @@ export function RemoteSection({
                       {shortName}
                     </span>
                     <div className="row-actions">
+                      <button
+                        className="icon-btn"
+                        style={{ width: 20, height: 20 }}
+                        title="检出为 Worktree"
+                        onClick={(event) => {
+                          event.stopPropagation()
+                          onWorktree(branch)
+                        }}
+                      >
+                        <FolderTree size={12} />
+                      </button>
                       <button
                         className="icon-btn"
                         style={{ width: 20, height: 20 }}
@@ -397,13 +411,19 @@ interface SubmoduleSectionProps {
   repoPath: string
   onUpdate: () => void
   onOpen: (submodule: SubmoduleDto) => void
+  onAdd: () => void
+  onMove: (submodule: SubmoduleDto) => void
+  onRemove: (submodule: SubmoduleDto) => void
 }
 
 export function SubmoduleSection({
   submodules,
   repoPath,
   onUpdate,
-  onOpen
+  onOpen,
+  onAdd,
+  onMove,
+  onRemove
 }: SubmoduleSectionProps) {
   if (submodules.length === 0) return null
   return (
@@ -413,6 +433,14 @@ export function SubmoduleSection({
         子模块
         <span className="count">{submodules.length}</span>
         <span className="spacer" />
+        <button
+          className="icon-btn"
+          style={{ width: 20, height: 20 }}
+          title="添加子模块"
+          onClick={onAdd}
+        >
+          <Plus size={12} />
+        </button>
         <button
           className="icon-btn"
           style={{ width: 20, height: 20 }}
@@ -451,6 +479,28 @@ export function SubmoduleSection({
               }}
             >
               <FolderOpen size={12} />
+            </button>
+            <button
+              className="icon-btn"
+              style={{ width: 20, height: 20 }}
+              title="移动子模块"
+              onClick={(event) => {
+                event.stopPropagation()
+                onMove(submodule)
+              }}
+            >
+              <Pencil size={12} />
+            </button>
+            <button
+              className="icon-btn"
+              style={{ width: 20, height: 20 }}
+              title="删除子模块"
+              onClick={(event) => {
+                event.stopPropagation()
+                onRemove(submodule)
+              }}
+            >
+              <Trash2 size={12} />
             </button>
           </div>
         ))}
