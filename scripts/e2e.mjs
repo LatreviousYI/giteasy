@@ -43,6 +43,29 @@ try {
   await driver.wait(until.elementLocated(By.css('.file-row')), 15_000)
 
   await shot('light/changes-1440.png', 1440, 900)
+  const verticalScrollCheck = await driver.executeScript(`
+    const body = document.querySelector('.diff-body');
+    const filler = document.createElement('div');
+    filler.style.height = '1200px';
+    body.appendChild(filler);
+    body.scrollTop = 320;
+    const result = {
+      clientHeight: body.clientHeight,
+      scrollHeight: body.scrollHeight,
+      scrollTop: body.scrollTop
+    };
+    filler.remove();
+    body.scrollTop = 0;
+    return result;
+  `)
+  if (
+    verticalScrollCheck.scrollHeight <= verticalScrollCheck.clientHeight ||
+    verticalScrollCheck.scrollTop <= 0
+  ) {
+    throw new Error(
+      `Diff body cannot scroll vertically: ${JSON.stringify(verticalScrollCheck)}`
+    )
+  }
   await shot('light/changes-1280.png', 1280, 800)
   await shot('light/changes-1080.png', 1080, 720)
 
