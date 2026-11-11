@@ -66,6 +66,28 @@ try {
       `Diff body cannot scroll vertically: ${JSON.stringify(verticalScrollCheck)}`
     )
   }
+  const diffRowFillCheck = await driver.executeScript(`
+    const body = document.querySelector('.diff-body');
+    const line = body.querySelector('.diff-line.add, .diff-line.del');
+    const code = line.querySelector('.code');
+    const original = code.textContent;
+    code.textContent = 'x'.repeat(500);
+    const result = {
+      bodyWidth: body.clientWidth,
+      bodyScrollWidth: body.scrollWidth,
+      lineWidth: line.getBoundingClientRect().width
+    };
+    code.textContent = original;
+    return result;
+  `)
+  if (
+    diffRowFillCheck.lineWidth < diffRowFillCheck.bodyWidth ||
+    diffRowFillCheck.lineWidth < diffRowFillCheck.bodyScrollWidth - 2
+  ) {
+    throw new Error(
+      `Diff row background does not fill content width: ${JSON.stringify(diffRowFillCheck)}`
+    )
+  }
   await shot('light/changes-1280.png', 1280, 800)
   await shot('light/changes-1080.png', 1080, 720)
 

@@ -879,6 +879,9 @@ button {
 .diff-line {
   display: flex;
   align-items: stretch;
+  width: max-content;
+  min-width: 100%;
+  box-sizing: border-box;
   min-height: 20px;
   line-height: 20px;
   white-space: pre;
@@ -929,6 +932,7 @@ button {
 }
 .diff-line .code {
   flex: 1;
+  min-width: max-content;
   padding-right: 16px;
 }
 .word-change {
