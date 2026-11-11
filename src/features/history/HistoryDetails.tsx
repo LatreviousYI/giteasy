@@ -303,6 +303,7 @@ export function CommitDetailPane({
             onToggleWhitespace={onToggleWhitespace}
             contextLines={contextLines}
             onContextLinesChange={onContextLinesChange}
+            imageSource={{ kind: 'commit', left: oid }}
           />
         </>
       ) : (

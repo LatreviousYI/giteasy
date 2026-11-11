@@ -333,6 +333,7 @@ export default function ChangesView() {
           onToggleWhitespace={setIgnoreWhitespace}
           contextLines={contextLines}
           onContextLinesChange={setContextLines}
+          imageSource={{ kind: 'workdir', staged: selectedStaged }}
         />
 
         {composerCollapsed ? (

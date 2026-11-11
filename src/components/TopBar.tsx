@@ -7,6 +7,9 @@ import {
   Command,
   FolderOpen,
   Github,
+  FileDown,
+  HardDrive,
+  Wrench,
   Plus,
   RefreshCw,
   Settings,
@@ -32,6 +35,9 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
   const setActivityOpen = useApp((s) => s.setActivityOpen)
   const setGithubOpen = useApp((s) => s.setGithubOpen)
+  const setPatchOpen = useApp((s) => s.setPatchOpen)
+  const setLfsOpen = useApp((s) => s.setLfsOpen)
+  const setToolsOpen = useApp((s) => s.setToolsOpen)
   const errorToast = useApp((s) => s.errorToast)
   const openRepo = useOpenRepo()
   const { runRemote, remotes } = useRemoteActions()
@@ -163,11 +169,36 @@ export default function TopBar({ status }: { status?: StatusDto }) {
           )}
           <button
             className="icon-btn"
+            title="工具与自定义命令"
+            onClick={() => setToolsOpen(true)}
+          >
+            <Wrench size={16} />
+          </button>
+          {repo && (
+            <button
+              className="icon-btn"
+              title="Git LFS"
+              onClick={() => setLfsOpen(true)}
+            >
+              <HardDrive size={16} />
+            </button>
+          )}
+          <button
+            className="icon-btn"
             title="GitHub"
             onClick={() => setGithubOpen(true)}
           >
             <Github size={16} />
           </button>
+          {repo && (
+            <button
+              className="icon-btn"
+              title="Patch 工具"
+              onClick={() => setPatchOpen(true)}
+            >
+              <FileDown size={16} />
+            </button>
+          )}
           <button
             className="icon-btn"
             title="命令面板 (Ctrl+K)"

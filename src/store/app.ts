@@ -62,6 +62,16 @@ interface AppStore {
   setActivityOpen: (open: boolean) => void
   githubOpen: boolean
   setGithubOpen: (open: boolean) => void
+  patchOpen: boolean
+  setPatchOpen: (open: boolean) => void
+  lfsOpen: boolean
+  setLfsOpen: (open: boolean) => void
+  toolsOpen: boolean
+  setToolsOpen: (open: boolean) => void
+  bisectOpen: boolean
+  setBisectOpen: (open: boolean) => void
+  repoManagerOpen: boolean
+  setRepoManagerOpen: (open: boolean) => void
   settings: Settings | null
   setSettings: (settings: Settings | null) => void
   progress: ProgressEvent | null
@@ -273,6 +283,16 @@ export const useApp = create<AppStore>((set, get) => ({
   setActivityOpen: (activityOpen) => set({ activityOpen }),
   githubOpen: false,
   setGithubOpen: (githubOpen) => set({ githubOpen }),
+  patchOpen: false,
+  setPatchOpen: (patchOpen) => set({ patchOpen }),
+  lfsOpen: false,
+  setLfsOpen: (lfsOpen) => set({ lfsOpen }),
+  toolsOpen: false,
+  setToolsOpen: (toolsOpen) => set({ toolsOpen }),
+  bisectOpen: false,
+  setBisectOpen: (bisectOpen) => set({ bisectOpen }),
+  repoManagerOpen: false,
+  setRepoManagerOpen: (repoManagerOpen) => set({ repoManagerOpen }),
   settings: null,
   setSettings: (settings) => set({ settings }),
   progress: null,

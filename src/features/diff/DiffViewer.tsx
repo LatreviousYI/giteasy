@@ -14,6 +14,7 @@ import { statusMeta } from '../../lib/format'
 import { Empty, Spinner } from '../../components/Empty'
 import { useApp } from '../../store/app'
 import { ipc } from '../../lib/ipc'
+import ImageDiffViewer from './ImageDiffViewer'
 
 interface SplitRow {
   left?: { line: DiffLine; index: number }
@@ -158,6 +159,10 @@ interface DiffViewerProps {
   onToggleWhitespace?: (value: boolean) => void
   contextLines?: number
   onContextLinesChange?: (value: number) => void
+  imageSource?:
+    | { kind: 'workdir'; staged: boolean }
+    | { kind: 'commit'; left: string }
+    | { kind: 'range'; left: string; right: string }
 }
 
 export default function DiffViewer({
@@ -172,7 +177,8 @@ export default function DiffViewer({
   ignoreWhitespace,
   onToggleWhitespace,
   contextLines,
-  onContextLinesChange
+  onContextLinesChange,
+  imageSource
 }: DiffViewerProps) {
   const [selected, setSelected] = useState<Record<number, number[]>>({})
   const openInspector = useApp((s) => s.openInspector)
@@ -457,7 +463,26 @@ export default function DiffViewer({
         )}
 
         {diff.binary ? (
-          <div className="binary-note">二进制文件，无法显示文本差异</div>
+          imageSource &&
+          /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(diff.path) &&
+          repo ? (
+            <ImageDiffViewer
+              repoPath={repo.path}
+              file={diff.path}
+              source={
+                imageSource.kind === 'workdir'
+                  ? 'workdir'
+                  : imageSource.kind === 'commit'
+                    ? 'commit'
+                    : 'range'
+              }
+              left={'left' in imageSource ? imageSource.left : null}
+              right={'right' in imageSource ? imageSource.right : null}
+              staged={imageSource.kind === 'workdir' ? imageSource.staged : undefined}
+            />
+          ) : (
+            <div className="binary-note">二进制文件，无法显示文本差异</div>
+          )
         ) : visibleHunks.length === 0 ? (
           <div className="diff-empty">该文件没有可显示的文本改动。</div>
         ) : (

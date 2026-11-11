@@ -22,6 +22,11 @@ import FileInspector from './features/inspector/FileInspector'
 import SshTrustDialog from './components/SshTrustDialog'
 import ActivityPanel from './features/activity/ActivityPanel'
 import GitHubPanel from './features/github/GitHubPanel'
+import PatchDialog from './features/patch/PatchDialog'
+import LfsPanel from './features/lfs/LfsPanel'
+import ToolsPanel from './features/tools/ToolsPanel'
+import BisectDialog from './features/bisect/BisectDialog'
+import RepositoryManagerDialog from './features/repo/RepositoryManagerDialog'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
@@ -33,6 +38,11 @@ export default function App() {
   const settingsOpen = useApp((s) => s.settingsOpen)
   const activityOpen = useApp((s) => s.activityOpen)
   const githubOpen = useApp((s) => s.githubOpen)
+  const patchOpen = useApp((s) => s.patchOpen)
+  const lfsOpen = useApp((s) => s.lfsOpen)
+  const toolsOpen = useApp((s) => s.toolsOpen)
+  const bisectOpen = useApp((s) => s.bisectOpen)
+  const repoManagerOpen = useApp((s) => s.repoManagerOpen)
   const paletteOpen = useApp((s) => s.paletteOpen)
   const setPaletteOpen = useApp((s) => s.setPaletteOpen)
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
@@ -247,6 +257,11 @@ export default function App() {
       {settingsOpen && <SettingsDialog />}
       {activityOpen && repo && <ActivityPanel />}
       {githubOpen && <GitHubPanel />}
+      {patchOpen && repo && <PatchDialog />}
+      {lfsOpen && repo && <LfsPanel />}
+      {toolsOpen && <ToolsPanel />}
+      {bisectOpen && repo && <BisectDialog />}
+      {repoManagerOpen && <RepositoryManagerDialog />}
       {paletteOpen && <CommandPalette />}
       {repo && <FileInspector />}
       <SshTrustDialog />

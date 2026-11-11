@@ -320,6 +320,17 @@ const settings: Settings = {
   externalEditor: '',
   terminal: '',
   autoFetchMinutes: 0,
+  gpgSign: false,
+  gpgKey: '',
+  externalDiffTools: ['code --diff'],
+  externalMergeTools: ['code --merge'],
+  customCommands: [
+    {
+      name: '当前分支状态',
+      command: 'git status --short --branch',
+      kind: 'shell'
+    }
+  ],
   recent: [
     { path: '/tmp/giteasy-demo', name: 'giteasy-demo', lastOpened: now - 60 },
     { path: '/tmp/giteasy-conflict', name: 'giteasy-conflict', lastOpened: now - 86400 }
@@ -604,6 +615,7 @@ export async function mockInvoke<T>(
     case 'repo_discover':
       return [mockRepoInfo.path, '/tmp/giteasy-conflict'] as T
     case 'repo_forget':
+    case 'repo_rename_recent':
       return undefined as T
     case 'status_get':
       return status as T
@@ -676,6 +688,50 @@ export async function mockInvoke<T>(
         { path: 'docs', name: 'docs', kind: 'tree', oid: oid(43), size: 0 },
         { path: 'docs/guide.md', name: 'guide.md', kind: 'blob', oid: oid(44), size: 240 }
       ] as T
+    case 'lfs_status':
+      return {
+        available: true,
+        version: 'git-lfs/3.7.0',
+        status: 'On branch main\\nNothing to commit',
+        locks: [
+          {
+            id: 'lock-1',
+            path: 'assets/hero.psd',
+            owner: 'demo-user',
+            lockedAt: new Date(now * 1000).toISOString()
+          }
+        ]
+      } as T
+    case 'lfs_unlock':
+      return undefined as T
+    case 'bisect_status':
+      return {
+        active: false,
+        current: oid(12),
+        shortOid: short(12),
+        log: ''
+      } as T
+    case 'bisect_start':
+    case 'bisect_mark':
+    case 'bisect_skip':
+    case 'bisect_reset':
+      return undefined as T
+    case 'repo_stats':
+      return {
+        commits: 10,
+        branches: 2,
+        tags: 1,
+        contributors: 2,
+        trackedFiles: 18,
+        topContributors: [
+          { name: 'Demo User <demo@example.com>', commits: 8 },
+          { name: 'Contributor <contributor@example.com>', commits: 2 }
+        ]
+      } as T
+    case 'run_custom_command':
+      return 'custom command completed' as T
+    case 'run_external_tool':
+      return undefined as T
     case 'file_at_rev':
       return {
         path: String(payload.file ?? 'src/theme.ts'),
@@ -683,6 +739,16 @@ export async function mockInvoke<T>(
           "export const theme = {\\n  accent: '#5b6cff',\\n  surface: '#ffffff'\\n}\\n",
         binary: false,
         size: 68
+      } as T
+    case 'image_diff':
+      return {
+        path: String(payload.file ?? 'assets/preview.svg'),
+        before:
+          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iI2U4ZWNmNSIvPjxjaXJjbGUgY3g9IjEyMCIgY3k9IjkwIiByPSI1MCIgZmlsbD0iIzViNmNmZiIvPjwvc3ZnPg==',
+        after:
+          'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIzMjAiIGhlaWdodD0iMTgwIj48cmVjdCB3aWR0aD0iMzIwIiBoZWlnaHQ9IjE4MCIgZmlsbD0iI2Y4ZjlmYiIvPjxjaXJjbGUgY3g9IjIwMCIgY3k9IjkwIiByPSI1MCIgZmlsbD0iIzFhN2YzNyIvPjwvc3ZnPg==',
+        beforeSize: 228,
+        afterSize: 230
       } as T
     case 'reflog_list':
       return [
@@ -764,6 +830,15 @@ export async function mockInvoke<T>(
       return diffFor(String(payload.file ?? '')) as T
     case 'diff_range':
       return diffFor(String(payload.file ?? '')) as T
+    case 'generate_patch':
+      return `diff --git a/src/theme.ts b/src/theme.ts\n--- a/src/theme.ts\n+++ b/src/theme.ts\n@@ -1,3 +1,4 @@\n+// generated patch\n export const theme = {}\n` as T
+    case 'save_patch_file':
+      return undefined as T
+    case 'read_patch_file':
+      return 'diff --git a/demo.txt b/demo.txt\n' as T
+    case 'apply_patch_text':
+    case 'apply_patch_file':
+      return undefined as T
     case 'settings_get':
       return settings as T
     case 'settings_set':

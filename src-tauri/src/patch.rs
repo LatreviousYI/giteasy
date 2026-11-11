@@ -4,6 +4,7 @@ use crate::read::{build_diff, DiffSource};
 use crate::util;
 use git2::Patch;
 use similar::TextDiff;
+use std::path::Path;
 use tauri::State;
 
 fn split_lines(text: &str) -> Vec<&str> {
@@ -235,4 +236,97 @@ pub async fn apply_selection(
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     apply_selection_impl(&path, &file, &mode, selections).await
+}
+
+#[tauri::command]
+pub async fn generate_patch(
+    path: String,
+    kind: String,
+    left: Option<String>,
+    right: Option<String>,
+    file: Option<String>,
+) -> Result<String, AppError> {
+    let mut args: Vec<String> = match kind.as_str() {
+        "worktree" => vec!["diff".into(), "--binary".into(), "HEAD".into()],
+        "commit" => vec![
+            "show".into(),
+            "--format=".into(),
+            "--binary".into(),
+            left.ok_or_else(|| AppError::user("请选择提交"))?,
+        ],
+        "range" => vec![
+            "diff".into(),
+            "--binary".into(),
+            left.ok_or_else(|| AppError::user("请选择比较起点"))?,
+            right.ok_or_else(|| AppError::user("请选择比较终点"))?,
+        ],
+        "stash" => vec![
+            "stash".into(),
+            "show".into(),
+            "-p".into(),
+            "--binary".into(),
+            left.ok_or_else(|| AppError::user("请选择 Stash"))?,
+        ],
+        _ => return Err(AppError::user("不支持的 Patch 来源")),
+    };
+    if let Some(file) = file.filter(|value| !value.trim().is_empty()) {
+        args.push("--".into());
+        args.push(file);
+    }
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    util::git(&path, &refs).await
+}
+
+#[tauri::command]
+pub fn save_patch_file(target: String, content: String) -> Result<(), AppError> {
+    if let Some(parent) = Path::new(&target).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    std::fs::write(target, content)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn read_patch_file(file: String) -> Result<String, AppError> {
+    Ok(std::fs::read_to_string(file)?)
+}
+
+pub(crate) async fn apply_patch_text_impl(
+    path: &str,
+    patch: &str,
+    check_only: bool,
+) -> Result<(), AppError> {
+    if patch.trim().is_empty() {
+        return Err(AppError::user("Patch 内容为空"));
+    }
+    let args: &[&str] = if check_only {
+        &["apply", "--check", "--whitespace=nowarn", "-"]
+    } else {
+        &["apply", "--whitespace=nowarn", "-"]
+    };
+    util::git_output(path, args, Some(patch.as_bytes())).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn apply_patch_text(
+    state: State<'_, crate::AppState>,
+    path: String,
+    patch: String,
+    check_only: bool,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    apply_patch_text_impl(&path, &patch, check_only).await
+}
+
+#[tauri::command]
+pub async fn apply_patch_file(
+    state: State<'_, crate::AppState>,
+    path: String,
+    file: String,
+    check_only: bool,
+) -> Result<(), AppError> {
+    let patch = std::fs::read_to_string(&file)?;
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    apply_patch_text_impl(&path, &patch, check_only).await
 }

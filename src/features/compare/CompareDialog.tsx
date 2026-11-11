@@ -204,6 +204,11 @@ export default function CompareDialog({
             onToggleWhitespace={setIgnoreWhitespace}
             contextLines={contextLines}
             onContextLinesChange={setContextLines}
+            imageSource={{
+              kind: 'range',
+              left: submitted?.left ?? left,
+              right: submitted?.right ?? right
+            }}
           />
         </div>
       </div>

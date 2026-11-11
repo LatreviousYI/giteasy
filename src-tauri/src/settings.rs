@@ -14,6 +14,14 @@ pub struct RecentRepo {
     pub last_opened: i64,
 }
 
+#[derive(Serialize, Deserialize, Clone, Default)]
+#[serde(rename_all = "camelCase", default)]
+pub struct CustomCommand {
+    pub name: String,
+    pub command: String,
+    pub kind: String,
+}
+
 impl Default for RecentRepo {
     fn default() -> Self {
         Self {
@@ -33,6 +41,11 @@ pub struct Settings {
     pub external_editor: String,
     pub terminal: String,
     pub auto_fetch_minutes: u32,
+    pub gpg_sign: bool,
+    pub gpg_key: String,
+    pub external_diff_tools: Vec<String>,
+    pub external_merge_tools: Vec<String>,
+    pub custom_commands: Vec<CustomCommand>,
     pub recent: Vec<RecentRepo>,
 }
 
@@ -45,6 +58,11 @@ impl Default for Settings {
             external_editor: String::new(),
             terminal: String::new(),
             auto_fetch_minutes: 0,
+            gpg_sign: false,
+            gpg_key: String::new(),
+            external_diff_tools: Vec::new(),
+            external_merge_tools: Vec::new(),
+            custom_commands: Vec::new(),
             recent: Vec::new(),
         }
     }
@@ -127,6 +145,21 @@ pub fn repo_recent(state: tauri::State<'_, crate::AppState>) -> Vec<RecentRepo> 
 pub fn repo_forget(state: tauri::State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
     let mut guard = state.settings.lock().unwrap();
     guard.recent.retain(|r| r.path != path);
+    let snapshot = guard.clone();
+    drop(guard);
+    save(&snapshot)
+}
+
+#[tauri::command]
+pub fn repo_rename_recent(
+    state: tauri::State<'_, crate::AppState>,
+    path: String,
+    name: String,
+) -> Result<(), AppError> {
+    let mut guard = state.settings.lock().unwrap();
+    if let Some(repo) = guard.recent.iter_mut().find(|repo| repo.path == path) {
+        repo.name = name;
+    }
     let snapshot = guard.clone();
     drop(guard);
     save(&snapshot)

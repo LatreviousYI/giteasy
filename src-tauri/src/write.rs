@@ -295,9 +295,18 @@ pub async fn commit_create(
     amend: bool,
     signoff: bool,
     stage_all: bool,
+    gpg_sign: bool,
 ) -> Result<crate::model::CommitResult, AppError> {
+    let gpg_key = gpg_sign.then(|| {
+        state
+            .settings
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .gpg_key
+            .clone()
+    });
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    commit_create_impl(path, message, amend, signoff, stage_all).await
+    commit_create_impl(path, message, amend, signoff, stage_all, gpg_key).await
 }
 
 pub(crate) async fn commit_create_impl(
@@ -306,6 +315,7 @@ pub(crate) async fn commit_create_impl(
     amend: bool,
     signoff: bool,
     stage_all: bool,
+    gpg_key: Option<String>,
 ) -> Result<crate::model::CommitResult, AppError> {
     if message.trim().is_empty() {
         return Err(AppError::user("提交信息不能为空"));
@@ -319,6 +329,13 @@ pub(crate) async fn commit_create_impl(
     }
     if signoff {
         args.push("--signoff".into());
+    }
+    if let Some(key) = gpg_key {
+        args.push(if key.trim().is_empty() {
+            "--gpg-sign".into()
+        } else {
+            format!("--gpg-sign={}", key.trim())
+        });
     }
     let output = util::git_output(&path, &args, Some(message.as_bytes())).await?;
     let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
@@ -887,6 +904,63 @@ pub async fn worktree_remove(
         args.push("--force".into());
     }
     util::git(&path, &args).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn lfs_unlock(
+    state: State<'_, crate::AppState>,
+    path: String,
+    id: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["lfs", "unlock", "--id", id.as_str()]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn bisect_start(
+    state: State<'_, crate::AppState>,
+    path: String,
+    bad: String,
+    good: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["bisect", "start", bad.as_str(), good.as_str()]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn bisect_mark(
+    state: State<'_, crate::AppState>,
+    path: String,
+    mark: String,
+) -> Result<(), AppError> {
+    if mark != "good" && mark != "bad" {
+        return Err(AppError::user("Bisect 标记必须是 good 或 bad"));
+    }
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["bisect", mark.as_str()]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn bisect_skip(
+    state: State<'_, crate::AppState>,
+    path: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["bisect", "skip"]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn bisect_reset(
+    state: State<'_, crate::AppState>,
+    path: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    util::git(&path, &["bisect", "reset"]).await?;
     Ok(())
 }
 

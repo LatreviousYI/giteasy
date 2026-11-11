@@ -10,6 +10,9 @@ import {
   GitCommitHorizontal,
   GitMerge,
   Github,
+  FileDown,
+  HardDrive,
+  Wrench,
   ListChecks,
   Moon,
   RefreshCw,
@@ -43,6 +46,11 @@ export default function CommandPalette() {
   const closeRepoWorkspace = useApp((s) => s.closeRepoWorkspace)
   const setActivityOpen = useApp((s) => s.setActivityOpen)
   const setGithubOpen = useApp((s) => s.setGithubOpen)
+  const setPatchOpen = useApp((s) => s.setPatchOpen)
+  const setLfsOpen = useApp((s) => s.setLfsOpen)
+  const setToolsOpen = useApp((s) => s.setToolsOpen)
+  const setBisectOpen = useApp((s) => s.setBisectOpen)
+  const setRepoManagerOpen = useApp((s) => s.setRepoManagerOpen)
   const settings = useApp((s) => s.settings)
   const setSettings = useApp((s) => s.setSettings)
   const setView = useApp((s) => s.setView)
@@ -95,6 +103,41 @@ export default function CommandPalette() {
         hint: '账户 / 仓库 / 通知 / PR',
         icon: <Github size={15} />,
         run: () => setGithubOpen(true)
+      },
+      {
+        id: 'patch',
+        label: '打开 Patch 工具',
+        hint: '生成 / 保存 / 应用',
+        icon: <FileDown size={15} />,
+        run: () => setPatchOpen(true)
+      },
+      {
+        id: 'lfs',
+        label: '查看 Git LFS',
+        hint: '状态 / 文件锁',
+        icon: <HardDrive size={15} />,
+        run: () => setLfsOpen(true)
+      },
+      {
+        id: 'tools',
+        label: '工具与自定义命令',
+        hint: 'Shell / URL / 外部工具',
+        icon: <Wrench size={15} />,
+        run: () => setToolsOpen(true)
+      },
+      {
+        id: 'bisect',
+        label: 'Git Bisect',
+        hint: 'good / bad / skip',
+        icon: <GitBranch size={15} />,
+        run: () => setBisectOpen(true)
+      },
+      {
+        id: 'repo-manager',
+        label: 'Repository Manager',
+        hint: '最近仓库 / 统计',
+        icon: <FolderGit2 size={15} />,
+        run: () => setRepoManagerOpen(true)
       },
       {
         id: 'theme',
@@ -249,6 +292,11 @@ export default function CommandPalette() {
     setRepo,
     setActivityOpen,
     setGithubOpen,
+    setPatchOpen,
+    setLfsOpen,
+    setToolsOpen,
+    setBisectOpen,
+    setRepoManagerOpen,
     invalidate,
     toast,
     errorToast,

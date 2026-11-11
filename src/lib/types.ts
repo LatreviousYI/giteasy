@@ -153,6 +153,49 @@ export interface GitHubIssue {
   assignee: GitHubActor | null
 }
 
+export interface ImageDiffDto {
+  path: string
+  before: string | null
+  after: string | null
+  beforeSize: number
+  afterSize: number
+}
+
+export interface LfsLockDto {
+  id: string
+  path: string
+  owner: string
+  lockedAt: string
+}
+
+export interface LfsStatusDto {
+  available: boolean
+  version: string
+  status: string
+  locks: LfsLockDto[]
+}
+
+export interface BisectStatusDto {
+  active: boolean
+  current: string | null
+  shortOid: string | null
+  log: string
+}
+
+export interface ContributorStatDto {
+  name: string
+  commits: number
+}
+
+export interface RepoStatsDto {
+  commits: number
+  branches: number
+  tags: number
+  contributors: number
+  trackedFiles: number
+  topContributors: ContributorStatDto[]
+}
+
 export interface CommitResult {
   oid: string
   output: string
@@ -273,7 +316,18 @@ export interface Settings {
   externalEditor: string
   terminal: string
   autoFetchMinutes: number
+  gpgSign: boolean
+  gpgKey: string
+  externalDiffTools: string[]
+  externalMergeTools: string[]
+  customCommands: CustomCommand[]
   recent: RecentRepo[]
+}
+
+export interface CustomCommand {
+  name: string
+  command: string
+  kind: 'shell' | 'url' | string
 }
 
 export interface Identity {

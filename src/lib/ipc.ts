@@ -2,6 +2,7 @@ import { Channel, invoke as tauriInvoke } from '@tauri-apps/api/core'
 import { mockInvoke } from './mock'
 import type {
   ActivityEvent,
+  BisectStatusDto,
   BlameLine,
   BranchDto,
   CompareDto,
@@ -18,13 +19,16 @@ import type {
   GitHubNotification,
   GitHubRepo,
   Identity,
+  ImageDiffDto,
   LogQuery,
+  LfsStatusDto,
   ProgressEvent,
   RebaseCommit,
   RebaseStep,
   RecentRepo,
   RemoteDto,
   ReflogEntryDto,
+  RepoStatsDto,
   RepoInfo,
   Selection,
   Settings,
@@ -62,6 +66,8 @@ export const ipc = {
   repoDiscover: (root: string) => invoke<string[]>('repo_discover', { root }),
   repoRecent: () => invoke<RecentRepo[]>('repo_recent'),
   repoForget: (path: string) => invoke<void>('repo_forget', { path }),
+  repoRenameRecent: (path: string, name: string) =>
+    invoke<void>('repo_rename_recent', { path, name }),
 
   statusGet: (path: string) => invoke<StatusDto>('status_get', { path }),
   logQuery: (path: string, query: LogQuery) =>
@@ -128,6 +134,22 @@ export const ipc = {
     invoke<TreeEntryDto[]>('commit_tree', { path, rev }),
   fileAtRev: (path: string, rev: string, file: string) =>
     invoke<FileContentDto>('file_at_rev', { path, rev, file }),
+  imageDiff: (
+    path: string,
+    file: string,
+    source: 'workdir' | 'commit' | 'range',
+    left?: string | null,
+    right?: string | null,
+    staged?: boolean
+  ) =>
+    invoke<ImageDiffDto>('image_diff', {
+      path,
+      file,
+      source,
+      left,
+      right,
+      staged
+    }),
   reflogList: (path: string, limit = 200) =>
     invoke<ReflogEntryDto[]>('reflog_list', { path, limit }),
   blameGet: (path: string, file: string, rev?: string) =>
@@ -153,13 +175,36 @@ export const ipc = {
     mode: 'stage' | 'unstage',
     selections: Selection[]
   ) => invoke<void>('apply_selection', { path, file, mode, selections }),
+  generatePatch: (
+    path: string,
+    kind: string,
+    left?: string | null,
+    right?: string | null,
+    file?: string | null
+  ) => invoke<string>('generate_patch', { path, kind, left, right, file }),
+  savePatchFile: (target: string, content: string) =>
+    invoke<void>('save_patch_file', { target, content }),
+  readPatchFile: (file: string) => invoke<string>('read_patch_file', { file }),
+  applyPatchText: (path: string, patch: string, checkOnly: boolean) =>
+    invoke<void>('apply_patch_text', { path, patch, checkOnly }),
+  applyPatchFile: (path: string, file: string, checkOnly: boolean) =>
+    invoke<void>('apply_patch_file', { path, file, checkOnly }),
   commitCreate: (
     path: string,
     message: string,
     amend: boolean,
     signoff: boolean,
-    stageAll: boolean
-  ) => invoke<CommitResult>('commit_create', { path, message, amend, signoff, stageAll }),
+    stageAll: boolean,
+    gpgSign: boolean
+  ) =>
+    invoke<CommitResult>('commit_create', {
+      path,
+      message,
+      amend,
+      signoff,
+      stageAll,
+      gpgSign
+    }),
 
   branchCreate: (
     path: string,
@@ -279,6 +324,33 @@ export const ipc = {
     }),
   worktreeRemove: (path: string, dir: string, force: boolean) =>
     invoke<void>('worktree_remove', { path, dir, force }),
+  lfsStatus: (path: string) => invoke<LfsStatusDto>('lfs_status', { path }),
+  lfsUnlock: (path: string, id: string) =>
+    invoke<void>('lfs_unlock', { path, id }),
+  bisectStatus: (path: string) =>
+    invoke<BisectStatusDto>('bisect_status', { path }),
+  bisectStart: (path: string, bad: string, good: string) =>
+    invoke<void>('bisect_start', { path, bad, good }),
+  bisectMark: (path: string, mark: 'good' | 'bad') =>
+    invoke<void>('bisect_mark', { path, mark }),
+  bisectSkip: (path: string) => invoke<void>('bisect_skip', { path }),
+  bisectReset: (path: string) => invoke<void>('bisect_reset', { path }),
+  repoStats: (path: string) => invoke<RepoStatsDto>('repo_stats', { path }),
+  runCustomCommand: (
+    path: string,
+    name: string,
+    command: string,
+    kind: string,
+    file?: string | null
+  ) =>
+    invoke<string>('run_custom_command', { path, name, command, kind, file }),
+  runExternalTool: (
+    path: string,
+    file: string,
+    tool: string,
+    kind: 'diff' | 'merge'
+  ) =>
+    invoke<void>('run_external_tool', { path, file, tool, kind }),
 
   openInEditor: (path: string, file?: string | null) =>
     invoke<void>('open_in_editor', { path, file }),

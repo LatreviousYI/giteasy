@@ -20,6 +20,11 @@ export default function SettingsDialog() {
       externalEditor: '',
       terminal: '',
       autoFetchMinutes: 0,
+      gpgSign: false,
+      gpgKey: '',
+      externalDiffTools: [],
+      externalMergeTools: [],
+      customCommands: [],
       recent: []
     }
   )
@@ -141,6 +146,63 @@ export default function SettingsDialog() {
             onChange={(event) =>
               setForm({ ...form, autoFetchMinutes: Number(event.target.value) || 0 })
             }
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-[130px_minmax(0,1fr)] gap-3 items-end">
+        <label className="check" style={{ height: 32 }}>
+          <input
+            type="checkbox"
+            checked={form.gpgSign}
+            onChange={(event) => setForm({ ...form, gpgSign: event.target.checked })}
+          />
+          GPG 签名
+        </label>
+        <div className="field">
+          <label className="label">GPG Key ID（可选）</label>
+          <input
+            className="input mono"
+            value={form.gpgKey}
+            onChange={(event) => setForm({ ...form, gpgKey: event.target.value })}
+            placeholder="留空使用默认签名密钥"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div className="field">
+          <label className="label">外部 Diff 工具（每行一个）</label>
+          <textarea
+            className="textarea mono"
+            value={form.externalDiffTools.join('\n')}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                externalDiffTools: event.target.value
+                  .split('\n')
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+              })
+            }
+            placeholder="code --diff"
+          />
+        </div>
+        <div className="field">
+          <label className="label">外部 Merge 工具（每行一个）</label>
+          <textarea
+            className="textarea mono"
+            value={form.externalMergeTools.join('\n')}
+            onChange={(event) =>
+              setForm({
+                ...form,
+                externalMergeTools: event.target.value
+                  .split('\n')
+                  .map((value) => value.trim())
+                  .filter(Boolean)
+              })
+            }
+            placeholder="code --merge"
           />
         </div>
       </div>

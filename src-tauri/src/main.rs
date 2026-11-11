@@ -10,6 +10,7 @@ mod rebase;
 mod session;
 mod settings;
 mod ssh;
+mod tools;
 mod util;
 mod watcher;
 mod write;
@@ -51,6 +52,7 @@ fn main() {
             read::diff_range,
             read::commit_tree,
             read::file_at_rev,
+            read::image_diff,
             read::reflog_list,
             read::branches_list,
             read::tags_list,
@@ -61,7 +63,15 @@ fn main() {
             read::conflict_list,
             read::submodule_list,
             read::worktree_list,
+            read::lfs_status,
+            read::bisect_status,
+            read::repo_stats,
             patch::apply_selection,
+            patch::generate_patch,
+            patch::save_patch_file,
+            patch::read_patch_file,
+            patch::apply_patch_text,
+            patch::apply_patch_file,
             write::stage_paths,
             write::discard_paths,
             write::commit_create,
@@ -98,8 +108,15 @@ fn main() {
             write::submodule_move,
             write::worktree_add,
             write::worktree_remove,
+            write::lfs_unlock,
+            write::bisect_start,
+            write::bisect_mark,
+            write::bisect_skip,
+            write::bisect_reset,
             write::open_in_editor,
             write::open_in_terminal,
+            tools::run_custom_command,
+            tools::run_external_tool,
             ssh::ssh_probe_remote,
             ssh::ssh_trust_remote,
             ssh::ssh_public_key,
@@ -119,6 +136,7 @@ fn main() {
             settings::settings_set,
             settings::repo_recent,
             settings::repo_forget,
+            settings::repo_rename_recent,
             settings::identity_get,
             settings::identity_set,
         ])
@@ -228,6 +246,7 @@ mod tests {
             false,
             false,
             false,
+            None,
         )
         .await
         .unwrap();
@@ -528,6 +547,7 @@ mod tests {
             false,
             false,
             true,
+            None,
         )
         .await
         .unwrap();
@@ -548,6 +568,56 @@ mod tests {
             read::compare_refs_impl(path, "main".to_string(), "WORKTREE".to_string()).unwrap();
         assert_eq!(worktree_compare.right_oid, "WORKTREE");
         assert_eq!(worktree_compare.files[0].path, "hello.txt");
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn patch_generation_and_application_round_trip() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        std::fs::write(dir.join("hello.txt"), "line one\npatched line\n").unwrap();
+        let patch_text = patch::generate_patch(
+            path.clone(),
+            "worktree".to_string(),
+            None,
+            None,
+            Some("hello.txt".to_string()),
+        )
+        .await
+        .unwrap();
+        assert!(patch_text.contains("+patched line"));
+
+        git(&dir, &["restore", "hello.txt"]);
+        patch::apply_patch_text_impl(&path, &patch_text, true)
+            .await
+            .unwrap();
+        patch::apply_patch_text_impl(&path, &patch_text, false)
+            .await
+            .unwrap();
+        assert!(std::fs::read_to_string(dir.join("hello.txt"))
+            .unwrap()
+            .contains("patched line"));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn image_diff_encodes_supported_images() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"#5b6cff\"/></svg>";
+        std::fs::write(dir.join("preview.svg"), svg).unwrap();
+
+        let diff =
+            read::image_diff_impl(path, "preview.svg".to_string(), "workdir".to_string(), None, None, None)
+                .unwrap();
+        assert!(diff.before.is_none());
+        assert!(diff
+            .after
+            .as_deref()
+            .unwrap_or_default()
+            .starts_with("data:image/svg+xml;base64,"));
 
         let _ = std::fs::remove_dir_all(dir);
     }

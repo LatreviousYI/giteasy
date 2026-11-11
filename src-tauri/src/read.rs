@@ -1,10 +1,12 @@
 use crate::error::AppError;
 use crate::model::*;
 use crate::util;
+use base64::Engine as _;
 use git2::{
     BlameOptions, Delta, Diff, DiffFindOptions, DiffOptions, Oid, Patch, Repository,
     TreeWalkMode,
 };
+use serde_json::Value;
 use std::collections::BTreeMap;
 use std::path::Path;
 use tauri::State;
@@ -912,6 +914,134 @@ pub(crate) fn file_at_rev_impl(
 }
 
 #[tauri::command]
+pub async fn image_diff(
+    path: String,
+    file: String,
+    source: String,
+    left: Option<String>,
+    right: Option<String>,
+    staged: Option<bool>,
+) -> Result<ImageDiffDto, AppError> {
+    blocking_read(move || image_diff_impl(path, file, source, left, right, staged)).await
+}
+
+pub(crate) fn image_diff_impl(
+    path: String,
+    file: String,
+    source: String,
+    left: Option<String>,
+    right: Option<String>,
+    staged: Option<bool>,
+) -> Result<ImageDiffDto, AppError> {
+    let repo = util::open_repo(&path)?;
+    let before_bytes = match source.as_str() {
+        "workdir" => image_tree_bytes(&repo, "HEAD", &file)?,
+        "commit" => {
+            let rev = left
+                .clone()
+                .ok_or_else(|| AppError::user("缺少提交版本"))?;
+            let commit = repo
+                .revparse_single(&rev)?
+                .peel_to_commit()
+                .map_err(AppError::from)?;
+            if commit.parent_count() > 0 {
+                image_tree_bytes(&repo, &commit.parent_id(0)?.to_string(), &file)?
+            } else {
+                None
+            }
+        }
+        "range" => image_tree_bytes(
+            &repo,
+            left.as_deref()
+                .ok_or_else(|| AppError::user("缺少比较起点"))?,
+            &file,
+        )?,
+        _ => return Err(AppError::user("不支持的图片比较来源")),
+    };
+    let after_bytes = match source.as_str() {
+        "workdir" if staged.unwrap_or(false) => image_index_bytes(&repo, &file)?,
+        "workdir" => repo
+            .workdir()
+            .and_then(|workdir| std::fs::read(workdir.join(&file)).ok()),
+        "commit" => image_tree_bytes(
+            &repo,
+            left.as_deref()
+                .ok_or_else(|| AppError::user("缺少提交版本"))?,
+            &file,
+        )?,
+        "range" => {
+            if right.as_deref() == Some("WORKTREE") {
+                repo.workdir()
+                    .and_then(|workdir| std::fs::read(workdir.join(&file)).ok())
+            } else {
+                image_tree_bytes(
+                    &repo,
+                    right
+                        .as_deref()
+                        .ok_or_else(|| AppError::user("缺少比较终点"))?,
+                    &file,
+                )?
+            }
+        }
+        _ => None,
+    };
+    let before_size = before_bytes.as_ref().map(Vec::len).unwrap_or(0);
+    let after_size = after_bytes.as_ref().map(Vec::len).unwrap_or(0);
+    Ok(ImageDiffDto {
+        path: file.clone(),
+        before: before_bytes.and_then(|bytes| image_data_url(&file, &bytes)),
+        after: after_bytes.and_then(|bytes| image_data_url(&file, &bytes)),
+        before_size,
+        after_size,
+    })
+}
+
+fn image_tree_bytes(
+    repo: &Repository,
+    rev: &str,
+    file: &str,
+) -> Result<Option<Vec<u8>>, AppError> {
+    let Ok(object) = repo.revparse_single(rev) else {
+        return Ok(None);
+    };
+    let tree = object.peel_to_tree()?;
+    let Ok(entry) = tree.get_path(Path::new(file)) else {
+        return Ok(None);
+    };
+    Ok(repo
+        .find_blob(entry.id())
+        .ok()
+        .map(|blob| blob.content().to_vec()))
+}
+
+fn image_index_bytes(repo: &Repository, file: &str) -> Result<Option<Vec<u8>>, AppError> {
+    let index = repo.index()?;
+    let Some(entry) = index.get_path(Path::new(file), 0) else {
+        return Ok(None);
+    };
+    Ok(repo
+        .find_blob(entry.id)
+        .ok()
+        .map(|blob| blob.content().to_vec()))
+}
+
+fn image_data_url(file: &str, bytes: &[u8]) -> Option<String> {
+    let extension = Path::new(file).extension()?.to_string_lossy().to_ascii_lowercase();
+    let mime = match extension.as_str() {
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "svg" => "image/svg+xml",
+        "bmp" => "image/bmp",
+        "ico" => "image/x-icon",
+        _ => return None,
+    };
+    let encoded = base64::engine::general_purpose::STANDARD.encode(bytes);
+    Some(format!("data:{mime};base64,{encoded}"))
+}
+
+#[tauri::command]
 pub async fn reflog_list(
     path: String,
     limit: Option<usize>,
@@ -1297,6 +1427,131 @@ pub async fn worktree_list(path: String) -> Result<Vec<WorktreeDto>, AppError> {
     }
     push(&mut current, &mut out);
     Ok(out)
+}
+
+#[tauri::command]
+pub async fn lfs_status(path: String) -> Result<LfsStatusDto, AppError> {
+    let version = match util::git_output(&path, &["lfs", "version"], None).await {
+        Ok(output) => String::from_utf8_lossy(&output.stdout).trim().to_string(),
+        Err(error) => {
+            return Ok(LfsStatusDto {
+                available: false,
+                version: String::new(),
+                status: error.message,
+                locks: Vec::new(),
+            })
+        }
+    };
+    let status = util::git(&path, &["lfs", "status", "--porcelain"])
+        .await
+        .unwrap_or_default();
+    let locks_output = util::git(&path, &["lfs", "locks", "--json"])
+        .await
+        .unwrap_or_else(|_| "{\"locks\":[]}".to_string());
+    let locks = serde_json::from_str::<serde_json::Value>(&locks_output)
+        .ok()
+        .and_then(|value| value.get("locks").cloned())
+        .and_then(|value| value.as_array().cloned())
+        .unwrap_or_default()
+        .into_iter()
+        .map(|lock| LfsLockDto {
+            id: lock
+                .get("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            path: lock
+                .get("path")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            owner: lock
+                .get("owner")
+                .and_then(|owner| owner.get("name"))
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+            locked_at: lock
+                .get("locked_at")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .to_string(),
+        })
+        .collect();
+    Ok(LfsStatusDto {
+        available: true,
+        version,
+        status,
+        locks,
+    })
+}
+
+#[tauri::command]
+pub async fn bisect_status(path: String) -> Result<BisectStatusDto, AppError> {
+    let repo = util::open_repo(&path)?;
+    let active = repo.state() == git2::RepositoryState::Bisect;
+    drop(repo);
+    let short_oid = util::git_trimmed(&path, &["rev-parse", "--short", "HEAD"])
+        .await
+        .ok();
+    let current = util::git_trimmed(&path, &["rev-parse", "HEAD"]).await.ok();
+    let log = util::git(&path, &["bisect", "log"])
+        .await
+        .unwrap_or_default();
+    Ok(BisectStatusDto {
+        active,
+        current,
+        short_oid,
+        log,
+    })
+}
+
+#[tauri::command]
+pub async fn repo_stats(path: String) -> Result<RepoStatsDto, AppError> {
+    let commits = util::git_trimmed(&path, &["rev-list", "--count", "HEAD"])
+        .await
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0);
+    let branches = util::git(&path, &["for-each-ref", "--format=%(refname)", "refs/heads"])
+        .await
+        .map(|value| value.lines().count())
+        .unwrap_or(0);
+    let tags = util::git(&path, &["tag"])
+        .await
+        .map(|value| value.lines().count())
+        .unwrap_or(0);
+    let tracked_files = util::git(&path, &["ls-files"])
+        .await
+        .map(|value| value.lines().count())
+        .unwrap_or(0);
+    let shortlog = util::git(&path, &["shortlog", "-sne", "HEAD"])
+        .await
+        .unwrap_or_default();
+    let mut contributors = Vec::new();
+    for line in shortlog.lines() {
+        let trimmed = line.trim_start();
+        let mut parts = trimmed.splitn(2, char::is_whitespace);
+        let count = parts
+            .next()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(0);
+        let name = parts.next().unwrap_or_default().trim().to_string();
+        if !name.is_empty() {
+            contributors.push(ContributorStatDto { name, commits: count });
+        }
+    }
+    contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
+    let contributor_count = contributors.len();
+    contributors.truncate(10);
+    Ok(RepoStatsDto {
+        commits,
+        branches,
+        tags,
+        contributors: contributor_count,
+        tracked_files,
+        top_contributors: contributors,
+    })
 }
 
 #[cfg(test)]

@@ -128,6 +128,61 @@ pub struct ReflogEntryDto {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct ImageDiffDto {
+    pub path: String,
+    pub before: Option<String>,
+    pub after: Option<String>,
+    pub before_size: usize,
+    pub after_size: usize,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsLockDto {
+    pub id: String,
+    pub path: String,
+    pub owner: String,
+    pub locked_at: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct LfsStatusDto {
+    pub available: bool,
+    pub version: String,
+    pub status: String,
+    pub locks: Vec<LfsLockDto>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BisectStatusDto {
+    pub active: bool,
+    pub current: Option<String>,
+    pub short_oid: Option<String>,
+    pub log: String,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct RepoStatsDto {
+    pub commits: usize,
+    pub branches: usize,
+    pub tags: usize,
+    pub contributors: usize,
+    pub tracked_files: usize,
+    pub top_contributors: Vec<ContributorStatDto>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ContributorStatDto {
+    pub name: String,
+    pub commits: usize,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffLineDto {
     pub kind: String,
     pub old_line_no: Option<u32>,

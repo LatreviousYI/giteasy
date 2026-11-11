@@ -1,6 +1,14 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity, CheckCircle2, ChevronDown, ChevronRight, Copy, XCircle } from 'lucide-react'
+import {
+  Activity,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Copy,
+  Search,
+  XCircle
+} from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
@@ -18,6 +26,8 @@ export default function ActivityPanel() {
   const close = () => useApp.getState().setActivityOpen(false)
   const toast = useApp((s) => s.toast)
   const [expanded, setExpanded] = useState<number | null>(null)
+  const [keyword, setKeyword] = useState('')
+  const [status, setStatus] = useState<'all' | 'success' | 'error'>('all')
   const query = useQuery({
     queryKey: ['activity', repo?.path],
     queryFn: () => ipc.activityList(repo!.path, 100),
@@ -26,7 +36,15 @@ export default function ActivityPanel() {
   })
 
   if (!repo) return null
-  const events = query.data ?? []
+  const events = useMemo(
+    () =>
+      (query.data ?? []).filter((event) => {
+        if (status !== 'all' && event.status !== status) return false
+        const value = `${event.command} ${event.summary} ${event.output ?? ''} ${event.error ?? ''}`.toLowerCase()
+        return !keyword.trim() || value.includes(keyword.trim().toLowerCase())
+      }),
+    [query.data, keyword, status]
+  )
 
   const copyEvent = async (event: ActivityEvent) => {
     const text = [
@@ -59,6 +77,27 @@ export default function ActivityPanel() {
       }
       onClose={close}
     >
+      <div className="flex items-center gap-2 mb-2">
+        <div className="search-box" style={{ flex: 1 }}>
+          <Search size={13} />
+          <input
+            value={keyword}
+            onChange={(event) => setKeyword(event.target.value)}
+            placeholder="搜索命令、输出或错误"
+          />
+        </div>
+        <div className="seg">
+          {(['all', 'success', 'error'] as const).map((value) => (
+            <button
+              key={value}
+              className={status === value ? 'active' : ''}
+              onClick={() => setStatus(value)}
+            >
+              {value === 'all' ? '全部' : value === 'success' ? '成功' : '错误'}
+            </button>
+          ))}
+        </div>
+      </div>
       <div style={{ maxHeight: '62vh', overflow: 'auto', margin: -16 }}>
         {query.isLoading ? (
           <div className="flex items-center justify-center py-10">

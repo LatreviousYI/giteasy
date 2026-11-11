@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { CheckCircle2, RefreshCw } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useLog } from '../../lib/queries'
@@ -15,6 +15,7 @@ export default function CommitComposer({
   onCommitted: () => void
 }) {
   const repo = useApp((s) => s.repo)!
+  const settings = useApp((s) => s.settings)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
   const { data: recentCommits } = useLog(repo.path, {
@@ -26,10 +27,15 @@ export default function CommitComposer({
   const [amend, setAmend] = useState(false)
   const [signoff, setSignoff] = useState(false)
   const [stageAll, setStageAll] = useState(false)
+  const [gpgSign, setGpgSign] = useState(settings?.gpgSign ?? false)
   const [committing, setCommitting] = useState(false)
   const [convType, setConvType] = useState('feat')
   const [convScope, setConvScope] = useState('')
   const [convDesc, setConvDesc] = useState('')
+
+  useEffect(() => {
+    if (settings) setGpgSign(settings.gpgSign)
+  }, [settings?.gpgSign])
 
   const applyConventional = () => {
     const description = convDesc.trim()
@@ -44,7 +50,14 @@ export default function CommitComposer({
     if (!message.trim() || committing) return
     setCommitting(true)
     try {
-      const result = await ipc.commitCreate(repo.path, message, amend, signoff, stageAll)
+      const result = await ipc.commitCreate(
+        repo.path,
+        message,
+        amend,
+        signoff,
+        stageAll,
+        gpgSign
+      )
       setMessage('')
       setAmend(false)
       onCommitted()
@@ -149,6 +162,14 @@ export default function CommitComposer({
         <label className="check">
           <input type="checkbox" checked={signoff} onChange={(e) => setSignoff(e.target.checked)} />
           Sign-off
+        </label>
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={gpgSign}
+            onChange={(e) => setGpgSign(e.target.checked)}
+          />
+          GPG 签名
         </label>
         <label className="check">
           <input

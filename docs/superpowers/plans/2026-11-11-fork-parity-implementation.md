@@ -219,35 +219,35 @@
 
 ### M6-01 Patch
 
-- [-] 保存工作区、Commit、Commit range 和 Stash 为 Patch。
-- [-] 复制、应用、拖入和冲突校验。
+- [x] 保存工作区、Commit、Commit range 和 Stash 为 Patch。
+- [x] 复制、应用、拖入和冲突校验。
 
 ### M6-02 图片 diff
 
-- [ ] 普通、滑动和洋葱皮对比。
+- [x] 普通、滑动和洋葱皮对比。
 
 ### M6-03 Git LFS 与 GPG
 
-- [ ] LFS 状态、锁、进度和错误提示。
-- [ ] GPG 签名设置和提交流程。
+- [x] LFS 状态、锁、进度和错误提示。
+- [x] GPG 签名设置和提交流程。
 
 ### M6-04 外部工具与自定义命令
 
-- [ ] 多套外部 diff/merge 工具。
-- [ ] UI/Shell/URL 自定义命令及变量。
+- [x] 多套外部 diff/merge 工具。
+- [x] UI/Shell/URL 自定义命令及变量。
 
 ### M6-05 Bisect、Repository Manager、统计与 Activity
 
-- [ ] Bisect 状态和 good/bad/skip。
-- [ ] Repository Manager 分组、扫描、重命名和统计。
-- [ ] Activity Manager 和操作时间线完整化。
+- [x] Bisect 状态和 good/bad/skip。
+- [x] Repository Manager 分组、扫描、重命名和统计。
+- [x] Activity Manager 和操作时间线完整化。
 
 ## M7 发布硬化
 
 ### M7-01 自动化测试
 
-- [ ] Rust 集成测试覆盖核心 Git 操作和并发。
-- [ ] 前端单元、组件和 E2E。
+- [-] Rust 集成测试覆盖核心 Git 操作和并发。
+- [-] 前端单元、组件和 E2E。
 
 ### M7-02 视觉与交互回归
 
@@ -267,5 +267,5 @@
 
 ## 当前执行
 
-- 当前任务：`M6-01 Patch`
-- 下一任务：`M6-02 图片 diff`
+- 当前任务：`M7-01 自动化测试`
+- 下一任务：`M7-02 视觉与交互回归`
