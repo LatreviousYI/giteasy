@@ -49,6 +49,9 @@ try {
   await driver.findElement(By.xpath("//button[contains(., '历史')]")).click()
   await driver.wait(until.elementLocated(By.css('.commit-row')), 10_000)
   await shot('light/history-1440.png', 1440, 900)
+  await driver.findElement(By.css("[title='专注详情']")).click()
+  await shot('light/history-focus-1440.png', 1440, 900)
+  await driver.findElement(By.css("[title='显示提交列表']")).click()
 
   await driver.findElement(By.xpath("//button[contains(., '冲突')]")).click()
   await driver.wait(until.elementLocated(By.css('.conflict-pane')), 10_000)

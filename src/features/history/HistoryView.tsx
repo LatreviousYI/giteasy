@@ -29,8 +29,6 @@ export default function HistoryView() {
   const selectedCommit = useApp((s) => s.selectedCommit)
   const selectCommit = useApp((s) => s.selectCommit)
   const setRepo = useApp((s) => s.setRepo)
-  const layout = useApp((s) => s.diffLayout)
-  const setDiffLayout = useApp((s) => s.setDiffLayout)
   const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
   const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
   const contextLines = useApp((s) => s.diffContextLines)
@@ -53,6 +51,8 @@ export default function HistoryView() {
   const [reflogOpen, setReflogOpen] = useState(false)
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [busy, setBusy] = useState(false)
+  const [historyLayout, setHistoryLayout] = useState<'unified' | 'split'>('unified')
+  const [focusMode, setFocusMode] = useState(false)
   const commitListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -155,7 +155,7 @@ export default function HistoryView() {
   }
 
   return (
-    <div className="content">
+    <div className={`content ${focusMode ? 'history-focus' : ''}`}>
       <section className="commit-list">
         <div className="panel-head">
           <GitCommitHorizontal size={13} />
@@ -364,8 +364,10 @@ export default function HistoryView() {
           <CommitDetailPane
             repoPath={repo.path}
             oid={selectedCommit}
-            layout={layout}
-            onLayoutChange={setDiffLayout}
+            layout={historyLayout}
+            onLayoutChange={setHistoryLayout}
+            focusMode={focusMode}
+            onToggleFocus={() => setFocusMode((value) => !value)}
             busy={busy}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={setIgnoreWhitespace}

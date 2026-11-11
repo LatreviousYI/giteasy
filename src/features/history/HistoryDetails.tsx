@@ -6,6 +6,8 @@ import {
   GitCommitHorizontal,
   ListOrdered,
   MoreHorizontal,
+  Maximize2,
+  Minimize2,
   RotateCcw,
   Undo2
 } from 'lucide-react'
@@ -106,6 +108,8 @@ interface CommitDetailPaneProps {
   onRebase: () => void
   onCopy: () => void
   onReset: (mode: 'soft' | 'mixed' | 'hard') => void
+  focusMode: boolean
+  onToggleFocus: () => void
 }
 
 export function CommitDetailPane({
@@ -123,7 +127,9 @@ export function CommitDetailPane({
   onRevert,
   onRebase,
   onCopy,
-  onReset
+  onReset,
+  focusMode,
+  onToggleFocus
 }: CommitDetailPaneProps) {
   const { data: detail, isLoading } = useCommitDetail(repoPath, oid)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
@@ -209,6 +215,13 @@ export function CommitDetailPane({
           <button className="btn btn-sm" onClick={onCherryPick} disabled={busy}>
             <GitCommitHorizontal size={13} />
             拣选
+          </button>
+          <button
+            className="icon-btn"
+            title={focusMode ? '显示提交列表' : '专注详情'}
+            onClick={onToggleFocus}
+          >
+            {focusMode ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
           </button>
           <div className="relative">
             <button

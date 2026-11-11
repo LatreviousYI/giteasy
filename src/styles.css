@@ -1186,6 +1186,12 @@ button {
   min-height: 0;
   background: var(--surface);
 }
+.content.history-focus .commit-list {
+  display: none;
+}
+.content.history-focus .detail {
+  flex: 1 1 100%;
+}
 .commit-filters {
   display: flex;
   align-items: center;
