@@ -50,6 +50,10 @@ interface AppStore {
   selectCommit: (oid: string | null) => void
   diffLayout: 'unified' | 'split'
   setDiffLayout: (layout: 'unified' | 'split') => void
+  diffIgnoreWhitespace: boolean
+  setDiffIgnoreWhitespace: (value: boolean) => void
+  diffContextLines: number
+  setDiffContextLines: (value: number) => void
   paletteOpen: boolean
   setPaletteOpen: (open: boolean) => void
   settingsOpen: boolean
@@ -244,6 +248,12 @@ export const useApp = create<AppStore>((set, get) => ({
   diffLayout: 'split',
   setDiffLayout: (diffLayout) =>
     set((state) => activeRepoPatch(state, { diffLayout })),
+  diffIgnoreWhitespace: false,
+  setDiffIgnoreWhitespace: (diffIgnoreWhitespace) =>
+    set((state) => activeRepoPatch(state, { diffIgnoreWhitespace })),
+  diffContextLines: 3,
+  setDiffContextLines: (diffContextLines) =>
+    set((state) => activeRepoPatch(state, { diffContextLines })),
   paletteOpen: false,
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   settingsOpen: false,

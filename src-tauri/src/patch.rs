@@ -44,7 +44,7 @@ fn compute_patch(
     } else {
         DiffSource::Staged
     };
-    let diff = build_diff(&repo, &source, false)?;
+    let diff = build_diff(&repo, &source, false, 3)?;
     let mut delta_index = None;
     for (idx, delta) in diff.deltas().enumerate() {
         let new_path = delta
@@ -65,9 +65,10 @@ fn compute_patch(
     let delta = diff.get_delta(delta_index).unwrap();
     let new_file = stage_mode
         && matches!(delta.status(), git2::Delta::Added | git2::Delta::Untracked);
-    if !matches!(delta.status(), git2::Delta::Modified) && !new_file {
+    let deletion = matches!(delta.status(), git2::Delta::Deleted);
+    if !matches!(delta.status(), git2::Delta::Modified) && !new_file && !deletion {
         return Err(AppError::user(
-            "删除或重命名的文件暂不支持按块操作，请使用整文件操作",
+            "该文件类型暂不支持按块操作，请使用整文件操作",
         ));
     }
     let old_text = if new_file {

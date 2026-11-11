@@ -1,21 +1,52 @@
-import { useEffect, useMemo, useState } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent
+} from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   FileDiff,
-  Minus,
-  Plus,
-  Undo2
+  GripHorizontal
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useInvalidateRepo, useStatus, useWorkdirDiff } from '../../lib/queries'
 import { useApp } from '../../store/app'
-import { splitPath, statusMeta, statusOf } from '../../lib/format'
 import { Empty, Spinner } from '../../components/Empty'
 import { ConfirmDialog } from '../../components/Dialogs'
 import DiffViewer from '../diff/DiffViewer'
 import CommitComposer from './CommitComposer'
+import FileStatusTree from './FileStatusTree'
 import type { FileStatus } from '../../lib/types'
+
+const COMPOSER_MIN_HEIGHT = 170
+const COMPOSER_MAX_HEIGHT = 430
+const COMPOSER_DEFAULT_HEIGHT = 230
+
+function composerStorageKey(repoId: string) {
+  return `giteasy.composer.${encodeURIComponent(repoId)}`
+}
+
+function readComposerPrefs(repoId: string) {
+  try {
+    const saved = JSON.parse(
+      window.localStorage.getItem(composerStorageKey(repoId)) ?? '{}'
+    ) as { height?: number; collapsed?: boolean }
+    return {
+      height: Math.max(
+        COMPOSER_MIN_HEIGHT,
+        Math.min(COMPOSER_MAX_HEIGHT, Number(saved.height) || COMPOSER_DEFAULT_HEIGHT)
+      ),
+      collapsed: Boolean(saved.collapsed)
+    }
+  } catch {
+    return { height: COMPOSER_DEFAULT_HEIGHT, collapsed: false }
+  }
+}
 
 export default function ChangesView() {
   const repo = useApp((s) => s.repo)!
@@ -24,17 +55,34 @@ export default function ChangesView() {
   const selectFile = useApp((s) => s.selectFile)
   const layout = useApp((s) => s.diffLayout)
   const setDiffLayout = useApp((s) => s.setDiffLayout)
+  const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
+  const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
+  const contextLines = useApp((s) => s.diffContextLines)
+  const setContextLines = useApp((s) => s.setDiffContextLines)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
   const invalidate = useInvalidateRepo(repo.path)
 
   const { data: status, isLoading } = useStatus(repo.path)
-  const diffQuery = useWorkdirDiff(repo.path, selectedFile, selectedStaged)
+  const diffQuery = useWorkdirDiff(
+    repo.path,
+    selectedFile,
+    selectedStaged,
+    ignoreWhitespace,
+    contextLines
+  )
 
   const [applying, setApplying] = useState(false)
   const [discardTarget, setDiscardTarget] = useState<FileStatus | null>(null)
   const [busy, setBusy] = useState(false)
   const [opBusy, setOpBusy] = useState(false)
+  const [composerCollapsed, setComposerCollapsed] = useState(
+    () => readComposerPrefs(repo.path).collapsed
+  )
+  const [composerHeight, setComposerHeight] = useState(
+    () => readComposerPrefs(repo.path).height
+  )
+  const composerRepoRef = useRef<string | null>(null)
 
   const files = status?.files ?? []
   const conflicted = useMemo(() => files.filter((file) => file.conflicted), [files])
@@ -54,6 +102,21 @@ export default function ChangesView() {
     if (first) selectFile(first.path, !first.unstaged && first.staged)
     else selectFile(null)
   }, [status, files, conflicted, unstaged, staged, selectedFile, selectFile])
+
+  useEffect(() => {
+    const prefs = readComposerPrefs(repo.path)
+    composerRepoRef.current = repo.path
+    setComposerHeight(prefs.height)
+    setComposerCollapsed(prefs.collapsed)
+  }, [repo.path])
+
+  useEffect(() => {
+    if (composerRepoRef.current !== repo.path) return
+    window.localStorage.setItem(
+      composerStorageKey(repo.path),
+      JSON.stringify({ height: composerHeight, collapsed: composerCollapsed })
+    )
+  }, [repo.path, composerHeight, composerCollapsed])
 
   const currentFile = files.find((file) => file.path === selectedFile)
   const relevantState = currentFile
@@ -140,98 +203,28 @@ export default function ChangesView() {
     }
   }
 
-  const renderGroup = (
-    title: string,
-    groupFiles: FileStatus[],
-    groupStaged: boolean,
-    actionLabel?: string
-  ) => {
-    if (groupFiles.length === 0) return null
-    return (
-      <div>
-        <div className="group-head">
-          <span>{title}</span>
-          <span className="count">{groupFiles.length}</span>
-          <span className="spacer" />
-          {actionLabel && (
-            <button
-              disabled={busy}
-              onClick={() =>
-                stageFiles(
-                  groupFiles.map((file) => file.path),
-                  !groupStaged,
-                  groupStaged ? '已全部取消暂存' : '已全部暂存'
-                )
-              }
-            >
-              {actionLabel}
-            </button>
-          )}
-        </div>
-        {groupFiles.map((file) => {
-          const meta = statusMeta[statusOf(file)] ?? statusMeta.modified
-          const { name, dir } = splitPath(file.path)
-          const active = selectedFile === file.path && selectedStaged === groupStaged
-          return (
-            <div
-              key={`${groupStaged}-${file.path}`}
-              className={`file-row ${active ? 'active' : ''}`}
-              onClick={() => selectFile(file.path, groupStaged)}
-            >
-              <span className={`file-letter ${meta.className}`}>{meta.letter}</span>
-              <div className="file-row-main">
-                <div className="file-label">
-                  <span className="file-name">{name}</span>
-                  {dir && <span className="file-dir">{dir}</span>}
-                </div>
-              </div>
-              <div className="file-actions">
-                {file.conflicted ? (
-                  <button
-                    className="icon-btn"
-                    title="去解决冲突"
-                    onClick={(event) => {
-                      event.stopPropagation()
-                      useApp.getState().setView('conflicts')
-                    }}
-                  >
-                    <AlertTriangle size={14} />
-                  </button>
-                ) : (
-                  <>
-                    <button
-                      className="icon-btn"
-                      title={groupStaged ? '取消暂存' : '暂存'}
-                      disabled={busy}
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        stageFiles(
-                          [file.path],
-                          !groupStaged,
-                          groupStaged ? '已取消暂存' : '已暂存'
-                        )
-                      }}
-                    >
-                      {groupStaged ? <Minus size={14} /> : <Plus size={14} />}
-                    </button>
-                    <button
-                      className="icon-btn"
-                      title="丢弃改动"
-                      onClick={(event) => {
-                        event.stopPropagation()
-                        setDiscardTarget(file)
-                      }}
-                    >
-                      <Undo2 size={14} />
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          )
-        })}
-      </div>
-    )
+  const startComposerResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    const startY = event.clientY
+    const startHeight = composerHeight
+    const onMove = (moveEvent: PointerEvent) => {
+      setComposerHeight(
+        Math.max(
+          COMPOSER_MIN_HEIGHT,
+          Math.min(COMPOSER_MAX_HEIGHT, startHeight + startY - moveEvent.clientY)
+        )
+      )
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
   }
 
   return (
@@ -258,9 +251,50 @@ export default function ChangesView() {
             </div>
           ) : (
             <>
-              {renderGroup('冲突', conflicted, false)}
-              {renderGroup('未暂存', unstaged, false, '全部暂存')}
-              {renderGroup('已暂存', staged, true, '全部取消暂存')}
+              <FileStatusTree
+                title="冲突"
+                files={conflicted}
+                groupStaged={false}
+                selectedFile={selectedFile}
+                selectedStaged={selectedStaged}
+                busy={busy}
+                onSelect={selectFile}
+                onStage={(paths, stage) =>
+                  stageFiles(paths, stage, stage ? '已暂存' : '已取消暂存')
+                }
+                onDiscard={setDiscardTarget}
+                onResolveConflict={() => useApp.getState().setView('conflicts')}
+              />
+              <FileStatusTree
+                title="未暂存"
+                files={unstaged}
+                groupStaged={false}
+                actionLabel="全部暂存"
+                selectedFile={selectedFile}
+                selectedStaged={selectedStaged}
+                busy={busy}
+                onSelect={selectFile}
+                onStage={(paths, stage) =>
+                  stageFiles(paths, stage, stage ? '已暂存' : '已取消暂存')
+                }
+                onDiscard={setDiscardTarget}
+                onResolveConflict={() => useApp.getState().setView('conflicts')}
+              />
+              <FileStatusTree
+                title="已暂存"
+                files={staged}
+                groupStaged
+                actionLabel="全部取消暂存"
+                selectedFile={selectedFile}
+                selectedStaged={selectedStaged}
+                busy={busy}
+                onSelect={selectFile}
+                onStage={(paths, stage) =>
+                  stageFiles(paths, stage, stage ? '已暂存' : '已取消暂存')
+                }
+                onDiscard={setDiscardTarget}
+                onResolveConflict={() => useApp.getState().setView('conflicts')}
+              />
             </>
           )}
         </div>
@@ -295,13 +329,50 @@ export default function ChangesView() {
               : undefined
           }
           applying={applying}
+          ignoreWhitespace={ignoreWhitespace}
+          onToggleWhitespace={setIgnoreWhitespace}
+          contextLines={contextLines}
+          onContextLinesChange={setContextLines}
         />
 
-        <CommitComposer
-          busy={busy}
-          stagedCount={staged.length}
-          onCommitted={() => invalidate()}
-        />
+        {composerCollapsed ? (
+          <button
+            className="composer-collapsed"
+            onClick={() => setComposerCollapsed(false)}
+          >
+            <GripHorizontal size={14} />
+            提交到 {repo.branch ?? 'HEAD'}
+            <span>·</span>
+            <span>{staged.length} 个已暂存文件</span>
+            <span className="spacer" />
+            <ChevronUp size={14} />
+          </button>
+        ) : (
+          <div
+            className="composer-shell"
+            style={{ height: composerHeight }}
+          >
+            <div
+              className="composer-resizer"
+              onPointerDown={startComposerResize}
+              title="拖动调整提交区高度"
+            >
+              <GripHorizontal size={13} />
+            </div>
+            <button
+              className="composer-collapse-button"
+              onClick={() => setComposerCollapsed(true)}
+              title="收起提交区"
+            >
+              <ChevronDown size={13} />
+            </button>
+            <CommitComposer
+              busy={busy}
+              stagedCount={staged.length}
+              onCommitted={() => invalidate()}
+            />
+          </div>
+        )}
       </div>
 
       <ConfirmDialog

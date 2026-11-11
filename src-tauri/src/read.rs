@@ -231,9 +231,10 @@ pub fn build_diff<'repo>(
     repo: &'repo Repository,
     source: &DiffSource,
     ignore_whitespace: bool,
+    context_lines: u32,
 ) -> Result<Diff<'repo>, AppError> {
     let mut opts = DiffOptions::new();
-    opts.context_lines(3)
+    opts.context_lines(context_lines)
         .include_untracked(true)
         .recurse_untracked_dirs(true)
         .show_untracked_content(true)
@@ -366,8 +367,12 @@ pub async fn diff_workdir(
     file: String,
     staged: bool,
     ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
-    blocking_read(move || diff_workdir_impl(path, file, staged, ignore_whitespace)).await
+    blocking_read(move || {
+        diff_workdir_impl(path, file, staged, ignore_whitespace, context_lines)
+    })
+    .await
 }
 
 pub(crate) fn diff_workdir_impl(
@@ -375,6 +380,7 @@ pub(crate) fn diff_workdir_impl(
     file: String,
     staged: bool,
     ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
     let repo = util::open_repo(&path)?;
     let source = if staged {
@@ -382,7 +388,12 @@ pub(crate) fn diff_workdir_impl(
     } else {
         DiffSource::Workdir
     };
-    let diff = build_diff(&repo, &source, ignore_whitespace.unwrap_or(false))?;
+    let diff = build_diff(
+        &repo,
+        &source,
+        ignore_whitespace.unwrap_or(false),
+        context_lines.unwrap_or(3),
+    )?;
     let mut list = build_diff_dtos(&diff, Some(&file))?;
     list.pop()
         .ok_or_else(|| AppError::not_found(format!("未找到该文件的差异：{file}")))
@@ -394,8 +405,12 @@ pub async fn diff_commit(
     oid: String,
     file: String,
     ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
-    blocking_read(move || diff_commit_impl(path, oid, file, ignore_whitespace)).await
+    blocking_read(move || {
+        diff_commit_impl(path, oid, file, ignore_whitespace, context_lines)
+    })
+    .await
 }
 
 fn diff_commit_impl(
@@ -403,12 +418,14 @@ fn diff_commit_impl(
     oid: String,
     file: String,
     ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
     let repo = util::open_repo(&path)?;
     let diff = build_diff(
         &repo,
         &DiffSource::Commit(oid),
         ignore_whitespace.unwrap_or(false),
+        context_lines.unwrap_or(3),
     )?;
     let mut list = build_diff_dtos(&diff, Some(&file))?;
     list.pop()
@@ -592,7 +609,7 @@ fn commit_detail_impl(path: String, oid: String) -> Result<CommitDetail, AppErro
     let oid_parsed = Oid::from_str(&oid)?;
     let commit = repo.find_commit(oid_parsed)?;
     let dto = commit_dto(&repo, &commit);
-    let diff = build_diff(&repo, &DiffSource::Commit(oid), false)?;
+    let diff = build_diff(&repo, &DiffSource::Commit(oid), false, 3)?;
     let mut files = Vec::new();
     for idx in 0..diff.deltas().len().min(500) {
         let delta = diff.get_delta(idx).unwrap();

@@ -61,10 +61,34 @@ export const ipc = {
     invoke<CommitPage>('file_history', { path, file, limit }),
   commitDetail: (path: string, oid: string) =>
     invoke<CommitDetail>('commit_detail', { path, oid }),
-  diffWorkdir: (path: string, file: string, staged: boolean, ignoreWhitespace = false) =>
-    invoke<DiffDto>('diff_workdir', { path, file, staged, ignoreWhitespace }),
-  diffCommit: (path: string, oid: string, file: string, ignoreWhitespace = false) =>
-    invoke<DiffDto>('diff_commit', { path, oid, file, ignoreWhitespace }),
+  diffWorkdir: (
+    path: string,
+    file: string,
+    staged: boolean,
+    ignoreWhitespace = false,
+    contextLines = 3
+  ) =>
+    invoke<DiffDto>('diff_workdir', {
+      path,
+      file,
+      staged,
+      ignoreWhitespace,
+      contextLines
+    }),
+  diffCommit: (
+    path: string,
+    oid: string,
+    file: string,
+    ignoreWhitespace = false,
+    contextLines = 3
+  ) =>
+    invoke<DiffDto>('diff_commit', {
+      path,
+      oid,
+      file,
+      ignoreWhitespace,
+      contextLines
+    }),
   blameGet: (path: string, file: string, rev?: string) =>
     invoke<BlameLine[]>('blame_get', { path, file, rev }),
 

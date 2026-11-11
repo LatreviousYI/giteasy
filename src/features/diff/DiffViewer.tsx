@@ -1,6 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  ChevronDown,
+  ChevronUp,
   Columns2,
+  Copy,
   ExternalLink,
   History as HistoryIcon,
   Rows2,
@@ -15,6 +18,96 @@ import { ipc } from '../../lib/ipc'
 interface SplitRow {
   left?: { line: DiffLine; index: number }
   right?: { line: DiffLine; index: number }
+}
+
+interface InlineSegment {
+  text: string
+  changed: boolean
+}
+
+const MAX_RENDERED_DIFF_LINES = 3000
+
+function tokenize(value: string) {
+  return value.match(/\s+|[^\s]+/g) ?? []
+}
+
+export function diffSegments(oldValue: string, newValue: string) {
+  const before = tokenize(oldValue)
+  const after = tokenize(newValue)
+  if (before.length * after.length > 20_000) {
+    return {
+      before: before.map((text) => ({ text, changed: true })),
+      after: after.map((text) => ({ text, changed: true }))
+    }
+  }
+
+  const matrix = Array.from({ length: before.length + 1 }, () =>
+    new Array<number>(after.length + 1).fill(0)
+  )
+  for (let i = before.length - 1; i >= 0; i -= 1) {
+    for (let j = after.length - 1; j >= 0; j -= 1) {
+      matrix[i][j] =
+        before[i] === after[j]
+          ? matrix[i + 1][j + 1] + 1
+          : Math.max(matrix[i + 1][j], matrix[i][j + 1])
+    }
+  }
+
+  const left: InlineSegment[] = []
+  const right: InlineSegment[] = []
+  let i = 0
+  let j = 0
+  while (i < before.length || j < after.length) {
+    if (i < before.length && j < after.length && before[i] === after[j]) {
+      left.push({ text: before[i], changed: false })
+      right.push({ text: after[j], changed: false })
+      i += 1
+      j += 1
+    } else if (
+      j >= after.length ||
+      (i < before.length && matrix[i + 1][j] >= matrix[i][j + 1])
+    ) {
+      left.push({ text: before[i], changed: true })
+      i += 1
+    } else {
+      right.push({ text: after[j], changed: true })
+      j += 1
+    }
+  }
+  return { before: left, after: right }
+}
+
+function buildInlineHighlights(lines: DiffLine[]) {
+  const highlights = new Map<number, InlineSegment[]>()
+  let cursor = 0
+  while (cursor < lines.length) {
+    if (lines[cursor].kind === 'context') {
+      cursor += 1
+      continue
+    }
+    const deleted: number[] = []
+    const added: number[] = []
+    while (cursor < lines.length && lines[cursor].kind === 'del') {
+      deleted.push(cursor)
+      cursor += 1
+    }
+    while (cursor < lines.length && lines[cursor].kind === 'add') {
+      added.push(cursor)
+      cursor += 1
+    }
+    const pairs = Math.min(deleted.length, added.length)
+    for (let index = 0; index < pairs; index += 1) {
+      const deletedIndex = deleted[index]
+      const addedIndex = added[index]
+      const segments = diffSegments(
+        lines[deletedIndex].content,
+        lines[addedIndex].content
+      )
+      highlights.set(deletedIndex, segments.before)
+      highlights.set(addedIndex, segments.after)
+    }
+  }
+  return highlights
 }
 
 function buildSplit(lines: DiffLine[]): SplitRow[] {
@@ -63,6 +156,8 @@ interface DiffViewerProps {
   showLayoutToggle?: boolean
   ignoreWhitespace?: boolean
   onToggleWhitespace?: (value: boolean) => void
+  contextLines?: number
+  onContextLinesChange?: (value: number) => void
 }
 
 export default function DiffViewer({
@@ -75,12 +170,18 @@ export default function DiffViewer({
   applying,
   showLayoutToggle = true,
   ignoreWhitespace,
-  onToggleWhitespace
+  onToggleWhitespace,
+  contextLines,
+  onContextLinesChange
 }: DiffViewerProps) {
   const [selected, setSelected] = useState<Record<number, number[]>>({})
   const openInspector = useApp((s) => s.openInspector)
   const repo = useApp((s) => s.repo)
   const errorToast = useApp((s) => s.errorToast)
+  const toast = useApp((s) => s.toast)
+  const hunkRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  const [activeHunk, setActiveHunk] = useState(0)
+  const [showFullDiff, setShowFullDiff] = useState(false)
 
   const openInEditor = async () => {
     if (!repo || !diff) return
@@ -91,13 +192,48 @@ export default function DiffViewer({
     }
   }
 
+  const copyPath = async () => {
+    if (!diff) return
+    try {
+      await navigator.clipboard.writeText(diff.path)
+      toast('success', '路径已复制')
+    } catch {
+      toast('warn', '无法访问剪贴板')
+    }
+  }
+
   useEffect(() => {
     setSelected({})
+    setActiveHunk(0)
+    setShowFullDiff(false)
   }, [diff?.path, diff?.status, actionMode])
 
   const selectionCount = useMemo(
     () => Object.values(selected).reduce((total, lines) => total + lines.length, 0),
     [selected]
+  )
+  const totalDiffLines = useMemo(
+    () => diff?.hunks.reduce((total, hunk) => total + hunk.lines.length, 0) ?? 0,
+    [diff]
+  )
+  const visibleHunks = useMemo(() => {
+    if (!diff) return []
+    if (showFullDiff) return diff.hunks
+    let remaining = MAX_RENDERED_DIFF_LINES
+    const result: typeof diff.hunks = []
+    for (const hunk of diff.hunks) {
+      if (remaining <= 0) break
+      result.push({
+        ...hunk,
+        lines: hunk.lines.slice(0, remaining)
+      })
+      remaining -= Math.min(remaining, hunk.lines.length)
+    }
+    return result
+  }, [diff, showFullDiff])
+  const inlineHighlights = useMemo(
+    () => visibleHunks.map((hunk) => buildInlineHighlights(hunk.lines)),
+    [visibleHunks]
   )
 
   if (loading) {
@@ -155,6 +291,27 @@ export default function DiffViewer({
   }
 
   const actionLabel = actionMode === 'stage' ? '暂存' : '取消暂存'
+  const jumpHunk = (delta: number) => {
+    if (!diff || visibleHunks.length === 0) return
+    const next = Math.max(
+      0,
+      Math.min(visibleHunks.length - 1, activeHunk + delta)
+    )
+    setActiveHunk(next)
+    hunkRefs.current[next]?.scrollIntoView({ block: 'start' })
+  }
+  const renderCode = (hunkIndex: number, content: string, lineIndex: number) => {
+    const segments = inlineHighlights[hunkIndex]?.get(lineIndex)
+    if (!segments) return content || ' '
+    return segments.map((segment, index) => (
+      <span
+        key={`${index}-${segment.text}`}
+        className={segment.changed ? 'word-change' : undefined}
+      >
+        {segment.text}
+      </span>
+    ))
+  }
 
   return (
     <div className="diff-pane">
@@ -167,6 +324,44 @@ export default function DiffViewer({
           <span className="plus">+{diff.additions}</span> <span className="minus">-{diff.deletions}</span>
         </span>
         <span className="spacer" style={{ flex: 1 }} />
+        {visibleHunks.length > 0 && (
+          <div className="diff-mini-group" title="变更块导航">
+            <button
+              className="icon-btn"
+              title="上一处变更"
+              onClick={() => jumpHunk(-1)}
+              disabled={activeHunk <= 0}
+            >
+              <ChevronUp size={14} />
+            </button>
+            <span>
+              {Math.min(activeHunk + 1, visibleHunks.length)}/{visibleHunks.length}
+            </span>
+            <button
+              className="icon-btn"
+              title="下一处变更"
+              onClick={() => jumpHunk(1)}
+              disabled={activeHunk >= visibleHunks.length - 1}
+            >
+              <ChevronDown size={14} />
+            </button>
+          </div>
+        )}
+        {onContextLinesChange && (
+          <select
+            className="select"
+            style={{ width: 88, height: 26, fontSize: 10.5, padding: '0 6px' }}
+            value={contextLines ?? 3}
+            title="上下文行数"
+            onChange={(event) => onContextLinesChange(Number(event.target.value))}
+          >
+            {[1, 3, 5, 8, 12].map((value) => (
+              <option key={value} value={value}>
+                上下文 {value}
+              </option>
+            ))}
+          </select>
+        )}
         {onToggleWhitespace && (
           <button
             className={`btn btn-sm ${ignoreWhitespace ? 'btn-primary' : 'btn-ghost'}`}
@@ -178,6 +373,9 @@ export default function DiffViewer({
         )}
         <button className="icon-btn" title="在编辑器中打开" onClick={openInEditor}>
           <ExternalLink size={14} />
+        </button>
+        <button className="icon-btn" title="复制文件路径" onClick={copyPath}>
+          <Copy size={14} />
         </button>
         <button
           className="icon-btn"
@@ -233,93 +431,136 @@ export default function DiffViewer({
 
         {diff.binary ? (
           <div className="binary-note">二进制文件，无法显示文本差异</div>
-        ) : diff.hunks.length === 0 ? (
+        ) : visibleHunks.length === 0 ? (
           <div className="diff-empty">该文件没有可显示的文本改动。</div>
         ) : (
-          diff.hunks.map((hunk, hunkIndex) => (
-            <div key={`${hunk.header}-${hunkIndex}`}>
+          <>
+            {!showFullDiff && totalDiffLines > MAX_RENDERED_DIFF_LINES && (
               <div className="hunk-head">
-                <span className="hunk-text mono">{hunk.header}</span>
-                {onApply && (
-                  <div className="hunk-actions">
-                    <button
-                      className="btn btn-sm"
-                      onClick={() => applyHunk(hunkIndex)}
-                      disabled={applying}
-                    >
-                      {actionLabel}此块
-                    </button>
-                  </div>
-                )}
+                <span>
+                  大型差异已截断，当前显示前 {MAX_RENDERED_DIFF_LINES} 行，
+                  共 {totalDiffLines} 行。
+                </span>
+                <span style={{ flex: 1 }} />
+                <button className="btn btn-sm" onClick={() => setShowFullDiff(true)}>
+                  加载完整差异
+                </button>
               </div>
+            )}
+            {visibleHunks.map((hunk, hunkIndex) => (
+              <div
+                key={`${hunk.header}-${hunkIndex}`}
+                ref={(node) => {
+                  hunkRefs.current[hunkIndex] = node
+                }}
+              >
+                <div className="hunk-head">
+                  <span className="hunk-text mono">{hunk.header}</span>
+                  {onApply && (
+                    <div className="hunk-actions">
+                      <button
+                        className="btn btn-sm"
+                        onClick={() => applyHunk(hunkIndex)}
+                        disabled={applying}
+                      >
+                        {actionLabel}此块
+                      </button>
+                    </div>
+                  )}
+                </div>
 
-              {layout === 'unified'
-                ? hunk.lines.map((line, lineIndex) => (
-                    <div
-                      key={lineIndex}
-                      className={`diff-line ${line.kind} ${
-                        isSelected(hunkIndex, lineIndex) ? 'selected' : ''
-                      }`}
-                      onClick={() => toggleLine(hunkIndex, lineIndex, line)}
-                    >
-                      <span className="gutter">{line.oldLineNo ?? ''}</span>
-                      <span className="gutter">{line.newLineNo ?? ''}</span>
-                      <span className="sign">
-                        {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
-                      </span>
-                      <span className="code">{line.content || ' '}</span>
-                    </div>
-                  ))
-                : buildSplit(hunk.lines).map((row, rowIndex) => (
-                    <div className="diff-split" key={rowIndex}>
-                      <div className="half">
-                        {row.left ? (
-                          <div
-                            className={`diff-line ${row.left.line.kind} ${
-                              isSelected(hunkIndex, row.left.index) ? 'selected' : ''
-                            }`}
-                            onClick={() => toggleLine(hunkIndex, row.left!.index, row.left!.line)}
-                          >
-                            <span className="gutter">{row.left.line.oldLineNo ?? ''}</span>
-                            <span className="sign">
-                              {row.left.line.kind === 'del' ? '-' : ' '}
-                            </span>
-                            <span className="code">{row.left.line.content || ' '}</span>
-                          </div>
-                        ) : (
-                          <div className="diff-line" style={{ background: 'var(--bg-alt)' }}>
-                            <span className="gutter" />
-                            <span className="sign" />
-                            <span className="code" />
-                          </div>
-                        )}
+                {layout === 'unified'
+                  ? hunk.lines.map((line, lineIndex) => (
+                      <div
+                        key={lineIndex}
+                        className={`diff-line ${line.kind} ${
+                          isSelected(hunkIndex, lineIndex) ? 'selected' : ''
+                        }`}
+                        onClick={() => toggleLine(hunkIndex, lineIndex, line)}
+                      >
+                        <span className="gutter">{line.oldLineNo ?? ''}</span>
+                        <span className="gutter">{line.newLineNo ?? ''}</span>
+                        <span className="sign">
+                          {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
+                        </span>
+                        <span className="code">
+                          {renderCode(hunkIndex, line.content, lineIndex)}
+                        </span>
                       </div>
-                      <div className="half">
-                        {row.right ? (
-                          <div
-                            className={`diff-line ${row.right.line.kind} ${
-                              isSelected(hunkIndex, row.right.index) ? 'selected' : ''
-                            }`}
-                            onClick={() => toggleLine(hunkIndex, row.right!.index, row.right!.line)}
-                          >
-                            <span className="gutter">{row.right.line.newLineNo ?? ''}</span>
-                            <span className="sign">
-                              {row.right.line.kind === 'add' ? '+' : ' '}
-                            </span>
-                            <span className="code">{row.right.line.content || ' '}</span>
-                          </div>
-                        ) : (
-                          <div className="diff-line" style={{ background: 'var(--bg-alt)' }}>
-                            <span className="gutter" />
-                            <span className="sign" />
-                            <span className="code" />
-                          </div>
-                        )}
+                    ))
+                  : buildSplit(hunk.lines).map((row, rowIndex) => (
+                      <div className="diff-split" key={rowIndex}>
+                        <div className="half">
+                          {row.left ? (
+                            <div
+                              className={`diff-line ${row.left.line.kind} ${
+                                isSelected(hunkIndex, row.left.index) ? 'selected' : ''
+                              }`}
+                              onClick={() =>
+                                toggleLine(hunkIndex, row.left!.index, row.left!.line)
+                              }
+                            >
+                              <span className="gutter">{row.left.line.oldLineNo ?? ''}</span>
+                              <span className="sign">
+                                {row.left.line.kind === 'del' ? '-' : ' '}
+                              </span>
+                              <span className="code">
+                                {renderCode(
+                                  hunkIndex,
+                                  row.left.line.content,
+                                  row.left.index
+                                )}
+                              </span>
+                            </div>
+                          ) : (
+                            <div
+                              className="diff-line"
+                              style={{ background: 'var(--bg-alt)' }}
+                            >
+                              <span className="gutter" />
+                              <span className="sign" />
+                              <span className="code" />
+                            </div>
+                          )}
+                        </div>
+                        <div className="half">
+                          {row.right ? (
+                            <div
+                              className={`diff-line ${row.right.line.kind} ${
+                                isSelected(hunkIndex, row.right.index) ? 'selected' : ''
+                              }`}
+                              onClick={() =>
+                                toggleLine(hunkIndex, row.right!.index, row.right!.line)
+                              }
+                            >
+                              <span className="gutter">{row.right.line.newLineNo ?? ''}</span>
+                              <span className="sign">
+                                {row.right.line.kind === 'add' ? '+' : ' '}
+                              </span>
+                              <span className="code">
+                                {renderCode(
+                                  hunkIndex,
+                                  row.right.line.content,
+                                  row.right.index
+                                )}
+                              </span>
+                            </div>
+                          ) : (
+                            <div
+                              className="diff-line"
+                              style={{ background: 'var(--bg-alt)' }}
+                            >
+                              <span className="gutter" />
+                              <span className="sign" />
+                              <span className="code" />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-            </div>
-          ))
+                    ))}
+              </div>
+            ))}
+          </>
         )}
       </div>
     </div>

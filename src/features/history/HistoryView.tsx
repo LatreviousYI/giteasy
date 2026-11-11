@@ -23,6 +23,10 @@ export default function HistoryView() {
   const selectCommit = useApp((s) => s.selectCommit)
   const layout = useApp((s) => s.diffLayout)
   const setDiffLayout = useApp((s) => s.setDiffLayout)
+  const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
+  const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
+  const contextLines = useApp((s) => s.diffContextLines)
+  const setContextLines = useApp((s) => s.setDiffContextLines)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
   const invalidate = useInvalidateRepo(repo.path)
@@ -33,7 +37,6 @@ export default function HistoryView() {
   const [debounced, setDebounced] = useState('')
   const [authorDebounced, setAuthorDebounced] = useState('')
   const [pathDebounced, setPathDebounced] = useState('')
-  const [ignoreWhitespace, setIgnoreWhitespace] = useState(false)
   const [limit, setLimit] = useState(300)
   const [resetMenu, setResetMenu] = useState(false)
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard' | null>(null)
@@ -221,6 +224,8 @@ export default function HistoryView() {
             busy={busy}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={setIgnoreWhitespace}
+            contextLines={contextLines}
+            onContextLinesChange={setContextLines}
             onCheckout={() =>
               run(() => ipc.commitCheckout(repo.path, selectedCommit), '已检出该提交（分离头指针）')
             }

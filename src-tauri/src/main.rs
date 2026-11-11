@@ -172,12 +172,14 @@ mod tests {
         assert_eq!(new_file.worktree, "untracked");
 
         let diff =
-            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None).unwrap();
+            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None, None)
+                .unwrap();
         assert!(!diff.hunks.is_empty());
         assert!(diff.additions >= 1);
 
         let untracked_diff =
-            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None).unwrap();
+            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None, None)
+                .unwrap();
         assert!(!untracked_diff.hunks.is_empty());
         assert_eq!(untracked_diff.status, "added");
 
@@ -193,7 +195,8 @@ mod tests {
         assert!(staged.files.iter().all(|file| file.staged));
 
         let staged_diff =
-            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), true, None).unwrap();
+            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), true, None, None)
+                .unwrap();
         assert!(!staged_diff.hunks.is_empty());
 
         let result = write::commit_create_impl(
@@ -285,7 +288,8 @@ mod tests {
         std::fs::write(dir.join("new.txt"), "alpha\nbeta\ngamma\n").unwrap();
 
         let diff =
-            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None).unwrap();
+            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None, None)
+                .unwrap();
         assert_eq!(diff.status, "added");
         assert_eq!(diff.hunks.len(), 1);
 
@@ -326,7 +330,8 @@ mod tests {
         .unwrap();
 
         let diff =
-            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None).unwrap();
+            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None, None)
+                .unwrap();
         assert_eq!(diff.hunks.len(), 1);
 
         patch::apply_selection_impl(
@@ -359,6 +364,90 @@ mod tests {
             String::from_utf8_lossy(&committed.stdout),
             "line one\nline two changed\nline three\n"
         );
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn partial_deletion_staging_keeps_unselected_lines() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        std::fs::remove_file(dir.join("hello.txt")).unwrap();
+
+        let diff =
+            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None, None)
+                .unwrap();
+        assert_eq!(diff.status, "deleted");
+        assert_eq!(diff.hunks.len(), 1);
+
+        patch::apply_selection_impl(
+            &path,
+            "hello.txt",
+            "stage",
+            vec![model::Selection {
+                hunk: 0,
+                lines: vec![0],
+            }],
+        )
+        .await
+        .unwrap();
+
+        let staged = Command::new("git")
+            .current_dir(&dir)
+            .args(["show", ":hello.txt"])
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&staged.stdout), "line two\n");
+        assert!(!dir.join("hello.txt").exists());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn partial_hunk_staging_isolates_multiple_hunks() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let original = (1..=24)
+            .map(|line| format!("line {line}\n"))
+            .collect::<String>();
+        std::fs::write(dir.join("hello.txt"), &original).unwrap();
+        git(&dir, &["add", "."]);
+        git(&dir, &["commit", "-q", "-m", "expand fixture"]);
+
+        let changed = original
+            .replace("line 2\n", "line 2 changed\n")
+            .replace("line 22\n", "line 22 changed\n");
+        std::fs::write(dir.join("hello.txt"), &changed).unwrap();
+
+        let diff =
+            read::diff_workdir_impl(path.clone(), "hello.txt".to_string(), false, None, None)
+                .unwrap();
+        assert!(diff.hunks.len() >= 2);
+
+        patch::apply_selection_impl(
+            &path,
+            "hello.txt",
+            "stage",
+            vec![model::Selection {
+                hunk: 0,
+                lines: vec![],
+            }],
+        )
+        .await
+        .unwrap();
+
+        let staged = Command::new("git")
+            .current_dir(&dir)
+            .args(["show", ":hello.txt"])
+            .output()
+            .unwrap();
+        let staged = String::from_utf8_lossy(&staged.stdout);
+        assert!(staged.contains("line 2 changed"));
+        assert!(staged.contains("line 22\n"));
+        assert!(!staged.contains("line 22 changed"));
+        assert!(std::fs::read_to_string(dir.join("hello.txt"))
+            .unwrap()
+            .contains("line 22 changed"));
 
         let _ = std::fs::remove_dir_all(dir);
     }

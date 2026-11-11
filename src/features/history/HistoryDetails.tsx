@@ -94,6 +94,8 @@ interface CommitDetailPaneProps {
   busy: boolean
   ignoreWhitespace: boolean
   onToggleWhitespace: (value: boolean) => void
+  contextLines: number
+  onContextLinesChange: (value: number) => void
   onCheckout: () => void
   onCherryPick: () => void
   onRevert: () => void
@@ -112,6 +114,8 @@ export function CommitDetailPane({
   busy,
   ignoreWhitespace,
   onToggleWhitespace,
+  contextLines,
+  onContextLinesChange,
   onCheckout,
   onCherryPick,
   onRevert,
@@ -123,7 +127,13 @@ export function CommitDetailPane({
 }: CommitDetailPaneProps) {
   const { data: detail, isLoading } = useCommitDetail(repoPath, oid)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
-  const diffQuery = useCommitDiff(repoPath, oid, selectedPath, ignoreWhitespace)
+  const diffQuery = useCommitDiff(
+    repoPath,
+    oid,
+    selectedPath,
+    ignoreWhitespace,
+    contextLines
+  )
 
   useEffect(() => {
     if (detail) setSelectedPath(detail.files[0]?.path ?? null)
@@ -270,6 +280,8 @@ export function CommitDetailPane({
         onLayoutChange={onLayoutChange}
         ignoreWhitespace={ignoreWhitespace}
         onToggleWhitespace={onToggleWhitespace}
+        contextLines={contextLines}
+        onContextLinesChange={onContextLinesChange}
       />
     </>
   )

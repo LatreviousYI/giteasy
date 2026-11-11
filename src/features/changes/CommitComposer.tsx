@@ -1,7 +1,9 @@
 import { useState } from 'react'
 import { CheckCircle2, RefreshCw } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { useLog } from '../../lib/queries'
 import { useApp } from '../../store/app'
+import { truncate } from '../../lib/format'
 
 export default function CommitComposer({
   busy,
@@ -15,6 +17,11 @@ export default function CommitComposer({
   const repo = useApp((s) => s.repo)!
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
+  const { data: recentCommits } = useLog(repo.path, {
+    limit: 12,
+    skip: 0,
+    rev: 'HEAD'
+  })
   const [message, setMessage] = useState('')
   const [amend, setAmend] = useState(false)
   const [signoff, setSignoff] = useState(false)
@@ -57,6 +64,24 @@ export default function CommitComposer({
         </span>
         <span>·</span>
         <span>{stagedCount} 个已暂存文件</span>
+        {recentCommits && recentCommits.commits.length > 0 && (
+          <select
+            className="select"
+            style={{ width: 170, height: 24, padding: '0 7px', fontSize: 10.5 }}
+            value=""
+            title="使用最近提交信息"
+            onChange={(event) => {
+              if (event.target.value) setMessage(event.target.value)
+            }}
+          >
+            <option value="">最近提交信息…</option>
+            {recentCommits.commits.map((commit) => (
+              <option key={commit.oid} value={commit.subject}>
+                {truncate(commit.subject, 56)}
+              </option>
+            ))}
+          </select>
+        )}
         <span style={{ flex: 1 }} />
         <span className="text-[10.5px] text-[var(--text-subtle)]">Ctrl + Enter 提交</span>
       </div>

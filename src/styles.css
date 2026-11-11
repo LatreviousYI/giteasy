@@ -763,6 +763,24 @@ button {
   padding: 0 12px;
   border-bottom: 1px solid var(--border);
   min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.diff-head::-webkit-scrollbar {
+  display: none;
+}
+.diff-mini-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 3px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-subtle);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
 }
 .diff-file {
   font-family: var(--font-mono);
@@ -869,6 +887,17 @@ button {
   flex: 1;
   padding-right: 16px;
 }
+.word-change {
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.diff-line.add .word-change {
+  background: color-mix(in srgb, var(--add-fg) 24%, transparent);
+}
+.diff-line.del .word-change {
+  background: color-mix(in srgb, var(--del-fg) 22%, transparent);
+}
 .diff-line.add .code {
   color: var(--add-fg);
 }
@@ -906,6 +935,72 @@ button {
 }
 
 /* ---------- Commit composer ---------- */
+.composer-shell {
+  position: relative;
+  flex: 0 0 auto;
+  overflow: auto;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.composer-shell .composer {
+  min-height: 100%;
+  border-top: 0;
+}
+.composer-resizer {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 10px;
+  color: var(--text-subtle);
+  background: var(--bg-alt);
+  cursor: ns-resize;
+}
+.composer-resizer:hover {
+  color: var(--accent);
+}
+.composer-collapse-button {
+  position: sticky;
+  top: 11px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  float: right;
+  width: 22px;
+  height: 22px;
+  margin: 2px 7px -24px 0;
+  border: 0;
+  border-radius: 5px;
+  color: var(--text-subtle);
+  background: transparent;
+}
+.composer-collapse-button:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+.composer-collapsed {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 0 0 36px;
+  width: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: left;
+}
+.composer-collapsed:hover {
+  background: var(--surface-hover);
+}
+.composer-collapsed .spacer {
+  flex: 1;
+}
 .composer {
   border-top: 1px solid var(--border);
   background: var(--surface);
