@@ -357,6 +357,23 @@ mod tests {
         assert!(!force_args.iter().any(|arg| arg == "-u"));
     }
 
+    #[test]
+    fn remote_branch_checkout_preserves_nested_path() {
+        let remotes = "origin\nupstream\n";
+        assert_eq!(
+            write::local_branch_name(remotes, "origin/feature/nested"),
+            "feature/nested"
+        );
+        assert_eq!(
+            write::local_branch_name(remotes, "upstream/release/2.0"),
+            "release/2.0"
+        );
+        assert_eq!(
+            write::local_branch_name("origin\n", "team/local-branch"),
+            "team/local-branch"
+        );
+    }
+
     #[tokio::test]
     async fn partial_staging_new_file_takes_selected_lines() {
         let dir = fixture();

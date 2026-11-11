@@ -410,12 +410,22 @@ pub(crate) async fn branch_checkout_impl(
     if exists {
         util::git(&path, &["switch", name.as_str()]).await?;
     } else if name.contains('/') {
-        let local = name.rsplit('/').next().unwrap_or(&name).to_string();
+        let remotes = util::git(&path, &["remote"]).await.unwrap_or_default();
+        let local = local_branch_name(&remotes, &name);
         util::git(&path, &["switch", "-c", local.as_str(), "--track", name.as_str()]).await?;
     } else {
         util::git(&path, &["switch", name.as_str()]).await?;
     }
     crate::read::repo_info_inner(&path)
+}
+
+pub(crate) fn local_branch_name(remotes: &str, remote_branch: &str) -> String {
+    remote_branch
+        .split_once('/')
+        .filter(|(remote, _)| remotes.lines().any(|item| item == *remote))
+        .map(|(_, branch)| branch)
+        .unwrap_or(remote_branch)
+        .to_string()
 }
 
 #[tauri::command]

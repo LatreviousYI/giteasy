@@ -226,16 +226,15 @@ const branches: BranchDto[] = [
 let mockCurrentBranch = 'main'
 
 function activateMockBranch(name: string) {
-  const shortName = name.split('/').at(-1) ?? name
-  let branch = branches.find((item) => !item.isRemote && item.name === name)
-  if (!branch) {
-    branch = branches.find(
-      (item) => !item.isRemote && item.name === shortName
-    )
-  }
+  const remoteKnown = branches.some(
+    (item) => item.isRemote && item.name.split('/')[0] === name.split('/')[0]
+  )
+  const localName =
+    remoteKnown && name.includes('/') ? name.split('/').slice(1).join('/') : name
+  let branch = branches.find((item) => !item.isRemote && item.name === localName)
   if (!branch) {
     branch = {
-      name,
+      name: localName,
       isRemote: false,
       isHead: false,
       upstream: null,

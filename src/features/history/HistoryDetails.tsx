@@ -13,11 +13,12 @@ import {
   LANE_COLORS,
   type GraphRow
 } from '../../lib/graph'
-import { formatDate, initials, relativeTime, statusMeta } from '../../lib/format'
+import { formatDate, initials, relativeTime } from '../../lib/format'
 import type { CommitDto } from '../../lib/types'
 import { Spinner } from '../../components/Empty'
 import DiffViewer from '../diff/DiffViewer'
 import CommitTreePane from './CommitTreePane'
+import CommitFileTree from './CommitFileTree'
 
 export function GraphCell({ row }: { row: GraphRow }) {
   const width = row.laneCount * 14 + 10
@@ -264,35 +265,11 @@ export function CommitDetailPane({
 
       {detailTab === 'changes' ? (
         <>
-          <div className="detail-files">
-            {detail.files.length === 0 && (
-              <div className="px-2 py-2 text-[12px] text-[var(--text-subtle)]">
-                该提交没有文件改动
-              </div>
-            )}
-            {detail.files.map((file) => {
-              const meta = statusMeta[file.status] ?? statusMeta.modified
-              return (
-                <div
-                  key={file.path}
-                  className={`detail-file ${selectedPath === file.path ? 'active' : ''}`}
-                  onClick={() => setSelectedPath(file.path)}
-                  title={file.path}
-                >
-                  <span className={`file-letter ${meta.className}`}>{meta.letter}</span>
-                  <span className="path">{file.path}</span>
-                  {file.binary ? (
-                    <span className="text-subtle text-[10px]">binary</span>
-                  ) : (
-                    <>
-                      <span className="add-count">+{file.additions}</span>
-                      <span className="del-count">-{file.deletions}</span>
-                    </>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+          <CommitFileTree
+            files={detail.files}
+            selectedPath={selectedPath}
+            onSelect={setSelectedPath}
+          />
 
           <DiffViewer
             diff={diffQuery.data}
