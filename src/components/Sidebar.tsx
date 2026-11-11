@@ -175,10 +175,12 @@ export default function Sidebar() {
     setBusy(true)
     try {
       if (prompt.kind === 'branch') {
-        await ipc.branchCreate(path, value, true)
+        const info = await ipc.branchCreate(path, value, true)
+        setRepo(info)
         toast('success', `已创建并切换到 ${value}`)
       } else if (prompt.kind === 'rename' && prompt.branch) {
-        await ipc.branchRename(path, prompt.branch.name, value)
+        const info = await ipc.branchRename(path, prompt.branch.name, value)
+        setRepo(info)
         toast('success', `已重命名为 ${value}`)
       } else if (prompt.kind === 'stash') {
         await ipc.stashSave(path, value || null, true)
@@ -357,10 +359,10 @@ export default function Sidebar() {
           onPick={setPicked}
           onCreate={() => setPrompt({ kind: 'branch' })}
           onCheckout={(branch) =>
-            run(
-              () => ipc.branchCheckout(repo.path, branch.name),
-              `已切换到 ${branch.name}`
-            )
+            run(async () => {
+              const info = await ipc.branchCheckout(repo.path, branch.name)
+              setRepo(info)
+            }, `已切换到 ${branch.name}`)
           }
           onContextMenu={(event, branch) => {
             event.preventDefault()
@@ -386,10 +388,10 @@ export default function Sidebar() {
           }
           onPick={setPicked}
           onCheckout={(branch) =>
-            run(
-              () => ipc.branchCheckout(repo.path, branch.name),
-              `已检出 ${branch.name}`
-            )
+            run(async () => {
+              const info = await ipc.branchCheckout(repo.path, branch.name)
+              setRepo(info)
+            }, `已检出 ${branch.name}`)
           }
           onDeleteRemote={(remote) =>
             setConfirm({
@@ -434,10 +436,10 @@ export default function Sidebar() {
           tags={tags}
           onCreate={() => setTagDialogOpen(true)}
           onCheckout={(tag) =>
-            run(
-              () => ipc.commitCheckout(repo.path, tag.oid),
-              `已检出标签 ${tag.name}（分离头指针）`
-            )
+            run(async () => {
+              const info = await ipc.commitCheckout(repo.path, tag.oid)
+              setRepo(info)
+            }, `已检出标签 ${tag.name}（分离头指针）`)
           }
           onPush={(tag) =>
             run(
@@ -544,7 +546,10 @@ export default function Sidebar() {
                 onClick={() => {
                   const branch = menu.branch
                   setMenu(null)
-                  run(() => ipc.branchCheckout(repo.path, branch.name), `已切换到 ${branch.name}`)
+                  run(async () => {
+                    const info = await ipc.branchCheckout(repo.path, branch.name)
+                    setRepo(info)
+                  }, `已切换到 ${branch.name}`)
                 }}
               >
                 检出分支

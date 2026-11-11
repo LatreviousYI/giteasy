@@ -43,6 +43,11 @@ fn main() {
             read::log_query,
             read::file_history,
             read::commit_detail,
+            read::compare_refs,
+            read::diff_range,
+            read::commit_tree,
+            read::file_at_rev,
+            read::reflog_list,
             read::branches_list,
             read::tags_list,
             read::remote_list,
@@ -233,6 +238,25 @@ mod tests {
             .unwrap();
         let after_branch = read::status_get_impl(path.clone()).unwrap();
         assert_eq!(after_branch.branch.as_deref(), Some("feature/test"));
+
+        let main_info =
+            write::branch_checkout_impl(path.clone(), "main".to_string()).await.unwrap();
+        assert_eq!(main_info.branch.as_deref(), Some("main"));
+        let feature_info = write::branch_checkout_impl(
+            path.clone(),
+            "feature/test".to_string(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(feature_info.branch.as_deref(), Some("feature/test"));
+
+        let tree = read::commit_tree_impl(path.clone(), "HEAD".to_string()).unwrap();
+        assert!(tree.iter().any(|entry| entry.path == "hello.txt"));
+        let content =
+            read::file_at_rev_impl(path.clone(), "HEAD".to_string(), "hello.txt".to_string())
+                .unwrap();
+        assert!(!content.binary);
+        assert!(content.content.unwrap().contains("line two changed"));
 
         let _ = std::fs::remove_dir_all(dir);
     }
@@ -448,6 +472,49 @@ mod tests {
         assert!(std::fs::read_to_string(dir.join("hello.txt"))
             .unwrap()
             .contains("line 22 changed"));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn compare_refs_reports_branch_and_worktree_changes() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        write::branch_create_impl(
+            path.clone(),
+            "feature/compare".to_string(),
+            true,
+            None,
+        )
+        .await
+        .unwrap();
+        std::fs::write(dir.join("hello.txt"), "line one\nfeature line\n").unwrap();
+        write::commit_create_impl(
+            path.clone(),
+            "feat: compare branch".to_string(),
+            false,
+            false,
+            true,
+        )
+        .await
+        .unwrap();
+        write::branch_checkout_impl(path.clone(), "main".to_string())
+            .await
+            .unwrap();
+
+        let branch_compare =
+            read::compare_refs_impl(path.clone(), "main".to_string(), "feature/compare".to_string())
+                .unwrap();
+        assert_eq!(branch_compare.files.len(), 1);
+        assert_eq!(branch_compare.files[0].path, "hello.txt");
+        assert!(branch_compare.files[0].additions >= 1);
+        assert!(branch_compare.files[0].deletions >= 1);
+
+        std::fs::write(dir.join("hello.txt"), "line one\nworktree line\n").unwrap();
+        let worktree_compare =
+            read::compare_refs_impl(path, "main".to_string(), "WORKTREE".to_string()).unwrap();
+        assert_eq!(worktree_compare.right_oid, "WORKTREE");
+        assert_eq!(worktree_compare.files[0].path, "hello.txt");
 
         let _ = std::fs::remove_dir_all(dir);
     }

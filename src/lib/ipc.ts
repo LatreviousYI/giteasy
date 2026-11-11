@@ -4,11 +4,13 @@ import type {
   ActivityEvent,
   BlameLine,
   BranchDto,
+  CompareDto,
   CommitDetail,
   CommitPage,
   CommitResult,
   ConflictFile,
   DiffDto,
+  FileContentDto,
   FileStatus,
   Identity,
   LogQuery,
@@ -17,6 +19,7 @@ import type {
   RebaseStep,
   RecentRepo,
   RemoteDto,
+  ReflogEntryDto,
   RepoInfo,
   Selection,
   Settings,
@@ -26,6 +29,7 @@ import type {
   StatusDto,
   SubmoduleDto,
   TagDto,
+  TreeEntryDto,
   WorktreeDto
 } from './types'
 
@@ -61,6 +65,8 @@ export const ipc = {
     invoke<CommitPage>('file_history', { path, file, limit }),
   commitDetail: (path: string, oid: string) =>
     invoke<CommitDetail>('commit_detail', { path, oid }),
+  compareRefs: (path: string, left: string, right: string) =>
+    invoke<CompareDto>('compare_refs', { path, left, right }),
   diffWorkdir: (
     path: string,
     file: string,
@@ -89,6 +95,28 @@ export const ipc = {
       ignoreWhitespace,
       contextLines
     }),
+  diffRange: (
+    path: string,
+    left: string,
+    right: string,
+    file: string,
+    ignoreWhitespace = false,
+    contextLines = 3
+  ) =>
+    invoke<DiffDto>('diff_range', {
+      path,
+      left,
+      right,
+      file,
+      ignoreWhitespace,
+      contextLines
+    }),
+  commitTree: (path: string, rev: string) =>
+    invoke<TreeEntryDto[]>('commit_tree', { path, rev }),
+  fileAtRev: (path: string, rev: string, file: string) =>
+    invoke<FileContentDto>('file_at_rev', { path, rev, file }),
+  reflogList: (path: string, limit = 200) =>
+    invoke<ReflogEntryDto[]>('reflog_list', { path, limit }),
   blameGet: (path: string, file: string, rev?: string) =>
     invoke<BlameLine[]>('blame_get', { path, file, rev }),
 
@@ -125,15 +153,15 @@ export const ipc = {
     name: string,
     checkout: boolean,
     startPoint?: string | null
-  ) => invoke<void>('branch_create', { path, name, checkout, startPoint }),
+  ) => invoke<RepoInfo>('branch_create', { path, name, checkout, startPoint }),
   branchCheckout: (path: string, name: string) =>
-    invoke<void>('branch_checkout', { path, name }),
+    invoke<RepoInfo>('branch_checkout', { path, name }),
   commitCheckout: (path: string, oid: string) =>
-    invoke<void>('commit_checkout', { path, oid }),
+    invoke<RepoInfo>('commit_checkout', { path, oid }),
   branchDelete: (path: string, name: string, force: boolean) =>
     invoke<void>('branch_delete', { path, name, force }),
   branchRename: (path: string, oldName: string, newName: string) =>
-    invoke<void>('branch_rename', { path, oldName, newName }),
+    invoke<RepoInfo>('branch_rename', { path, oldName, newName }),
   branchSetUpstream: (path: string, name: string, upstream: string | null) =>
     invoke<void>('branch_set_upstream', { path, name, upstream }),
   mergeBranch: (path: string, name: string) =>

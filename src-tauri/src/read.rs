@@ -1,7 +1,10 @@
 use crate::error::AppError;
 use crate::model::*;
 use crate::util;
-use git2::{BlameOptions, Delta, Diff, DiffFindOptions, DiffOptions, Oid, Patch, Repository};
+use git2::{
+    BlameOptions, Delta, Diff, DiffFindOptions, DiffOptions, Oid, Patch, Repository,
+    TreeWalkMode,
+};
 use std::collections::BTreeMap;
 use std::path::Path;
 use tauri::State;
@@ -261,6 +264,81 @@ pub fn build_diff<'repo>(
     find.renames(true).copies(false);
     diff.find_similar(Some(&mut find))?;
     Ok(diff)
+}
+
+pub fn build_compare_diff<'repo>(
+    repo: &'repo Repository,
+    left: &str,
+    right: &str,
+    ignore_whitespace: bool,
+    context_lines: u32,
+) -> Result<Diff<'repo>, AppError> {
+    let left_tree = repo
+        .revparse_single(left)
+        .and_then(|object| object.peel_to_tree())
+        .map_err(|error| {
+            AppError::not_found(format!("无法解析比较起点：{left}"))
+                .with_detail(error.message().to_string())
+        })?;
+    let mut opts = DiffOptions::new();
+    opts.context_lines(context_lines)
+        .include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true)
+        .include_typechange(true)
+        .ignore_whitespace(ignore_whitespace);
+    let mut diff = if right == "WORKTREE" {
+        repo.diff_tree_to_workdir_with_index(Some(&left_tree), Some(&mut opts))?
+    } else {
+        let right_tree = repo
+            .revparse_single(right)
+            .and_then(|object| object.peel_to_tree())
+            .map_err(|error| {
+                AppError::not_found(format!("无法解析比较终点：{right}"))
+                    .with_detail(error.message().to_string())
+            })?;
+        repo.diff_tree_to_tree(Some(&left_tree), Some(&right_tree), Some(&mut opts))?
+    };
+    let mut find = DiffFindOptions::new();
+    find.renames(true).copies(false);
+    diff.find_similar(Some(&mut find))?;
+    Ok(diff)
+}
+
+fn diff_file_changes(diff: &Diff<'_>) -> Result<Vec<FileChange>, AppError> {
+    let mut files = Vec::new();
+    for idx in 0..diff.deltas().len().min(500) {
+        let delta = diff.get_delta(idx).unwrap();
+        let new_path = delta
+            .new_file()
+            .path()
+            .map(|p| p.to_string_lossy().to_string());
+        let old_path = delta
+            .old_file()
+            .path()
+            .map(|p| p.to_string_lossy().to_string());
+        let file_path = new_path
+            .clone()
+            .or_else(|| old_path.clone())
+            .unwrap_or_default();
+        let patch = Patch::from_diff(diff, idx)?;
+        let (additions, deletions, binary) = match patch {
+            Some(patch) => {
+                let (_, adds, dels) = patch.line_stats()?;
+                (adds, dels, false)
+            }
+            None => (0, 0, true),
+        };
+        files.push(FileChange {
+            path: file_path,
+            old_path: old_path.filter(|p| Some(p) != new_path.as_ref()),
+            status: delta_status(delta.status()).to_string(),
+            additions,
+            deletions,
+            binary,
+        });
+    }
+    Ok(files)
 }
 
 pub fn delta_status(delta: Delta) -> &'static str {
@@ -610,39 +688,215 @@ fn commit_detail_impl(path: String, oid: String) -> Result<CommitDetail, AppErro
     let commit = repo.find_commit(oid_parsed)?;
     let dto = commit_dto(&repo, &commit);
     let diff = build_diff(&repo, &DiffSource::Commit(oid), false, 3)?;
-    let mut files = Vec::new();
-    for idx in 0..diff.deltas().len().min(500) {
-        let delta = diff.get_delta(idx).unwrap();
-        let new_path = delta
-            .new_file()
-            .path()
-            .map(|p| p.to_string_lossy().to_string());
-        let old_path = delta
-            .old_file()
-            .path()
-            .map(|p| p.to_string_lossy().to_string());
-        let file_path = new_path
-            .clone()
-            .or_else(|| old_path.clone())
-            .unwrap_or_default();
-        let patch = Patch::from_diff(&diff, idx)?;
-        let (additions, deletions, binary) = match patch {
-            Some(p) => {
-                let (_, adds, dels) = p.line_stats()?;
-                (adds, dels, false)
-            }
-            None => (0, 0, true),
+    let files = diff_file_changes(&diff)?;
+    Ok(CommitDetail { commit: dto, files })
+}
+
+#[tauri::command]
+pub async fn compare_refs(
+    path: String,
+    left: String,
+    right: String,
+) -> Result<CompareDto, AppError> {
+    blocking_read(move || compare_refs_impl(path, left, right)).await
+}
+
+pub(crate) fn compare_refs_impl(
+    path: String,
+    left: String,
+    right: String,
+) -> Result<CompareDto, AppError> {
+    let repo = util::open_repo(&path)?;
+    let diff = build_compare_diff(&repo, &left, &right, false, 3)?;
+    let files = diff_file_changes(&diff)?;
+    let left_oid = repo
+        .revparse_single(&left)
+        .and_then(|object| object.peel_to_commit())
+        .map(|commit| commit.id().to_string())
+        .map_err(|error| {
+            AppError::not_found(format!("无法解析比较起点：{left}"))
+                .with_detail(error.message().to_string())
+        })?;
+    let right_oid = if right == "WORKTREE" {
+        "WORKTREE".to_string()
+    } else {
+        repo.revparse_single(&right)
+            .and_then(|object| object.peel_to_commit())
+            .map(|commit| commit.id().to_string())
+            .map_err(|error| {
+                AppError::not_found(format!("无法解析比较终点：{right}"))
+                    .with_detail(error.message().to_string())
+            })?
+    };
+    Ok(CompareDto {
+        left_label: left,
+        right_label: right,
+        left_oid,
+        right_oid,
+        files,
+    })
+}
+
+#[tauri::command]
+pub async fn diff_range(
+    path: String,
+    left: String,
+    right: String,
+    file: String,
+    ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
+) -> Result<DiffDto, AppError> {
+    blocking_read(move || {
+        diff_range_impl(
+            path,
+            left,
+            right,
+            file,
+            ignore_whitespace,
+            context_lines,
+        )
+    })
+    .await
+}
+
+fn diff_range_impl(
+    path: String,
+    left: String,
+    right: String,
+    file: String,
+    ignore_whitespace: Option<bool>,
+    context_lines: Option<u32>,
+) -> Result<DiffDto, AppError> {
+    let repo = util::open_repo(&path)?;
+    let diff = build_compare_diff(
+        &repo,
+        &left,
+        &right,
+        ignore_whitespace.unwrap_or(false),
+        context_lines.unwrap_or(3),
+    )?;
+    let mut list = build_diff_dtos(&diff, Some(&file))?;
+    list.pop()
+        .ok_or_else(|| AppError::not_found(format!("未找到该文件的比较差异：{file}")))
+}
+
+#[tauri::command]
+pub async fn commit_tree(path: String, rev: String) -> Result<Vec<TreeEntryDto>, AppError> {
+    blocking_read(move || commit_tree_impl(path, rev)).await
+}
+
+pub(crate) fn commit_tree_impl(
+    path: String,
+    rev: String,
+) -> Result<Vec<TreeEntryDto>, AppError> {
+    let repo = util::open_repo(&path)?;
+    let tree = repo
+        .revparse_single(&rev)
+        .and_then(|object| object.peel_to_tree())
+        .map_err(|error| {
+            AppError::not_found(format!("无法读取提交文件树：{rev}"))
+                .with_detail(error.message().to_string())
+        })?;
+    let mut entries = Vec::new();
+    tree.walk(TreeWalkMode::PreOrder, |root, entry| {
+        let name = entry.name().unwrap_or("").to_string();
+        let path = format!("{root}{name}");
+        let kind = match entry.kind() {
+            Some(git2::ObjectType::Tree) => "tree",
+            Some(git2::ObjectType::Blob) => "blob",
+            Some(git2::ObjectType::Commit) => "commit",
+            _ => "other",
         };
-        files.push(FileChange {
-            path: file_path,
-            old_path: old_path.filter(|p| Some(p) != new_path.as_ref()),
-            status: delta_status(delta.status()).to_string(),
-            additions,
-            deletions,
-            binary,
+        let size = entry
+            .to_object(&repo)
+            .ok()
+            .and_then(|object| object.as_blob().map(|blob| blob.size()))
+            .unwrap_or(0);
+        if !path.is_empty() {
+            entries.push(TreeEntryDto {
+                path,
+                name,
+                kind: kind.to_string(),
+                oid: entry.id().to_string(),
+                size,
+            });
+        }
+        if entries.len() >= 5000 {
+            1
+        } else {
+            0
+        }
+    })?;
+    Ok(entries)
+}
+
+#[tauri::command]
+pub async fn file_at_rev(
+    path: String,
+    rev: String,
+    file: String,
+) -> Result<FileContentDto, AppError> {
+    blocking_read(move || file_at_rev_impl(path, rev, file)).await
+}
+
+pub(crate) fn file_at_rev_impl(
+    path: String,
+    rev: String,
+    file: String,
+) -> Result<FileContentDto, AppError> {
+    let repo = util::open_repo(&path)?;
+    let tree = repo
+        .revparse_single(&rev)
+        .and_then(|object| object.peel_to_tree())
+        .map_err(|error| {
+            AppError::not_found(format!("无法读取提交文件树：{rev}"))
+                .with_detail(error.message().to_string())
+        })?;
+    let entry = tree.get_path(Path::new(&file)).map_err(|error| {
+        AppError::not_found(format!("该提交中不存在文件：{file}"))
+            .with_detail(error.message().to_string())
+    })?;
+    let blob = repo.find_blob(entry.id())?;
+    let binary = blob.is_binary();
+    Ok(FileContentDto {
+        path: file,
+        content: (!binary).then(|| String::from_utf8_lossy(blob.content()).to_string()),
+        binary,
+        size: blob.size(),
+    })
+}
+
+#[tauri::command]
+pub async fn reflog_list(
+    path: String,
+    limit: Option<usize>,
+) -> Result<Vec<ReflogEntryDto>, AppError> {
+    let limit = limit.unwrap_or(200).clamp(1, 500);
+    let max_count = format!("--max-count={limit}");
+    let output = util::git(
+        &path,
+        &[
+            "reflog",
+            max_count.as_str(),
+            "--format=%gd%x1f%H%x1f%h%x1f%gs%x1f%ct",
+        ],
+    )
+    .await?;
+    let mut entries = Vec::new();
+    for line in output.lines() {
+        let fields: Vec<&str> = line.split('\u{1f}').collect();
+        if fields.len() < 5 {
+            continue;
+        }
+        entries.push(ReflogEntryDto {
+            selector: fields[0].to_string(),
+            oid: fields[1].to_string(),
+            short_oid: fields[2].to_string(),
+            action: fields[3].to_string(),
+            time: fields[4].parse().unwrap_or(0),
         });
     }
-    Ok(CommitDetail { commit: dto, files })
+    Ok(entries)
 }
 
 #[tauri::command]

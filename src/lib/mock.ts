@@ -223,6 +223,64 @@ const branches: BranchDto[] = [
   }
 ]
 
+let mockCurrentBranch = 'main'
+
+function activateMockBranch(name: string) {
+  const shortName = name.split('/').at(-1) ?? name
+  let branch = branches.find((item) => !item.isRemote && item.name === name)
+  if (!branch) {
+    branch = branches.find(
+      (item) => !item.isRemote && item.name === shortName
+    )
+  }
+  if (!branch) {
+    branch = {
+      name,
+      isRemote: false,
+      isHead: false,
+      upstream: null,
+      ahead: 0,
+      behind: 0,
+      oid: status.headOid ?? oid(12),
+      shortOid: status.headShort ?? short(12),
+      subject: 'New mock branch'
+    }
+    branches.push(branch)
+  }
+  mockCurrentBranch = branch.name
+  for (const item of branches) item.isHead = !item.isRemote && item.name === branch.name
+  status.branch = branch.name
+  status.detached = false
+  status.headOid = branch.oid
+  status.headShort = branch.shortOid
+  status.upstream = branch.upstream
+  status.ahead = branch.ahead
+  status.behind = branch.behind
+  mockRepoInfo.branch = branch.name
+  mockRepoInfo.detached = false
+  mockRepoInfo.headOid = branch.oid
+  mockRepoInfo.headShort = branch.shortOid
+  return { ...mockRepoInfo }
+}
+
+function detachMockCommit(value: string) {
+  mockCurrentBranch = ''
+  for (const item of branches) item.isHead = false
+  const detachedShort = value.slice(0, 7)
+  status.branch = null
+  status.detached = true
+  status.headOid = value
+  status.headShort = detachedShort
+  status.upstream = null
+  status.ahead = 0
+  status.behind = 0
+  mockRepoInfo.branch = null
+  mockRepoInfo.detached = true
+  mockRepoInfo.headOid = value
+  mockRepoInfo.headShort = detachedShort
+  return { ...mockRepoInfo }
+}
+
 const tags: TagDto[] = [
   {
     name: 'v0.1.0',
@@ -424,6 +482,25 @@ export async function mockInvoke<T>(
       return undefined as T
     case 'status_get':
       return status as T
+    case 'branch_checkout':
+      return activateMockBranch(String(payload.name ?? 'main')) as T
+    case 'branch_create': {
+      const name = String(payload.name ?? 'feature/mock')
+      const branch = activateMockBranch(name)
+      if (payload.checkout === false) {
+        return { ...mockRepoInfo, branch: mockCurrentBranch } as T
+      }
+      return branch as T
+    }
+    case 'branch_rename': {
+      const oldName = String(payload.oldName ?? '')
+      const newName = String(payload.newName ?? '')
+      const branch = branches.find((item) => !item.isRemote && item.name === oldName)
+      if (branch) branch.name = newName
+      return activateMockBranch(newName) as T
+    }
+    case 'commit_checkout':
+      return detachMockCommit(String(payload.oid ?? oid(12))) as T
     case 'branches_list':
       return branches as T
     case 'tags_list':
@@ -457,6 +534,55 @@ export async function mockInvoke<T>(
     }
     case 'commit_detail':
       return commitDetail as T
+    case 'compare_refs':
+      return {
+        leftLabel: String(payload.left ?? 'main'),
+        rightLabel: String(payload.right ?? 'HEAD'),
+        leftOid: oid(10),
+        rightOid:
+          payload.right === 'WORKTREE' ? 'WORKTREE' : oid(12),
+        files: commitDetail.files
+      } as T
+    case 'commit_tree':
+      return [
+        { path: 'src', name: 'src', kind: 'tree', oid: oid(40), size: 0 },
+        { path: 'src/theme.ts', name: 'theme.ts', kind: 'blob', oid: oid(41), size: 320 },
+        { path: 'src/app.ts', name: 'app.ts', kind: 'blob', oid: oid(42), size: 520 },
+        { path: 'docs', name: 'docs', kind: 'tree', oid: oid(43), size: 0 },
+        { path: 'docs/guide.md', name: 'guide.md', kind: 'blob', oid: oid(44), size: 240 }
+      ] as T
+    case 'file_at_rev':
+      return {
+        path: String(payload.file ?? 'src/theme.ts'),
+        content:
+          "export const theme = {\\n  accent: '#5b6cff',\\n  surface: '#ffffff'\\n}\\n",
+        binary: false,
+        size: 68
+      } as T
+    case 'reflog_list':
+      return [
+        {
+          selector: 'HEAD@{0}',
+          oid: oid(12),
+          shortOid: short(12),
+          action: 'commit: refactor: 收敛主题变量',
+          time: now - 120
+        },
+        {
+          selector: 'HEAD@{1}',
+          oid: oid(11),
+          shortOid: short(11),
+          action: 'checkout: moving from feature/ui to main',
+          time: now - 3600
+        },
+        {
+          selector: 'HEAD@{2}',
+          oid: oid(10),
+          shortOid: short(10),
+          action: 'reset: moving to HEAD~1',
+          time: now - 7200
+        }
+      ] as T
     case 'rebase_todo':
       return commits
         .slice(0, 4)
@@ -509,6 +635,8 @@ export async function mockInvoke<T>(
     case 'diff_workdir':
       return diffFor(String(payload.file ?? ''), Boolean(payload.staged)) as T
     case 'diff_commit':
+      return diffFor(String(payload.file ?? '')) as T
+    case 'diff_range':
       return diffFor(String(payload.file ?? '')) as T
     case 'settings_get':
       return settings as T

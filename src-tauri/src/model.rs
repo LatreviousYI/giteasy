@@ -89,6 +89,45 @@ pub struct CommitDetail {
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct CompareDto {
+    pub left_label: String,
+    pub right_label: String,
+    pub left_oid: String,
+    pub right_oid: String,
+    pub files: Vec<FileChange>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TreeEntryDto {
+    pub path: String,
+    pub name: String,
+    pub kind: String,
+    pub oid: String,
+    pub size: usize,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FileContentDto {
+    pub path: String,
+    pub content: Option<String>,
+    pub binary: bool,
+    pub size: usize,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReflogEntryDto {
+    pub selector: String,
+    pub oid: String,
+    pub short_oid: String,
+    pub action: String,
+    pub time: i64,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct DiffLineDto {
     pub kind: String,
     pub old_line_no: Option<u32>,

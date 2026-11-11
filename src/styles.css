@@ -1110,6 +1110,10 @@ button {
 .commit-row.active {
   background: var(--accent-soft);
 }
+.commit-row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
 .graph-cell {
   flex: 0 0 auto;
   display: flex;
@@ -1145,6 +1149,35 @@ button {
   font-size: 11px;
   white-space: nowrap;
   overflow: hidden;
+}
+
+.commit-tree-pane {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.commit-tree-list {
+  width: 270px;
+  flex: 0 0 270px;
+  overflow: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+}
+.commit-tree-content {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  background: var(--surface);
+}
+.commit-file-content {
+  min-height: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: var(--code-size, 12px);
+  line-height: 1.55;
+  white-space: pre;
 }
 .ref-chip {
   display: inline-flex;

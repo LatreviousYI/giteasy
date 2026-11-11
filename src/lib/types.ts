@@ -69,6 +69,37 @@ export interface CommitDetail {
   files: FileChange[]
 }
 
+export interface CompareDto {
+  leftLabel: string
+  rightLabel: string
+  leftOid: string
+  rightOid: string
+  files: FileChange[]
+}
+
+export interface TreeEntryDto {
+  path: string
+  name: string
+  kind: 'tree' | 'blob' | 'commit' | string
+  oid: string
+  size: number
+}
+
+export interface FileContentDto {
+  path: string
+  content: string | null
+  binary: boolean
+  size: number
+}
+
+export interface ReflogEntryDto {
+  selector: string
+  oid: string
+  shortOid: string
+  action: string
+  time: number
+}
+
 export interface CommitResult {
   oid: string
   output: string

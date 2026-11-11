@@ -342,7 +342,7 @@ pub async fn branch_create(
     name: String,
     checkout: bool,
     start_point: Option<String>,
-) -> Result<(), AppError> {
+) -> Result<crate::model::RepoInfo, AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     branch_create_impl(path, name, checkout, start_point).await
 }
@@ -352,7 +352,7 @@ pub(crate) async fn branch_create_impl(
     name: String,
     checkout: bool,
     start_point: Option<String>,
-) -> Result<(), AppError> {
+) -> Result<crate::model::RepoInfo, AppError> {
     if name.trim().is_empty() {
         return Err(AppError::user("分支名不能为空"));
     }
@@ -365,7 +365,7 @@ pub(crate) async fn branch_create_impl(
         args.push(start);
     }
     util::git(&path, &args).await?;
-    Ok(())
+    crate::read::repo_info_inner(&path)
 }
 
 #[tauri::command]
@@ -373,8 +373,15 @@ pub async fn branch_checkout(
     state: State<'_, crate::AppState>,
     path: String,
     name: String,
-) -> Result<(), AppError> {
+) -> Result<crate::model::RepoInfo, AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    branch_checkout_impl(path, name).await
+}
+
+pub(crate) async fn branch_checkout_impl(
+    path: String,
+    name: String,
+) -> Result<crate::model::RepoInfo, AppError> {
     let refname = format!("refs/heads/{name}");
     let exists = util::git_output(
         &path,
@@ -391,7 +398,7 @@ pub async fn branch_checkout(
     } else {
         util::git(&path, &["switch", name.as_str()]).await?;
     }
-    Ok(())
+    crate::read::repo_info_inner(&path)
 }
 
 #[tauri::command]
@@ -399,10 +406,10 @@ pub async fn commit_checkout(
     state: State<'_, crate::AppState>,
     path: String,
     oid: String,
-) -> Result<(), AppError> {
+) -> Result<crate::model::RepoInfo, AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(&path, &["switch", "--detach", oid.as_str()]).await?;
-    Ok(())
+    crate::read::repo_info_inner(&path)
 }
 
 #[tauri::command]
@@ -424,14 +431,14 @@ pub async fn branch_rename(
     path: String,
     old_name: String,
     new_name: String,
-) -> Result<(), AppError> {
+) -> Result<crate::model::RepoInfo, AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(
         &path,
         &["branch", "-m", old_name.as_str(), new_name.as_str()],
     )
     .await?;
-    Ok(())
+    crate::read::repo_info_inner(&path)
 }
 
 #[tauri::command]

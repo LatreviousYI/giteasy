@@ -1,26 +1,34 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
+  Archive,
   FileText,
+  GitCompareArrows,
   GitCommitHorizontal,
   RefreshCw,
+  RotateCcw,
   Search,
   UserRound
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
-import { useInvalidateRepo, useLog } from '../../lib/queries'
+import { useInvalidateRepo, useLog, useStashes } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import { buildGraph, type GraphRow } from '../../lib/graph'
 import { relativeTime } from '../../lib/format'
-import type { LogQuery } from '../../lib/types'
+import type { LogQuery, StashDto } from '../../lib/types'
 import { Empty, Spinner } from '../../components/Empty'
 import { ConfirmDialog } from '../../components/Dialogs'
 import RebaseDialog from '../rebase/RebaseDialog'
 import { CommitDetailPane, GraphCell } from './HistoryDetails'
+import CompareDialog from '../compare/CompareDialog'
+import ReflogDialog from '../reflog/ReflogDialog'
+import StashModal from '../stashes/StashModal'
 
 export default function HistoryView() {
   const repo = useApp((s) => s.repo)!
   const selectedCommit = useApp((s) => s.selectedCommit)
   const selectCommit = useApp((s) => s.selectCommit)
+  const setRepo = useApp((s) => s.setRepo)
   const layout = useApp((s) => s.diffLayout)
   const setDiffLayout = useApp((s) => s.setDiffLayout)
   const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
@@ -41,7 +49,12 @@ export default function HistoryView() {
   const [resetMenu, setResetMenu] = useState(false)
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard' | null>(null)
   const [rebaseOpen, setRebaseOpen] = useState(false)
+  const [compareOpen, setCompareOpen] = useState(false)
+  const [compareLeft, setCompareLeft] = useState('HEAD~1')
+  const [reflogOpen, setReflogOpen] = useState(false)
+  const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [busy, setBusy] = useState(false)
+  const commitListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -65,6 +78,7 @@ export default function HistoryView() {
   )
 
   const { data, isLoading, isFetching, refetch } = useLog(repo.path, query)
+  const { data: stashes = [] } = useStashes(repo.path)
   const commits = data?.commits ?? []
   const graph = useMemo(() => buildGraph(commits), [commits])
   const rowByOid = useMemo(() => {
@@ -72,6 +86,21 @@ export default function HistoryView() {
     for (const row of graph.rows) map.set(row.oid, row)
     return map
   }, [graph])
+  const listEntries = useMemo(
+    () => [
+      ...(!debounced && !authorDebounced && !pathDebounced
+        ? stashes.map((stash) => ({ kind: 'stash' as const, stash }))
+        : []),
+      ...commits.map((commit) => ({ kind: 'commit' as const, commit }))
+    ],
+    [stashes, commits, debounced, authorDebounced, pathDebounced]
+  )
+  const virtualizer = useVirtualizer({
+    count: listEntries.length,
+    getScrollElement: () => commitListRef.current,
+    estimateSize: () => 40,
+    overscan: 12
+  })
 
   useEffect(() => {
     if (commits.length === 0) {
@@ -82,6 +111,26 @@ export default function HistoryView() {
       selectCommit(commits[0].oid)
     }
   }, [commits, selectedCommit, selectCommit])
+
+  useEffect(() => {
+    const index = listEntries.findIndex(
+      (entry) => entry.kind === 'commit' && entry.commit.oid === selectedCommit
+    )
+    if (index >= 0) virtualizer.scrollToIndex(index, { align: 'auto' })
+  }, [selectedCommit, listEntries, virtualizer])
+
+  const focusEntry = (index: number) => {
+    const entry = listEntries[index]
+    if (!entry) return
+    if (entry.kind === 'stash') setStashPreview(entry.stash)
+    else selectCommit(entry.commit.oid)
+    virtualizer.scrollToIndex(index, { align: 'auto' })
+    window.requestAnimationFrame(() => {
+      commitListRef.current
+        ?.querySelector<HTMLElement>(`[data-list-index="${index}"]`)
+        ?.focus()
+    })
+  }
 
   const run = async (action: () => Promise<unknown>, message: string) => {
     setBusy(true)
@@ -115,6 +164,23 @@ export default function HistoryView() {
           提交历史
           <span className="spacer" />
           {isFetching && <Spinner />}
+          <button
+            className="icon-btn"
+            title="比较 Ref"
+            onClick={() => {
+              setCompareLeft(selectedCommit ?? 'HEAD~1')
+              setCompareOpen(true)
+            }}
+          >
+            <GitCompareArrows size={13} />
+          </button>
+          <button
+            className="icon-btn"
+            title="Reflog"
+            onClick={() => setReflogOpen(true)}
+          >
+            <RotateCcw size={13} />
+          </button>
           <button className="icon-btn" title="刷新" onClick={() => refetch()}>
             <RefreshCw size={13} />
           </button>
@@ -149,12 +215,12 @@ export default function HistoryView() {
           </div>
         </div>
 
-        <div className="scroll-y">
+        <div className="scroll-y" ref={commitListRef}>
           {isLoading ? (
             <div className="flex items-center justify-center py-10">
               <Spinner />
             </div>
-          ) : commits.length === 0 ? (
+          ) : listEntries.length === 0 ? (
             <Empty
               icon={<GitCommitHorizontal size={20} />}
               title={selectedCommit === null && debounced ? '没有匹配的提交' : '暂无提交'}
@@ -162,37 +228,118 @@ export default function HistoryView() {
             />
           ) : (
             <>
-              {commits.map((commit) => {
-                const row = rowByOid.get(commit.oid)
-                return (
-                  <div
-                    key={commit.oid}
-                    className={`commit-row ${selectedCommit === commit.oid ? 'active' : ''}`}
-                    onClick={() => selectCommit(commit.oid)}
-                  >
-                    <div className="graph-cell">{row && <GraphCell row={row} />}</div>
-                    <div className="commit-main">
-                      <div className="commit-subject">
-                        {commit.refs.slice(0, 3).map((ref) => (
-                          <span
-                            key={`${ref.kind}-${ref.name}`}
-                            className={`ref-chip ref-${ref.kind}`}
-                            title={ref.name}
-                          >
-                            {ref.name}
-                          </span>
-                        ))}
-                        <span className="commit-subject-text">{commit.subject || '(无提交信息)'}</span>
+              <div
+                style={{
+                  height: virtualizer.getTotalSize(),
+                  position: 'relative'
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const entry = listEntries[virtualRow.index]
+                  if (entry.kind === 'stash') {
+                    const stash = entry.stash
+                    return (
+                      <div
+                        key={`stash-${stash.oid}`}
+                        data-list-index={virtualRow.index}
+                        tabIndex={0}
+                        className="commit-row stash-row"
+                        style={{
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          width: '100%',
+                          transform: `translateY(${virtualRow.start}px)`
+                        }}
+                        onClick={() => setStashPreview(stash)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'ArrowDown') {
+                            event.preventDefault()
+                            focusEntry(
+                              Math.min(listEntries.length - 1, virtualRow.index + 1)
+                            )
+                          } else if (event.key === 'ArrowUp') {
+                            event.preventDefault()
+                            focusEntry(Math.max(0, virtualRow.index - 1))
+                          } else if (event.key === 'Enter') {
+                            setStashPreview(stash)
+                          }
+                        }}
+                      >
+                        <div className="graph-cell">
+                          <Archive size={14} className="text-[var(--warn-fg)]" />
+                        </div>
+                        <div className="commit-main">
+                          <div className="commit-subject">
+                            <span className="ref-chip ref-tag">stash@{stash.index}</span>
+                            <span className="commit-subject-text">{stash.message}</span>
+                          </div>
+                          <div className="commit-meta">
+                            <span>Stash</span>
+                            <span>{relativeTime(stash.time)}</span>
+                            <span className="mono">{stash.shortOid}</span>
+                          </div>
+                        </div>
                       </div>
-                      <div className="commit-meta">
-                        <span>{commit.authorName}</span>
-                        <span>{relativeTime(commit.time)}</span>
-                        <span className="mono">{commit.shortOid}</span>
+                    )
+                  }
+
+                  const commit = entry.commit
+                  const row = rowByOid.get(commit.oid)
+                  return (
+                    <div
+                      key={commit.oid}
+                      data-list-index={virtualRow.index}
+                      tabIndex={0}
+                      className={`commit-row ${
+                        selectedCommit === commit.oid ? 'active' : ''
+                      }`}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`
+                      }}
+                      onClick={() => selectCommit(commit.oid)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'ArrowDown') {
+                          event.preventDefault()
+                          focusEntry(
+                            Math.min(listEntries.length - 1, virtualRow.index + 1)
+                          )
+                        } else if (event.key === 'ArrowUp') {
+                          event.preventDefault()
+                          focusEntry(Math.max(0, virtualRow.index - 1))
+                        }
+                      }}
+                    >
+                      <div className="graph-cell">{row && <GraphCell row={row} />}</div>
+                      <div className="commit-main">
+                        <div className="commit-subject">
+                          {commit.refs.slice(0, 3).map((ref) => (
+                            <span
+                              key={`${ref.kind}-${ref.name}`}
+                              className={`ref-chip ref-${ref.kind}`}
+                              title={ref.name}
+                            >
+                              {ref.name}
+                            </span>
+                          ))}
+                          <span className="commit-subject-text">
+                            {commit.subject || '(无提交信息)'}
+                          </span>
+                        </div>
+                        <div className="commit-meta">
+                          <span>{commit.authorName}</span>
+                          <span>{relativeTime(commit.time)}</span>
+                          <span className="mono">{commit.shortOid}</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )
-              })}
+                  )
+                })}
+              </div>
               {data?.hasMore && (
                 <div className="p-2">
                   <button
@@ -227,7 +374,10 @@ export default function HistoryView() {
             contextLines={contextLines}
             onContextLinesChange={setContextLines}
             onCheckout={() =>
-              run(() => ipc.commitCheckout(repo.path, selectedCommit), '已检出该提交（分离头指针）')
+              run(async () => {
+                const info = await ipc.commitCheckout(repo.path, selectedCommit)
+                setRepo(info)
+              }, '已检出该提交（分离头指针）')
             }
             onCherryPick={() =>
               run(() => ipc.cherryPick(repo.path, selectedCommit), '已拣选该提交')
@@ -274,6 +424,34 @@ export default function HistoryView() {
             commits.find((commit) => commit.oid === selectedCommit)?.subject ?? undefined
           }
           onClose={() => setRebaseOpen(false)}
+        />
+      )}
+      {compareOpen && (
+        <CompareDialog
+          initialLeft={compareLeft}
+          initialRight="WORKTREE"
+          onClose={() => setCompareOpen(false)}
+        />
+      )}
+      {reflogOpen && (
+        <ReflogDialog
+          onClose={() => setReflogOpen(false)}
+          onCompare={(oid) => {
+            setCompareLeft(oid)
+            setReflogOpen(false)
+            setCompareOpen(true)
+          }}
+        />
+      )}
+      {stashPreview && (
+        <StashModal
+          repoPath={repo.path}
+          stash={stashPreview}
+          onClose={() => setStashPreview(null)}
+          onChanged={() => {
+            invalidate()
+            setStashPreview(null)
+          }}
         />
       )}
     </div>

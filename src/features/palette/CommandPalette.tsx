@@ -35,6 +35,7 @@ interface Command {
 export default function CommandPalette() {
   const close = () => useApp.getState().setPaletteOpen(false)
   const repo = useApp((s) => s.repo)
+  const setRepo = useApp((s) => s.setRepo)
   const workspaceTabs = useApp((s) => s.workspaceTabs)
   const repos = useApp((s) => s.repos)
   const activateRepoWorkspace = useApp((s) => s.activateRepoWorkspace)
@@ -236,6 +237,7 @@ export default function CommandPalette() {
     settings,
     setSettingsOpen,
     setView,
+    setRepo,
     setActivityOpen,
     invalidate,
     toast,
@@ -270,7 +272,8 @@ export default function CommandPalette() {
     if (!repo) return
     setBranchBusy(true)
     try {
-      await ipc.branchCreate(repo.path, name, true)
+      const info = await ipc.branchCreate(repo.path, name, true)
+      setRepo(info)
       invalidate()
       toast('success', `已创建并切换到 ${name}`)
       setBranchPrompt(false)
