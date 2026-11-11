@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
@@ -16,19 +16,22 @@ import Welcome from './features/welcome/Welcome'
 import ChangesView from './features/changes/ChangesView'
 import HistoryView from './features/history/HistoryView'
 import ConflictsView from './features/conflicts/ConflictsView'
-import SettingsDialog from './features/settings/SettingsDialog'
-import CommandPalette from './features/palette/CommandPalette'
-import FileInspector from './features/inspector/FileInspector'
-import SshTrustDialog from './components/SshTrustDialog'
-import ActivityPanel from './features/activity/ActivityPanel'
-import GitHubPanel from './features/github/GitHubPanel'
-import PatchDialog from './features/patch/PatchDialog'
-import LfsPanel from './features/lfs/LfsPanel'
-import ToolsPanel from './features/tools/ToolsPanel'
-import BisectDialog from './features/bisect/BisectDialog'
-import RepositoryManagerDialog from './features/repo/RepositoryManagerDialog'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
+
+const SettingsDialog = lazy(() => import('./features/settings/SettingsDialog'))
+const CommandPalette = lazy(() => import('./features/palette/CommandPalette'))
+const FileInspector = lazy(() => import('./features/inspector/FileInspector'))
+const SshTrustDialog = lazy(() => import('./components/SshTrustDialog'))
+const ActivityPanel = lazy(() => import('./features/activity/ActivityPanel'))
+const GitHubPanel = lazy(() => import('./features/github/GitHubPanel'))
+const PatchDialog = lazy(() => import('./features/patch/PatchDialog'))
+const LfsPanel = lazy(() => import('./features/lfs/LfsPanel'))
+const ToolsPanel = lazy(() => import('./features/tools/ToolsPanel'))
+const BisectDialog = lazy(() => import('./features/bisect/BisectDialog'))
+const RepositoryManagerDialog = lazy(
+  () => import('./features/repo/RepositoryManagerDialog')
+)
 
 export default function App() {
   const repo = useApp((s) => s.repo)
@@ -254,17 +257,19 @@ export default function App() {
       </div>
       <StatusBar status={status} />
       <ToastHost />
-      {settingsOpen && <SettingsDialog />}
-      {activityOpen && repo && <ActivityPanel />}
-      {githubOpen && <GitHubPanel />}
-      {patchOpen && repo && <PatchDialog />}
-      {lfsOpen && repo && <LfsPanel />}
-      {toolsOpen && <ToolsPanel />}
-      {bisectOpen && repo && <BisectDialog />}
-      {repoManagerOpen && <RepositoryManagerDialog />}
-      {paletteOpen && <CommandPalette />}
-      {repo && <FileInspector />}
-      <SshTrustDialog />
+      <Suspense fallback={null}>
+        {settingsOpen && <SettingsDialog />}
+        {activityOpen && repo && <ActivityPanel />}
+        {githubOpen && <GitHubPanel />}
+        {patchOpen && repo && <PatchDialog />}
+        {lfsOpen && repo && <LfsPanel />}
+        {toolsOpen && <ToolsPanel />}
+        {bisectOpen && repo && <BisectDialog />}
+        {repoManagerOpen && <RepositoryManagerDialog />}
+        {paletteOpen && <CommandPalette />}
+        {repo && <FileInspector />}
+        <SshTrustDialog />
+      </Suspense>
     </div>
   )
 }

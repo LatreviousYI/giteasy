@@ -1,0 +1,76 @@
+import { Builder, By, until } from 'selenium-webdriver'
+import firefox from 'selenium-webdriver/firefox.js'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+
+const baseUrl = process.env.GITEASY_E2E_URL ?? 'http://127.0.0.1:1420'
+const baselineRoot = path.resolve('docs/visual-baselines')
+
+const options = new firefox.Options()
+  .setBinary('/snap/firefox/current/usr/lib/firefox/firefox')
+  .addArguments('-headless')
+  .addArguments('--width=1440')
+  .addArguments('--height=900')
+
+const driver = await new Builder()
+  .forBrowser('firefox')
+  .setFirefoxOptions(options)
+  .build()
+
+async function shot(relativePath, width, height) {
+  await driver.manage().window().setRect({ width, height, x: 0, y: 0 })
+  await driver.sleep(250)
+  const target = path.join(baselineRoot, relativePath)
+  await fs.mkdir(path.dirname(target), { recursive: true })
+  await fs.writeFile(target, await driver.takeScreenshot(), 'base64')
+}
+
+try {
+  await driver.get(`${baseUrl}/?view=changes`)
+  await driver.wait(until.elementLocated(By.css('.app-shell')), 15_000)
+  await driver.wait(until.elementLocated(By.css('.file-row')), 15_000)
+
+  await shot('light/changes-1440.png', 1440, 900)
+  await shot('light/changes-1280.png', 1280, 800)
+  await shot('light/changes-1080.png', 1080, 720)
+
+  await driver.findElement(By.xpath("//button[contains(., '历史')]")).click()
+  await driver.wait(until.elementLocated(By.css('.commit-row')), 10_000)
+  await shot('light/history-1440.png', 1440, 900)
+
+  await driver.findElement(By.xpath("//button[contains(., '冲突')]")).click()
+  await driver.wait(until.elementLocated(By.css('.conflict-pane')), 10_000)
+  await shot('light/conflicts-1280.png', 1280, 800)
+
+  await driver.executeScript("document.documentElement.dataset.theme='dark'")
+  await shot('dark/conflicts-1280.png', 1280, 800)
+
+  await driver.findElement(By.css("[title='GitHub']")).click()
+  await driver.wait(until.elementLocated(By.css('.github-layout')), 10_000)
+  await shot('dark/github-1280.png', 1280, 800)
+  await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  const result = await driver.executeScript(`
+    const overflow = [...document.querySelectorAll('*')].filter((element) => {
+      const style = getComputedStyle(element);
+      return element.scrollWidth > element.clientWidth + 2 &&
+        style.overflowX === 'visible' &&
+        element.clientWidth > 0;
+    });
+    return {
+      title: document.title,
+      theme: document.documentElement.dataset.theme,
+      overflowCount: overflow.length,
+      overflowElements: overflow.slice(0, 5).map((element) => ({
+        tag: element.tagName,
+        className: element.className,
+        scrollWidth: element.scrollWidth,
+        clientWidth: element.clientWidth
+      })),
+      fileRows: document.querySelectorAll('.file-row').length
+    };
+  `)
+  console.log(JSON.stringify(result, null, 2))
+} finally {
+  await driver.quit()
+}

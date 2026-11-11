@@ -213,6 +213,17 @@
 - Activity Manager 支持关键词和状态筛选。
 - 验证：后端 22 项、前端 7 项测试与生产构建通过。
 
+### Fork 对齐 M7：发布硬化
+
+- 新增 React Testing Library + jsdom 组件测试，前端测试扩展至 9 项。
+- 新增 Selenium + geckodriver E2E，覆盖变更、历史、冲突、深色主题和 GitHub 面板。
+- 生成 1080/1280/1440 与深色主题视觉基线；E2E 检查布局溢出为 0。
+- 新增中型历史基准，80 次提交下分页查询通过。
+- 可选面板改为按需加载，首屏 JS 从约 512KB 降至 466KB。
+- 新增 `README.md`、`docs/RELEASE.md`、`npm run test:all` 和 `npm run test:perf`。
+- 成功生成并校验 `.deb`：GitEasy 0.1.0 amd64，3.2MB，含桌面入口、图标和 `/usr/bin/giteasy`。
+- 验证：前端 9 项、后端 23 项、E2E 与生产构建全部通过。
+
 ## 2026-10-31
 
 ### 初始交付：M0–M4

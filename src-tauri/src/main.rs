@@ -621,4 +621,37 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(dir);
     }
+
+    #[tokio::test]
+    async fn log_pagination_handles_medium_history() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        for index in 0..80 {
+            std::fs::write(dir.join("history.txt"), format!("revision {index}\n")).unwrap();
+            git(&dir, &["add", "."]);
+            git(
+                &dir,
+                &["commit", "-q", "-m", &format!("test: revision {index}")],
+            );
+        }
+        let started = std::time::Instant::now();
+        let page = read::log_query(
+            path.clone(),
+            model::LogQuery {
+                rev: None,
+                limit: 50,
+                skip: 0,
+                author: None,
+                query: None,
+                file: None,
+            },
+        )
+        .await
+        .unwrap();
+        assert_eq!(page.commits.len(), 50);
+        assert!(page.has_more);
+        assert!(started.elapsed() < std::time::Duration::from_secs(10));
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }
