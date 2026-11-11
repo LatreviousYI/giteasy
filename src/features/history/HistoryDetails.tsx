@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import {
   Copy,
+  ChevronDown,
   GitBranch,
   GitCommitHorizontal,
   ListOrdered,
+  MoreHorizontal,
   RotateCcw,
   Undo2
 } from 'lucide-react'
@@ -104,8 +106,6 @@ interface CommitDetailPaneProps {
   onRebase: () => void
   onCopy: () => void
   onReset: (mode: 'soft' | 'mixed' | 'hard') => void
-  resetMenuOpen: boolean
-  setResetMenuOpen: (open: boolean) => void
 }
 
 export function CommitDetailPane({
@@ -123,13 +123,12 @@ export function CommitDetailPane({
   onRevert,
   onRebase,
   onCopy,
-  onReset,
-  resetMenuOpen,
-  setResetMenuOpen
+  onReset
 }: CommitDetailPaneProps) {
   const { data: detail, isLoading } = useCommitDetail(repoPath, oid)
   const [selectedPath, setSelectedPath] = useState<string | null>(null)
   const [detailTab, setDetailTab] = useState<'changes' | 'tree'>('changes')
+  const [actionsOpen, setActionsOpen] = useState(false)
   const diffQuery = useCommitDiff(
     repoPath,
     oid,
@@ -141,6 +140,7 @@ export function CommitDetailPane({
   useEffect(() => {
     if (detail) setSelectedPath(detail.files[0]?.path ?? null)
     setDetailTab('changes')
+    setActionsOpen(false)
   }, [detail?.commit.oid])
 
   if (isLoading || !detail) {
@@ -186,21 +186,22 @@ export function CommitDetailPane({
             </span>
           ))}
         </div>
-        <div className="seg" style={{ width: 'fit-content', marginTop: 10 }}>
-          <button
-            className={detailTab === 'changes' ? 'active' : ''}
-            onClick={() => setDetailTab('changes')}
-          >
-            Changes
-          </button>
-          <button
-            className={detailTab === 'tree' ? 'active' : ''}
-            onClick={() => setDetailTab('tree')}
-          >
-            File Tree
-          </button>
-        </div>
-        <div className="flex items-center gap-2 mt-3">
+        <div className="detail-toolbar">
+          <div className="seg">
+            <button
+              className={detailTab === 'changes' ? 'active' : ''}
+              onClick={() => setDetailTab('changes')}
+            >
+              Changes
+            </button>
+            <button
+              className={detailTab === 'tree' ? 'active' : ''}
+              onClick={() => setDetailTab('tree')}
+            >
+              File Tree
+            </button>
+          </div>
+          <span className="spacer" />
           <button className="btn btn-sm" onClick={onCheckout} disabled={busy}>
             <GitBranch size={13} />
             检出
@@ -209,50 +210,50 @@ export function CommitDetailPane({
             <GitCommitHorizontal size={13} />
             拣选
           </button>
-          <button className="btn btn-sm" onClick={onRevert} disabled={busy}>
-            <Undo2 size={13} />
-            回滚
-          </button>
-          <button
-            className="btn btn-sm"
-            onClick={onRebase}
-            disabled={busy}
-            title="从这个提交之后开始交互式变基"
-          >
-            <ListOrdered size={13} />
-            交互式变基…
-          </button>
           <div className="relative">
             <button
               className="btn btn-sm"
-              onClick={() => setResetMenuOpen(!resetMenuOpen)}
+              onClick={() => setActionsOpen((open) => !open)}
               disabled={busy}
             >
-              <RotateCcw size={13} />
-              重置…
+              <MoreHorizontal size={14} />
+              更多
+              <ChevronDown size={12} />
             </button>
-            {resetMenuOpen && (
+            {actionsOpen && (
               <>
-                <div className="fixed inset-0 z-30" onClick={() => setResetMenuOpen(false)} />
-                <div
-                  className="absolute left-0 top-[30px] z-40 min-w-[180px] rounded-[10px] p-1.5"
-                  style={{
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    boxShadow: 'var(--shadow-pop)'
-                  }}
-                >
+                <div className="fixed inset-0 z-30" onClick={() => setActionsOpen(false)} />
+                <div className="detail-actions-menu">
+                  <button
+                    onClick={() => {
+                      setActionsOpen(false)
+                      onRevert()
+                    }}
+                  >
+                    <Undo2 size={13} />
+                    回滚提交
+                  </button>
+                  <button
+                    onClick={() => {
+                      setActionsOpen(false)
+                      onRebase()
+                    }}
+                  >
+                    <ListOrdered size={13} />
+                    从此提交后交互式变基
+                  </button>
+                  <div className="detail-actions-separator" />
+                  <div className="detail-actions-label">重置当前分支</div>
                   {(['soft', 'mixed', 'hard'] as const).map((mode) => (
                     <button
                       key={mode}
-                      className={`w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px] ${
-                        mode === 'hard' ? 'danger-text' : ''
-                      }`}
+                      className={mode === 'hard' ? 'danger-text' : ''}
                       onClick={() => {
-                        setResetMenuOpen(false)
+                        setActionsOpen(false)
                         onReset(mode)
                       }}
                     >
+                      <RotateCcw size={13} />
                       重置到此处（{mode}）
                     </button>
                   ))}
@@ -281,6 +282,7 @@ export function CommitDetailPane({
             contextLines={contextLines}
             onContextLinesChange={onContextLinesChange}
             imageSource={{ kind: 'commit', left: oid }}
+            compactToolbar
           />
         </>
       ) : (

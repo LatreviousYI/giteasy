@@ -6,6 +6,7 @@ import {
   Copy,
   ExternalLink,
   History as HistoryIcon,
+  SlidersHorizontal,
   Rows2,
   UserRound
 } from 'lucide-react'
@@ -163,6 +164,7 @@ interface DiffViewerProps {
     | { kind: 'workdir'; staged: boolean }
     | { kind: 'commit'; left: string }
     | { kind: 'range'; left: string; right: string }
+  compactToolbar?: boolean
 }
 
 export default function DiffViewer({
@@ -178,7 +180,8 @@ export default function DiffViewer({
   onToggleWhitespace,
   contextLines,
   onContextLinesChange,
-  imageSource
+  imageSource,
+  compactToolbar = false
 }: DiffViewerProps) {
   const [selected, setSelected] = useState<Record<number, number[]>>({})
   const openInspector = useApp((s) => s.openInspector)
@@ -188,6 +191,7 @@ export default function DiffViewer({
   const hunkRefs = useRef<Record<number, HTMLDivElement | null>>({})
   const [activeHunk, setActiveHunk] = useState(0)
   const [showFullDiff, setShowFullDiff] = useState(false)
+  const [compactMenuOpen, setCompactMenuOpen] = useState(false)
 
   const openInEditor = async () => {
     if (!repo || !diff) return
@@ -212,6 +216,7 @@ export default function DiffViewer({
     setSelected({})
     setActiveHunk(0)
     setShowFullDiff(false)
+    setCompactMenuOpen(false)
   }, [diff?.path, diff?.status, actionMode])
 
   const selectionCount = useMemo(
@@ -370,69 +375,174 @@ export default function DiffViewer({
             </button>
           </div>
         )}
-        {onContextLinesChange && (
-          <select
-            className="select"
-            style={{ width: 88, height: 26, fontSize: 10.5, padding: '0 6px' }}
-            value={contextLines ?? 3}
-            title="上下文行数"
-            onChange={(event) => onContextLinesChange(Number(event.target.value))}
-          >
-            {[1, 3, 5, 8, 12].map((value) => (
-              <option key={value} value={value}>
-                上下文 {value}
-              </option>
-            ))}
-          </select>
-        )}
-        {onToggleWhitespace && (
-          <button
-            className={`btn btn-sm ${ignoreWhitespace ? 'btn-primary' : 'btn-ghost'}`}
-            title="忽略只包含空白字符的差异"
-            onClick={() => onToggleWhitespace(!ignoreWhitespace)}
-          >
-            忽略空白
-          </button>
-        )}
-        <button className="icon-btn" title="在编辑器中打开" onClick={openInEditor}>
-          <ExternalLink size={14} />
-        </button>
-        <button className="icon-btn" title="复制文件路径" onClick={copyPath}>
-          <Copy size={14} />
-        </button>
-        <button
-          className="icon-btn"
-          title="文件历史"
-          onClick={() => openInspector(diff.path, 'history')}
-        >
-          <HistoryIcon size={14} />
-        </button>
-        <button
-          className="icon-btn"
-          title="查看 Blame"
-          onClick={() => openInspector(diff.path, 'blame')}
-        >
-          <UserRound size={14} />
-        </button>
-        {showLayoutToggle && (
-          <div className="seg">
+        {compactToolbar ? (
+          <div className="relative">
             <button
-              className={layout === 'unified' ? 'active' : ''}
-              onClick={() => onLayoutChange('unified')}
-              title="统一视图"
+              className="btn btn-sm"
+              title="Diff 显示选项"
+              onClick={() => setCompactMenuOpen((open) => !open)}
             >
-              <Rows2 size={12} style={{ display: 'inline', marginRight: 4 }} />
-              统一
+              <SlidersHorizontal size={13} />
+              显示
             </button>
-            <button
-              className={layout === 'split' ? 'active' : ''}
-              onClick={() => onLayoutChange('split')}
-              title="分栏视图"
-            >
-              <Columns2 size={12} style={{ display: 'inline', marginRight: 4 }} />
-              分栏
-            </button>
+            {compactMenuOpen && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setCompactMenuOpen(false)} />
+                <div className="diff-options-menu">
+                  {onContextLinesChange && (
+                    <label>
+                      <span>上下文行数</span>
+                      <select
+                        className="select"
+                        value={contextLines ?? 3}
+                        onChange={(event) =>
+                          onContextLinesChange(Number(event.target.value))
+                        }
+                      >
+                        {[1, 3, 5, 8, 12].map((value) => (
+                          <option key={value} value={value}>
+                            {value}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  )}
+                  {onToggleWhitespace && (
+                    <button
+                      className={ignoreWhitespace ? 'active' : ''}
+                      onClick={() => {
+                        onToggleWhitespace(!ignoreWhitespace)
+                        setCompactMenuOpen(false)
+                      }}
+                    >
+                      {ignoreWhitespace ? '✓ ' : ''}忽略空白
+                    </button>
+                  )}
+                  {showLayoutToggle && (
+                    <div className="diff-options-layout">
+                      <button
+                        className={layout === 'unified' ? 'active' : ''}
+                        onClick={() => {
+                          onLayoutChange('unified')
+                          setCompactMenuOpen(false)
+                        }}
+                      >
+                        <Rows2 size={12} /> 统一视图
+                      </button>
+                      <button
+                        className={layout === 'split' ? 'active' : ''}
+                        onClick={() => {
+                          onLayoutChange('split')
+                          setCompactMenuOpen(false)
+                        }}
+                      >
+                        <Columns2 size={12} /> 分栏视图
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      void openInEditor()
+                      setCompactMenuOpen(false)
+                    }}
+                  >
+                    <ExternalLink size={12} /> 在编辑器中打开
+                  </button>
+                  <button
+                    onClick={() => {
+                      void copyPath()
+                      setCompactMenuOpen(false)
+                    }}
+                  >
+                    <Copy size={12} /> 复制文件路径
+                  </button>
+                  <button
+                    onClick={() => {
+                      openInspector(diff.path, 'history')
+                      setCompactMenuOpen(false)
+                    }}
+                  >
+                    <HistoryIcon size={12} /> 文件历史
+                  </button>
+                  <button
+                    onClick={() => {
+                      openInspector(diff.path, 'blame')
+                      setCompactMenuOpen(false)
+                    }}
+                  >
+                    <UserRound size={12} /> 查看 Blame
+                  </button>
+                </div>
+              </>
+            )}
           </div>
+        ) : (
+          <>
+            {onContextLinesChange && (
+              <select
+                className="select"
+                style={{ width: 88, height: 26, fontSize: 10.5, padding: '0 6px' }}
+                value={contextLines ?? 3}
+                title="上下文行数"
+                onChange={(event) => onContextLinesChange(Number(event.target.value))}
+              >
+                {[1, 3, 5, 8, 12].map((value) => (
+                  <option key={value} value={value}>
+                    上下文 {value}
+                  </option>
+                ))}
+              </select>
+            )}
+            {onToggleWhitespace && (
+              <button
+                className={`btn btn-sm ${ignoreWhitespace ? 'btn-primary' : 'btn-ghost'}`}
+                title="忽略只包含空白字符的差异"
+                onClick={() => onToggleWhitespace(!ignoreWhitespace)}
+              >
+                忽略空白
+              </button>
+            )}
+            <button className="icon-btn" title="在编辑器中打开" onClick={openInEditor}>
+              <ExternalLink size={14} />
+            </button>
+            <button className="icon-btn" title="复制文件路径" onClick={copyPath}>
+              <Copy size={14} />
+            </button>
+            <button
+              className="icon-btn"
+              title="文件历史"
+              onClick={() => openInspector(diff.path, 'history')}
+            >
+              <HistoryIcon size={14} />
+            </button>
+            <button
+              className="icon-btn"
+              title="查看 Blame"
+              onClick={() => openInspector(diff.path, 'blame')}
+            >
+              <UserRound size={14} />
+            </button>
+            {showLayoutToggle && (
+              <div className="seg">
+                <button
+                  className={layout === 'unified' ? 'active' : ''}
+                  onClick={() => onLayoutChange('unified')}
+                  title="统一视图"
+                >
+                  <Rows2 size={12} style={{ display: 'inline', marginRight: 4 }} />
+                  统一
+                </button>
+                <button
+                  className={layout === 'split' ? 'active' : ''}
+                  onClick={() => onLayoutChange('split')}
+                  title="分栏视图"
+                >
+                  <Columns2 size={12} style={{ display: 'inline', marginRight: 4 }} />
+                  分栏
+                </button>
+              </div>
+            )}
+          </>
         )}
       </div>
 

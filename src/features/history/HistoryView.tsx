@@ -46,7 +46,6 @@ export default function HistoryView() {
   const [authorDebounced, setAuthorDebounced] = useState('')
   const [pathDebounced, setPathDebounced] = useState('')
   const [limit, setLimit] = useState(300)
-  const [resetMenu, setResetMenu] = useState(false)
   const [resetMode, setResetMode] = useState<'soft' | 'mixed' | 'hard' | null>(null)
   const [rebaseOpen, setRebaseOpen] = useState(false)
   const [compareOpen, setCompareOpen] = useState(false)
@@ -143,7 +142,6 @@ export default function HistoryView() {
     } finally {
       setBusy(false)
       setResetMode(null)
-      setResetMenu(false)
     }
   }
 
@@ -386,8 +384,6 @@ export default function HistoryView() {
             onRebase={() => setRebaseOpen(true)}
             onCopy={() => copyOid(selectedCommit)}
             onReset={(mode) => setResetMode(mode)}
-            resetMenuOpen={resetMenu}
-            setResetMenuOpen={setResetMenu}
           />
         )}
       </section>
