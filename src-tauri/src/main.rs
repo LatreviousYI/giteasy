@@ -42,6 +42,7 @@ fn main() {
             read::diff_commit,
             read::log_query,
             read::file_history,
+            read::line_history,
             read::commit_detail,
             read::compare_refs,
             read::diff_range,
@@ -257,6 +258,21 @@ mod tests {
                 .unwrap();
         assert!(!content.binary);
         assert!(content.content.unwrap().contains("line two changed"));
+
+        let line_page = read::line_history(
+            path.clone(),
+            "hello.txt".to_string(),
+            1,
+            2,
+            Some(20),
+        )
+        .await
+        .unwrap();
+        assert!(!line_page.commits.is_empty());
+        assert!(line_page
+            .commits
+            .iter()
+            .any(|commit| commit.subject == "test: commit changes"));
 
         let _ = std::fs::remove_dir_all(dir);
     }

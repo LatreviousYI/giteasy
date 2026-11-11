@@ -14,8 +14,23 @@ export default function FileInspector() {
   const setView = useApp((s) => s.setView)
 
   const historyQuery = useQuery({
-    queryKey: ['fileHistory', repo?.path, inspector?.file],
-    queryFn: () => ipc.fileHistory(repo!.path, inspector!.file, 200),
+    queryKey: [
+      'fileHistory',
+      repo?.path,
+      inspector?.file,
+      inspector?.lineStart,
+      inspector?.lineEnd
+    ],
+    queryFn: () =>
+      inspector?.lineStart && inspector.lineEnd
+        ? ipc.lineHistory(
+            repo!.path,
+            inspector!.file,
+            inspector.lineStart,
+            inspector.lineEnd,
+            200
+          )
+        : ipc.fileHistory(repo!.path, inspector!.file, 200),
     enabled: !!repo && !!inspector && inspector.mode === 'history'
   })
 
@@ -40,7 +55,11 @@ export default function FileInspector() {
           {isHistory ? <Clock size={15} /> : <UserRound size={15} />}
           <span className="mono text-[12px] truncate">{inspector.file}</span>
           <span className="text-[11px] text-[var(--text-subtle)]">
-            {isHistory ? '文件历史' : 'Blame'}
+            {isHistory
+              ? inspector.lineStart
+                ? `代码行历史 ${inspector.lineStart}-${inspector.lineEnd}`
+                : '文件历史'
+              : 'Blame'}
           </span>
         </span>
       }

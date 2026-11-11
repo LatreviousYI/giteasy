@@ -63,6 +63,14 @@ export const ipc = {
     invoke<CommitPage>('log_query', { path, query }),
   fileHistory: (path: string, file: string, limit?: number) =>
     invoke<CommitPage>('file_history', { path, file, limit }),
+  lineHistory: (
+    path: string,
+    file: string,
+    start: number,
+    end: number,
+    limit?: number
+  ) =>
+    invoke<CommitPage>('line_history', { path, file, start, end, limit }),
   commitDetail: (path: string, oid: string) =>
     invoke<CommitDetail>('commit_detail', { path, oid }),
   compareRefs: (path: string, left: string, right: string) =>

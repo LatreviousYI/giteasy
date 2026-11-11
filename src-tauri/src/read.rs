@@ -587,6 +587,38 @@ fn parse_refs(raw: &str) -> Vec<CommitRef> {
     refs
 }
 
+fn parse_commit_records(output: &str) -> Vec<CommitDto> {
+    let mut commits = Vec::new();
+    for record in output.split('\u{1e}') {
+        let fields = record.lines().find_map(|line| {
+            let fields: Vec<&str> = line.split('\u{1f}').collect();
+            let oid = fields.first().copied().unwrap_or("");
+            (fields.len() >= 9
+                && oid.len() == 40
+                && oid.chars().all(|character| character.is_ascii_hexdigit()))
+            .then_some(fields)
+        });
+        let Some(fields) = fields else {
+            continue;
+        };
+        commits.push(CommitDto {
+            oid: fields[0].to_string(),
+            short_oid: fields[1].to_string(),
+            parents: fields[2]
+                .split_whitespace()
+                .map(|value| value.to_string())
+                .collect(),
+            author_name: fields[3].to_string(),
+            author_email: fields[4].to_string(),
+            time: fields[5].parse().unwrap_or(0),
+            subject: fields[6].to_string(),
+            body: fields[8].trim().to_string(),
+            refs: parse_refs(fields[7]),
+        });
+    }
+    commits
+}
+
 #[tauri::command]
 pub async fn log_query(path: String, query: LogQuery) -> Result<CommitPage, AppError> {
     let repo = util::open_repo(&path)?;
@@ -628,31 +660,7 @@ pub async fn log_query(path: String, query: LogQuery) -> Result<CommitPage, AppE
         args.push(file.clone());
     }
     let output = util::git(&path, &args).await?;
-    let mut commits = Vec::new();
-    for record in output.split('\u{1e}') {
-        let record = record.trim_matches(|c| c == '\n' || c == '\r');
-        if record.is_empty() {
-            continue;
-        }
-        let fields: Vec<&str> = record.split('\u{1f}').collect();
-        if fields.len() < 9 {
-            continue;
-        }
-        commits.push(CommitDto {
-            oid: fields[0].to_string(),
-            short_oid: fields[1].to_string(),
-            parents: fields[2]
-                .split_whitespace()
-                .map(|s| s.to_string())
-                .collect(),
-            author_name: fields[3].to_string(),
-            author_email: fields[4].to_string(),
-            time: fields[5].parse().unwrap_or(0),
-            subject: fields[6].to_string(),
-            body: fields[8].trim().to_string(),
-            refs: parse_refs(fields[7]),
-        });
-    }
+    let commits = parse_commit_records(&output);
     let has_more = commits.len() == limit;
     Ok(CommitPage { commits, has_more })
 }
@@ -675,6 +683,43 @@ pub async fn file_history(
         },
     )
     .await
+}
+
+#[tauri::command]
+pub async fn line_history(
+    path: String,
+    file: String,
+    start: usize,
+    end: usize,
+    limit: Option<usize>,
+) -> Result<CommitPage, AppError> {
+    if start == 0 || end < start {
+        return Err(AppError::user("无效的代码行范围"));
+    }
+    if end - start > 500 {
+        return Err(AppError::user("一次最多查看 500 行代码历史"));
+    }
+    let limit = limit.unwrap_or(100).clamp(1, 500);
+    let format_arg = format!("--format={LOG_FORMAT}");
+    let limit_arg = limit.to_string();
+    let line_range = format!("{start},{end}:{file}");
+    let output = util::git(
+        &path,
+        &[
+            "log",
+            format_arg.as_str(),
+            "--max-count",
+            limit_arg.as_str(),
+            "-L",
+            line_range.as_str(),
+        ],
+    )
+    .await?;
+    let commits = parse_commit_records(&output);
+    Ok(CommitPage {
+        has_more: commits.len() == limit,
+        commits,
+    })
 }
 
 #[tauri::command]

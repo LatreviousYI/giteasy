@@ -64,8 +64,17 @@ interface AppStore {
   setSettings: (settings: Settings | null) => void
   progress: ProgressEvent | null
   setProgress: (progress: ProgressEvent | null) => void
-  inspector: { file: string; mode: 'history' | 'blame' } | null
-  openInspector: (file: string, mode: 'history' | 'blame') => void
+  inspector: {
+    file: string
+    mode: 'history' | 'blame'
+    lineStart?: number
+    lineEnd?: number
+  } | null
+  openInspector: (
+    file: string,
+    mode: 'history' | 'blame',
+    range?: { lineStart: number; lineEnd: number }
+  ) => void
   closeInspector: () => void
   sshPrompt: SshPrompt | null
   setSshPrompt: (prompt: SshPrompt | null) => void
@@ -265,8 +274,17 @@ export const useApp = create<AppStore>((set, get) => ({
   progress: null,
   setProgress: (progress) => set({ progress }),
   inspector: null,
-  openInspector: (file, mode) =>
-    set((state) => activeRepoPatch(state, { inspector: { file, mode } })),
+  openInspector: (file, mode, range) =>
+    set((state) =>
+      activeRepoPatch(state, {
+        inspector: {
+          file,
+          mode,
+          lineStart: range?.lineStart,
+          lineEnd: range?.lineEnd
+        }
+      })
+    ),
   closeInspector: () =>
     set((state) => activeRepoPatch(state, { inspector: null })),
   sshPrompt: null,

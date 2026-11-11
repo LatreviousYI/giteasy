@@ -604,6 +604,7 @@ export async function mockInvoke<T>(
     case 'tag_delete':
       return undefined as T
     case 'file_history':
+    case 'line_history':
       return { commits: commits.slice(0, 5), hasMore: false } as CommitPage as T
     case 'blame_get':
       return [

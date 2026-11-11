@@ -212,6 +212,23 @@ export default function DiffViewer({
     () => Object.values(selected).reduce((total, lines) => total + lines.length, 0),
     [selected]
   )
+  const selectedRange = useMemo(() => {
+    if (!diff || selectionCount === 0) return null
+    let start = Number.POSITIVE_INFINITY
+    let end = 0
+    for (const [hunkValue, lineIndexes] of Object.entries(selected)) {
+      const hunk = diff.hunks[Number(hunkValue)]
+      if (!hunk) continue
+      for (const lineIndex of lineIndexes) {
+        const line = hunk.lines[lineIndex]
+        const lineNo = line?.newLineNo ?? line?.oldLineNo
+        if (!lineNo) continue
+        start = Math.min(start, lineNo)
+        end = Math.max(end, lineNo)
+      }
+    }
+    return end > 0 ? { lineStart: start, lineEnd: end } : null
+  }, [diff, selected, selectionCount])
   const totalDiffLines = useMemo(
     () => diff?.hunks.reduce((total, hunk) => total + hunk.lines.length, 0) ?? 0,
     [diff]
@@ -419,6 +436,16 @@ export default function DiffViewer({
             <span>已选择 {selectionCount} 行</span>
             <span style={{ flex: 1 }} />
             <div className="hunk-actions">
+              {selectedRange && (
+                <button
+                  className="btn btn-sm"
+                  onClick={() =>
+                    openInspector(diff.path, 'history', selectedRange)
+                  }
+                >
+                  选中行历史
+                </button>
+              )}
               <button className="btn btn-sm btn-primary" onClick={applySelected} disabled={applying}>
                 {applying ? '处理中…' : `${actionLabel}选中行`}
               </button>

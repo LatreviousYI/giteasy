@@ -8,7 +8,12 @@ export interface RepoViewState {
   diffLayout: 'unified' | 'split'
   diffIgnoreWhitespace: boolean
   diffContextLines: number
-  inspector: { file: string; mode: 'history' | 'blame' } | null
+  inspector: {
+    file: string
+    mode: 'history' | 'blame'
+    lineStart?: number
+    lineEnd?: number
+  } | null
 }
 
 export interface PersistedWorkspace {
