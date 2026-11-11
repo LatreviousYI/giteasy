@@ -49,8 +49,6 @@ describe('DiffViewer', () => {
     render(
       <DiffViewer
         diff={diff}
-        layout="unified"
-        onLayoutChange={vi.fn()}
         actionMode="stage"
         onApply={onApply}
         contextLines={3}
@@ -63,21 +61,18 @@ describe('DiffViewer', () => {
     expect(onApply).toHaveBeenCalledWith([{ hunk: 0, lines: [1] }])
   })
 
-  it('renders split rows in one shared grid without row-level scrollers', () => {
+  it('always renders one unified diff without split controls', () => {
     const { container } = render(
       <DiffViewer
         diff={diff}
-        layout="split"
-        onLayoutChange={vi.fn()}
         contextLines={3}
         onContextLinesChange={vi.fn()}
       />
     )
 
-    const grid = container.querySelector('.diff-split-grid')
-    expect(grid).not.toBeNull()
-    expect(grid?.querySelectorAll('.diff-split-cell.left')).toHaveLength(2)
-    expect(grid?.querySelectorAll('.diff-split-cell.right')).toHaveLength(2)
-    expect(container.querySelectorAll('.diff-split .half')).toHaveLength(0)
+    expect(screen.queryByText('分栏')).toBeNull()
+    expect(screen.queryByText('统一')).toBeNull()
+    expect(container.querySelectorAll('.diff-split-grid')).toHaveLength(0)
+    expect(container.querySelectorAll('.diff-line')).toHaveLength(2)
   })
 })

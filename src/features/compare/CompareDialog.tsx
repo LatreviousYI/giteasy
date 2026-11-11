@@ -19,8 +19,6 @@ export default function CompareDialog({
   initialRight?: string
 }) {
   const repo = useApp((s) => s.repo)
-  const layout = useApp((s) => s.diffLayout)
-  const setLayout = useApp((s) => s.setDiffLayout)
   const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
   const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
   const contextLines = useApp((s) => s.diffContextLines)
@@ -198,8 +196,6 @@ export default function CompareDialog({
           <DiffViewer
             diff={diffQuery.data}
             loading={diffQuery.isLoading}
-            layout={layout}
-            onLayoutChange={setLayout}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={setIgnoreWhitespace}
             contextLines={contextLines}

@@ -48,8 +48,6 @@ interface AppStore {
   selectFile: (file: string | null, staged?: boolean) => void
   selectedCommit: string | null
   selectCommit: (oid: string | null) => void
-  diffLayout: 'unified' | 'split'
-  setDiffLayout: (layout: 'unified' | 'split') => void
   diffIgnoreWhitespace: boolean
   setDiffIgnoreWhitespace: (value: boolean) => void
   diffContextLines: number
@@ -266,9 +264,6 @@ export const useApp = create<AppStore>((set, get) => ({
   selectedCommit: null,
   selectCommit: (oid) =>
     set((state) => activeRepoPatch(state, { selectedCommit: oid })),
-  diffLayout: 'split',
-  setDiffLayout: (diffLayout) =>
-    set((state) => activeRepoPatch(state, { diffLayout })),
   diffIgnoreWhitespace: false,
   setDiffIgnoreWhitespace: (diffIgnoreWhitespace) =>
     set((state) => activeRepoPatch(state, { diffIgnoreWhitespace })),

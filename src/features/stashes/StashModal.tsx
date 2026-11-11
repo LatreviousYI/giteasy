@@ -131,9 +131,6 @@ export default function StashModal({
           {diff ? (
             <DiffViewer
               diff={diff}
-              layout="unified"
-              onLayoutChange={() => undefined}
-              showLayoutToggle={false}
             />
           ) : (
             <Empty icon={<Archive size={20} />} title="选择文件查看储藏内容" />

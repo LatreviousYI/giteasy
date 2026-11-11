@@ -5,7 +5,6 @@ export interface RepoViewState {
   selectedFile: string | null
   selectedFileStaged: boolean
   selectedCommit: string | null
-  diffLayout: 'unified' | 'split'
   diffIgnoreWhitespace: boolean
   diffContextLines: number
   inspector: {
@@ -28,7 +27,6 @@ export function createRepoViewState(): RepoViewState {
     selectedFile: null,
     selectedFileStaged: false,
     selectedCommit: null,
-    diffLayout: 'split',
     diffIgnoreWhitespace: false,
     diffContextLines: 3,
     inspector: null
@@ -41,7 +39,6 @@ export function snapshotRepoViewState(state: RepoViewState): RepoViewState {
     selectedFile: state.selectedFile,
     selectedFileStaged: state.selectedFileStaged,
     selectedCommit: state.selectedCommit,
-    diffLayout: state.diffLayout,
     diffIgnoreWhitespace: state.diffIgnoreWhitespace,
     diffContextLines: state.diffContextLines,
     inspector: state.inspector

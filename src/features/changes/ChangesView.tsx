@@ -53,8 +53,6 @@ export default function ChangesView() {
   const selectedFile = useApp((s) => s.selectedFile)
   const selectedStaged = useApp((s) => s.selectedFileStaged)
   const selectFile = useApp((s) => s.selectFile)
-  const layout = useApp((s) => s.diffLayout)
-  const setDiffLayout = useApp((s) => s.setDiffLayout)
   const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
   const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
   const contextLines = useApp((s) => s.diffContextLines)
@@ -319,8 +317,6 @@ export default function ChangesView() {
         <DiffViewer
           diff={diffQuery.data}
           loading={diffQuery.isLoading}
-          layout={layout}
-          onLayoutChange={setDiffLayout}
           actionMode={canPartial ? (selectedStaged ? 'unstage' : 'stage') : undefined}
           onApply={
             canPartial

@@ -40,4 +40,22 @@ describe('workspace persistence', () => {
     installStorage({ 'giteasy.workspace.v1': '{invalid' })
     expect(loadPersistedWorkspace()).toBeNull()
   })
+
+  it('drops the retired split diff preference from old workspace data', () => {
+    installStorage({
+      'giteasy.workspace.v1': JSON.stringify({
+        tabs: ['/tmp/repo-a'],
+        activeRepoId: '/tmp/repo-a',
+        views: {
+          '/tmp/repo-a': {
+            ...createRepoViewState(),
+            diffLayout: 'split'
+          }
+        }
+      })
+    })
+
+    const restored = loadPersistedWorkspace()
+    expect(restored?.views['/tmp/repo-a']).not.toHaveProperty('diffLayout')
+  })
 })

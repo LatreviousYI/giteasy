@@ -1,8 +1,7 @@
-import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
-  Columns2,
   Copy,
   ExternalLink,
   History as HistoryIcon,
@@ -16,11 +15,6 @@ import { Empty, Spinner } from '../../components/Empty'
 import { useApp } from '../../store/app'
 import { ipc } from '../../lib/ipc'
 import ImageDiffViewer from './ImageDiffViewer'
-
-interface SplitRow {
-  left?: { line: DiffLine; index: number }
-  right?: { line: DiffLine; index: number }
-}
 
 interface InlineSegment {
   text: string
@@ -112,50 +106,12 @@ function buildInlineHighlights(lines: DiffLine[]) {
   return highlights
 }
 
-function buildSplit(lines: DiffLine[]): SplitRow[] {
-  const rows: SplitRow[] = []
-  let i = 0
-  while (i < lines.length) {
-    const line = lines[i]
-    if (line.kind === 'context') {
-      rows.push({
-        left: { line, index: i },
-        right: { line, index: i }
-      })
-      i += 1
-      continue
-    }
-    const dels: { line: DiffLine; index: number }[] = []
-    const adds: { line: DiffLine; index: number }[] = []
-    while (i < lines.length && lines[i].kind === 'del') {
-      dels.push({ line: lines[i], index: i })
-      i += 1
-    }
-    while (i < lines.length && lines[i].kind === 'add') {
-      adds.push({ line: lines[i], index: i })
-      i += 1
-    }
-    if (dels.length === 0 && adds.length === 0) {
-      i += 1
-      continue
-    }
-    const count = Math.max(dels.length, adds.length)
-    for (let k = 0; k < count; k += 1) {
-      rows.push({ left: dels[k], right: adds[k] })
-    }
-  }
-  return rows
-}
-
 interface DiffViewerProps {
   diff?: DiffDto | null
   loading?: boolean
-  layout: 'unified' | 'split'
-  onLayoutChange: (layout: 'unified' | 'split') => void
   actionMode?: 'stage' | 'unstage'
   onApply?: (selections: Selection[]) => void
   applying?: boolean
-  showLayoutToggle?: boolean
   ignoreWhitespace?: boolean
   onToggleWhitespace?: (value: boolean) => void
   contextLines?: number
@@ -170,12 +126,9 @@ interface DiffViewerProps {
 export default function DiffViewer({
   diff,
   loading,
-  layout,
-  onLayoutChange,
   actionMode,
   onApply,
   applying,
-  showLayoutToggle = true,
   ignoreWhitespace,
   onToggleWhitespace,
   contextLines,
@@ -340,43 +293,6 @@ export default function DiffViewer({
       </span>
     ))
   }
-  const renderSplitCell = (
-    entry: { line: DiffLine; index: number } | undefined,
-    side: 'left' | 'right',
-    hunkIndex: number
-  ) => {
-    if (!entry) {
-      return (
-        <div className={`diff-split-cell ${side} empty`}>
-          <div className="diff-line">
-            <span className="gutter" />
-            <span className="sign" />
-            <span className="code" />
-          </div>
-        </div>
-      )
-    }
-    const { line, index } = entry
-    return (
-      <div className={`diff-split-cell ${side}`}>
-        <div
-          className={`diff-line ${line.kind} ${
-            isSelected(hunkIndex, index) ? 'selected' : ''
-          }`}
-          onClick={() => toggleLine(hunkIndex, index, line)}
-        >
-          <span className="gutter">
-            {side === 'left' ? line.oldLineNo ?? '' : line.newLineNo ?? ''}
-          </span>
-          <span className="sign">
-            {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
-          </span>
-          <span className="code">{renderCode(hunkIndex, line.content, index)}</span>
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="diff-pane">
       <div className="diff-head">
@@ -453,28 +369,6 @@ export default function DiffViewer({
                     >
                       {ignoreWhitespace ? '✓ ' : ''}忽略空白
                     </button>
-                  )}
-                  {showLayoutToggle && (
-                    <div className="diff-options-layout">
-                      <button
-                        className={layout === 'unified' ? 'active' : ''}
-                        onClick={() => {
-                          onLayoutChange('unified')
-                          setCompactMenuOpen(false)
-                        }}
-                      >
-                        <Rows2 size={12} /> 统一视图
-                      </button>
-                      <button
-                        className={layout === 'split' ? 'active' : ''}
-                        onClick={() => {
-                          onLayoutChange('split')
-                          setCompactMenuOpen(false)
-                        }}
-                      >
-                        <Columns2 size={12} /> 分栏视图
-                      </button>
-                    </div>
                   )}
                   <button
                     onClick={() => {
@@ -558,26 +452,6 @@ export default function DiffViewer({
             >
               <UserRound size={14} />
             </button>
-            {showLayoutToggle && (
-              <div className="seg">
-                <button
-                  className={layout === 'unified' ? 'active' : ''}
-                  onClick={() => onLayoutChange('unified')}
-                  title="统一视图"
-                >
-                  <Rows2 size={12} style={{ display: 'inline', marginRight: 4 }} />
-                  统一
-                </button>
-                <button
-                  className={layout === 'split' ? 'active' : ''}
-                  onClick={() => onLayoutChange('split')}
-                  title="分栏视图"
-                >
-                  <Columns2 size={12} style={{ display: 'inline', marginRight: 4 }} />
-                  分栏
-                </button>
-              </div>
-            )}
           </>
         )}
       </div>
@@ -645,21 +519,14 @@ export default function DiffViewer({
                 </button>
               </div>
             )}
-            <div className={layout === 'split' ? 'diff-split-grid' : undefined}>
-              {visibleHunks.map((hunk, hunkIndex) => (
+            {visibleHunks.map((hunk, hunkIndex) => (
               <div
                 key={`${hunk.header}-${hunkIndex}`}
-                className={layout === 'split' ? 'diff-split-hunk' : undefined}
                 ref={(node) => {
-                  if (layout === 'unified') hunkRefs.current[hunkIndex] = node
+                  hunkRefs.current[hunkIndex] = node
                 }}
               >
-                <div
-                  className="hunk-head"
-                  ref={(node) => {
-                    if (layout === 'split') hunkRefs.current[hunkIndex] = node
-                  }}
-                >
+                <div className="hunk-head">
                   <span className="hunk-text mono">{hunk.header}</span>
                   {onApply && (
                     <div className="hunk-actions">
@@ -674,34 +541,26 @@ export default function DiffViewer({
                   )}
                 </div>
 
-                {layout === 'unified'
-                  ? hunk.lines.map((line, lineIndex) => (
-                      <div
-                        key={lineIndex}
-                        className={`diff-line ${line.kind} ${
-                          isSelected(hunkIndex, lineIndex) ? 'selected' : ''
-                        }`}
-                        onClick={() => toggleLine(hunkIndex, lineIndex, line)}
-                      >
-                        <span className="gutter">{line.oldLineNo ?? ''}</span>
-                        <span className="gutter">{line.newLineNo ?? ''}</span>
-                        <span className="sign">
-                          {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
-                        </span>
-                        <span className="code">
-                          {renderCode(hunkIndex, line.content, lineIndex)}
-                        </span>
-                      </div>
-                    ))
-                  : buildSplit(hunk.lines).map((row, rowIndex) => (
-                      <Fragment key={rowIndex}>
-                        {renderSplitCell(row.left, 'left', hunkIndex)}
-                        {renderSplitCell(row.right, 'right', hunkIndex)}
-                      </Fragment>
-                    ))}
+                {hunk.lines.map((line, lineIndex) => (
+                  <div
+                    key={lineIndex}
+                    className={`diff-line ${line.kind} ${
+                      isSelected(hunkIndex, lineIndex) ? 'selected' : ''
+                    }`}
+                    onClick={() => toggleLine(hunkIndex, lineIndex, line)}
+                  >
+                    <span className="gutter">{line.oldLineNo ?? ''}</span>
+                    <span className="gutter">{line.newLineNo ?? ''}</span>
+                    <span className="sign">
+                      {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
+                    </span>
+                    <span className="code">
+                      {renderCode(hunkIndex, line.content, lineIndex)}
+                    </span>
+                  </div>
+                ))}
               </div>
-              ))}
-            </div>
+            ))}
           </>
         )}
       </div>

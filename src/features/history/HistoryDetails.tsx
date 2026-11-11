@@ -120,8 +120,6 @@ export function GraphCell({ row }: { row: GraphRow }) {
 interface CommitDetailPaneProps {
   repoPath: string
   oid: string
-  layout: 'unified' | 'split'
-  onLayoutChange: (layout: 'unified' | 'split') => void
   busy: boolean
   ignoreWhitespace: boolean
   onToggleWhitespace: (value: boolean) => void
@@ -140,8 +138,6 @@ interface CommitDetailPaneProps {
 export function CommitDetailPane({
   repoPath,
   oid,
-  layout,
-  onLayoutChange,
   busy,
   ignoreWhitespace,
   onToggleWhitespace,
@@ -355,8 +351,6 @@ export function CommitDetailPane({
           <DiffViewer
             diff={diffQuery.data}
             loading={diffQuery.isLoading}
-            layout={layout}
-            onLayoutChange={onLayoutChange}
             ignoreWhitespace={ignoreWhitespace}
             onToggleWhitespace={onToggleWhitespace}
             contextLines={contextLines}

@@ -51,7 +51,6 @@ export default function HistoryView() {
   const [reflogOpen, setReflogOpen] = useState(false)
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [busy, setBusy] = useState(false)
-  const [historyLayout, setHistoryLayout] = useState<'unified' | 'split'>('unified')
   const [focusMode, setFocusMode] = useState(false)
   const commitListRef = useRef<HTMLDivElement>(null)
 
@@ -364,8 +363,6 @@ export default function HistoryView() {
           <CommitDetailPane
             repoPath={repo.path}
             oid={selectedCommit}
-            layout={historyLayout}
-            onLayoutChange={setHistoryLayout}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((value) => !value)}
             busy={busy}

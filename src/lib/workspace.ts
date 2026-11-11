@@ -1,8 +1,4 @@
-import {
-  createRepoViewState,
-  type PersistedWorkspace,
-  type RepoViewState
-} from '../store/repoState'
+import type { PersistedWorkspace, RepoViewState } from '../store/repoState'
 
 const WORKSPACE_KEY = 'giteasy.workspace.v1'
 
@@ -17,9 +13,21 @@ export function loadPersistedWorkspace(): PersistedWorkspace | null {
     )
     const views: Record<string, RepoViewState> = {}
     for (const repoId of tabs) {
+      const saved = parsed.views?.[repoId]
       views[repoId] = {
-        ...createRepoViewState(),
-        ...(parsed.views?.[repoId] ?? {})
+        view: saved?.view === 'history' || saved?.view === 'conflicts' ? saved.view : 'changes',
+        selectedFile: typeof saved?.selectedFile === 'string' ? saved.selectedFile : null,
+        selectedFileStaged: Boolean(saved?.selectedFileStaged),
+        selectedCommit: typeof saved?.selectedCommit === 'string' ? saved.selectedCommit : null,
+        diffIgnoreWhitespace: Boolean(saved?.diffIgnoreWhitespace),
+        diffContextLines:
+          typeof saved?.diffContextLines === 'number' ? saved.diffContextLines : 3,
+        inspector:
+          saved?.inspector &&
+          typeof saved.inspector.file === 'string' &&
+          (saved.inspector.mode === 'history' || saved.inspector.mode === 'blame')
+            ? saved.inspector
+            : null
       }
     }
     return {
