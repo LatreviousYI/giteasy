@@ -842,6 +842,7 @@ button {
   color: var(--del-fg);
 }
 .diff-body {
+  --diff-content-width: 100%;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -853,6 +854,9 @@ button {
 }
 
 .hunk-head {
+  width: max-content;
+  min-width: var(--diff-content-width, 100%);
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -880,7 +884,7 @@ button {
   display: flex;
   align-items: stretch;
   width: max-content;
-  min-width: 100%;
+  min-width: var(--diff-content-width, 100%);
   box-sizing: border-box;
   min-height: 20px;
   line-height: 20px;

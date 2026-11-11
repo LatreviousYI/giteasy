@@ -75,14 +75,19 @@ try {
     const result = {
       bodyWidth: body.clientWidth,
       bodyScrollWidth: body.scrollWidth,
-      lineWidth: line.getBoundingClientRect().width
+      lineWidth: line.getBoundingClientRect().width,
+      lineMinWidth: getComputedStyle(line).minWidth,
+      contentWidthVariable: getComputedStyle(body)
+        .getPropertyValue('--diff-content-width').trim()
     };
     code.textContent = original;
     return result;
   `)
   if (
     diffRowFillCheck.lineWidth < diffRowFillCheck.bodyWidth ||
-    diffRowFillCheck.lineWidth < diffRowFillCheck.bodyScrollWidth - 2
+    diffRowFillCheck.lineWidth < diffRowFillCheck.bodyScrollWidth - 2 ||
+    !diffRowFillCheck.lineMinWidth.endsWith('px') ||
+    !diffRowFillCheck.contentWidthVariable.endsWith('px')
   ) {
     throw new Error(
       `Diff row background does not fill content width: ${JSON.stringify(diffRowFillCheck)}`
@@ -93,6 +98,24 @@ try {
 
   await driver.findElement(By.xpath("//button[contains(., '历史')]")).click()
   await driver.wait(until.elementLocated(By.css('.commit-row')), 10_000)
+  await driver.wait(until.elementLocated(By.css('.diff-body .diff-line')), 10_000)
+  const historyRowFillCheck = await driver.executeScript(`
+    const body = document.querySelector('.diff-body');
+    const line = body.querySelector('.diff-line.add, .diff-line.del');
+    return {
+      bodyWidth: body.clientWidth,
+      lineWidth: line.getBoundingClientRect().width,
+      lineMinWidth: getComputedStyle(line).minWidth
+    };
+  `)
+  if (
+    historyRowFillCheck.lineWidth < historyRowFillCheck.bodyWidth - 2 ||
+    !historyRowFillCheck.lineMinWidth.endsWith('px')
+  ) {
+    throw new Error(
+      `History diff row background is too narrow: ${JSON.stringify(historyRowFillCheck)}`
+    )
+  }
   await shot('light/history-1440.png', 1440, 900)
 
   const initialFilesHeight = await driver.executeScript(`

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   ChevronDown,
   ChevronUp,
@@ -142,6 +142,7 @@ export default function DiffViewer({
   const errorToast = useApp((s) => s.errorToast)
   const toast = useApp((s) => s.toast)
   const hunkRefs = useRef<Record<number, HTMLDivElement | null>>({})
+  const diffBodyRef = useRef<HTMLDivElement>(null)
   const [activeHunk, setActiveHunk] = useState(0)
   const [showFullDiff, setShowFullDiff] = useState(false)
   const [compactMenuOpen, setCompactMenuOpen] = useState(false)
@@ -216,6 +217,26 @@ export default function DiffViewer({
     () => visibleHunks.map((hunk) => buildInlineHighlights(hunk.lines)),
     [visibleHunks]
   )
+  useLayoutEffect(() => {
+    const body = diffBodyRef.current
+    if (!body) return
+    const updateContentWidth = () => {
+      body.style.removeProperty('--diff-content-width')
+      const width = Math.max(body.clientWidth, body.scrollWidth)
+      body.style.setProperty('--diff-content-width', `${width}px`)
+    }
+    updateContentWidth()
+    const observer =
+      typeof ResizeObserver === 'undefined'
+        ? null
+        : new ResizeObserver(updateContentWidth)
+    observer?.observe(body)
+    window.addEventListener('resize', updateContentWidth)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updateContentWidth)
+    }
+  }, [diff?.path, diff?.status, visibleHunks, showFullDiff])
 
   if (loading) {
     return (
@@ -456,7 +477,7 @@ export default function DiffViewer({
         )}
       </div>
 
-      <div className="diff-body">
+      <div className="diff-body" ref={diffBodyRef}>
         {selectionCount > 0 && onApply && (
           <div className="hunk-head" style={{ position: 'sticky', top: 0, zIndex: 4 }}>
             <span>已选择 {selectionCount} 行</span>
