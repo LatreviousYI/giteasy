@@ -1313,6 +1313,7 @@ mod tests {
             settings: Mutex::new(Settings::default()),
             watchers: Mutex::new(Default::default()),
             sessions: RepoRegistry::default(),
+            github: crate::github::GitHubService::new(),
         };
         let repo_id = "/tmp/giteasy-close-test";
         state.sessions.ensure(repo_id);

@@ -194,6 +194,15 @@
 - Worktree/Submodule 行支持显式打开和双击切换仓库。
 - 验证：后端 19 项、前端 7 项测试与生产构建通过。
 
+### Fork 对齐 M5：GitHub 首版集成
+
+- 新增 GitHub 服务、OAuth Device Flow、PAT 登录和系统 Keyring 凭据管理。
+- 支持多账户元数据、账户仓库列表、私有仓库识别与克隆。
+- 支持通知、Pull Request、Issue 列表，按状态、标题、作者和 Assignee 过滤。
+- 新增创建 PR 表单与 GitHub API 限流、认证和网络错误映射。
+- API 响应使用 ETag 内存缓存，网络失败时尽量回退缓存。
+- 验证：GitHub 远程解析测试通过；后端 20 项、前端 7 项测试与生产构建通过；GitHub 面板截图检查通过。
+
 ## 2026-10-31
 
 ### 初始交付：M0–M4

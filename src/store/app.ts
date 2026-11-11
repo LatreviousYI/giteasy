@@ -60,6 +60,8 @@ interface AppStore {
   setSettingsOpen: (open: boolean) => void
   activityOpen: boolean
   setActivityOpen: (open: boolean) => void
+  githubOpen: boolean
+  setGithubOpen: (open: boolean) => void
   settings: Settings | null
   setSettings: (settings: Settings | null) => void
   progress: ProgressEvent | null
@@ -269,6 +271,8 @@ export const useApp = create<AppStore>((set, get) => ({
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
   activityOpen: false,
   setActivityOpen: (activityOpen) => set({ activityOpen }),
+  githubOpen: false,
+  setGithubOpen: (githubOpen) => set({ githubOpen }),
   settings: null,
   setSettings: (settings) => set({ settings }),
   progress: null,

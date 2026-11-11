@@ -1405,6 +1405,141 @@ button {
   flex: 1;
 }
 
+/* ---------- GitHub ---------- */
+.github-layout {
+  display: grid;
+  grid-template-columns: 165px minmax(0, 1fr);
+  min-height: 58vh;
+  max-height: 68vh;
+  margin: -16px;
+}
+.github-sidebar {
+  padding: 10px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-alt);
+}
+.github-sidebar button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 32px;
+  padding: 0 9px;
+  margin-bottom: 3px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  text-align: left;
+}
+.github-sidebar button:hover {
+  background: var(--surface-hover);
+}
+.github-sidebar button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 650;
+}
+.github-content {
+  overflow: auto;
+  padding: 16px;
+}
+.github-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.github-section-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.github-account,
+.github-list-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 42px;
+  padding: 6px 9px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.github-account {
+  cursor: pointer;
+}
+.github-account.active {
+  border-color: var(--accent-border);
+  background: var(--accent-soft);
+}
+.github-account img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+.github-list-row:hover {
+  background: var(--surface-hover);
+}
+.github-list-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 600;
+}
+.github-list-sub {
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-subtle);
+  font-size: 10.5px;
+}
+.github-device-box {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px;
+  border: 1px solid var(--accent-border);
+  border-radius: 8px;
+  background: var(--accent-soft);
+  color: var(--text-secondary);
+  font-size: 11.5px;
+}
+.github-device-box a {
+  color: var(--accent);
+}
+.github-user-code {
+  margin-left: 7px;
+  color: var(--accent);
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+.github-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.github-pr-form {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--bg-alt);
+}
+
 @keyframes fadeIn {
   from {
     opacity: 0;

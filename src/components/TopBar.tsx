@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Command,
   FolderOpen,
+  Github,
   Plus,
   RefreshCw,
   Settings,
@@ -30,6 +31,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const setPaletteOpen = useApp((s) => s.setPaletteOpen)
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
   const setActivityOpen = useApp((s) => s.setActivityOpen)
+  const setGithubOpen = useApp((s) => s.setGithubOpen)
   const errorToast = useApp((s) => s.errorToast)
   const openRepo = useOpenRepo()
   const { runRemote, remotes } = useRemoteActions()
@@ -159,6 +161,13 @@ export default function TopBar({ status }: { status?: StatusDto }) {
               <Activity size={16} />
             </button>
           )}
+          <button
+            className="icon-btn"
+            title="GitHub"
+            onClick={() => setGithubOpen(true)}
+          >
+            <Github size={16} />
+          </button>
           <button
             className="icon-btn"
             title="命令面板 (Ctrl+K)"

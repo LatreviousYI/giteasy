@@ -476,6 +476,131 @@ export async function mockInvoke<T>(
       ] as T
     case 'repo_recent':
       return settings.recent as T
+    case 'github_accounts':
+      return [
+        {
+          login: 'demo-user',
+          name: 'Demo User',
+          avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4'
+        }
+      ] as T
+    case 'github_login_token':
+    case 'github_device_poll':
+      return {
+        login: 'demo-user',
+        name: 'Demo User',
+        avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4'
+      } as T
+    case 'github_device_start':
+      return {
+        deviceCode: 'mock-device-code',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://github.com/login/device',
+        expiresIn: 900,
+        interval: 5
+      } as T
+    case 'github_logout':
+    case 'github_clone':
+      return undefined as T
+    case 'github_repos':
+      return [
+        {
+          id: 1,
+          fullName: 'demo-user/giteasy-demo',
+          name: 'giteasy-demo',
+          private: false,
+          cloneUrl: 'https://github.com/demo-user/giteasy-demo.git',
+          sshUrl: 'git@github.com:demo-user/giteasy-demo.git',
+          defaultBranch: 'main',
+          description: 'GitEasy interface demo repository',
+          updatedAt: new Date(now * 1000).toISOString()
+        },
+        {
+          id: 2,
+          fullName: 'demo-user/private-api',
+          name: 'private-api',
+          private: true,
+          cloneUrl: 'https://github.com/demo-user/private-api.git',
+          sshUrl: 'git@github.com:demo-user/private-api.git',
+          defaultBranch: 'main',
+          description: 'Private API service',
+          updatedAt: new Date((now - 3600) * 1000).toISOString()
+        }
+      ] as T
+    case 'github_notifications':
+      return [
+        {
+          id: 'n1',
+          unread: true,
+          reason: 'review_requested',
+          updatedAt: new Date(now * 1000).toISOString(),
+          subject: {
+            title: 'feat: improve theme editor',
+            type: 'PullRequest',
+            url: null
+          },
+          repository: { fullName: 'demo-user/giteasy-demo' }
+        },
+        {
+          id: 'n2',
+          unread: false,
+          reason: 'mention',
+          updatedAt: new Date((now - 1800) * 1000).toISOString(),
+          subject: {
+            title: 'Crash when opening large diff',
+            type: 'Issue',
+            url: null
+          },
+          repository: { fullName: 'demo-user/giteasy-demo' }
+        }
+      ] as T
+    case 'github_pull_requests':
+    case 'github_issues':
+      return [
+        {
+          id: 101,
+          number: 42,
+          title:
+            payload.stateFilter === 'closed'
+              ? 'fix: old merge conflict'
+              : 'feat: add repository manager',
+          state: String(payload.stateFilter ?? 'open'),
+          htmlUrl: 'https://github.com/demo-user/giteasy-demo/pull/42',
+          createdAt: new Date((now - 7200) * 1000).toISOString(),
+          updatedAt: new Date((now - 600) * 1000).toISOString(),
+          user: {
+            login: 'demo-user',
+            avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4'
+          },
+          pullRequest:
+            command === 'github_pull_requests' ? { merged: false } : null,
+          assignee: {
+            login: 'reviewer',
+            avatarUrl: 'https://avatars.githubusercontent.com/u/2?v=4'
+          }
+        },
+        {
+          id: 102,
+          number: 43,
+          title: 'docs: clarify Linux setup',
+          state: 'open',
+          htmlUrl: 'https://github.com/demo-user/giteasy-demo/pull/43',
+          createdAt: new Date((now - 18000) * 1000).toISOString(),
+          updatedAt: new Date((now - 9000) * 1000).toISOString(),
+          user: {
+            login: 'contributor',
+            avatarUrl: 'https://avatars.githubusercontent.com/u/3?v=4'
+          },
+          pullRequest:
+            command === 'github_pull_requests' ? { merged: false } : null,
+          assignee: null
+        }
+      ] as T
+    case 'github_create_pull':
+      return {
+        number: 44,
+        html_url: 'https://github.com/demo-user/giteasy-demo/pull/44'
+      } as T
     case 'repo_discover':
       return [mockRepoInfo.path, '/tmp/giteasy-conflict'] as T
     case 'repo_forget':

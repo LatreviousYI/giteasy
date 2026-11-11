@@ -12,6 +12,11 @@ import type {
   DiffDto,
   FileContentDto,
   FileStatus,
+  GitHubAccount,
+  GitHubDeviceStart,
+  GitHubIssue,
+  GitHubNotification,
+  GitHubRepo,
   Identity,
   LogQuery,
   ProgressEvent,
@@ -293,7 +298,44 @@ export const ipc = {
   sshPublicKey: () => invoke<SshPublicKey>('ssh_public_key'),
 
   activityList: (path: string, limit = 100) =>
-    invoke<ActivityEvent[]>('activity_list', { path, limit })
+    invoke<ActivityEvent[]>('activity_list', { path, limit }),
+
+  githubAccounts: () => invoke<GitHubAccount[]>('github_accounts'),
+  githubLoginToken: (token: string) =>
+    invoke<GitHubAccount>('github_login_token', { token }),
+  githubLogout: (login: string) => invoke<void>('github_logout', { login }),
+  githubDeviceStart: (clientId: string) =>
+    invoke<GitHubDeviceStart>('github_device_start', { clientId }),
+  githubDevicePoll: (clientId: string, deviceCode: string) =>
+    invoke<GitHubAccount | null>('github_device_poll', { clientId, deviceCode }),
+  githubRepos: (login: string, page = 1) =>
+    invoke<GitHubRepo[]>('github_repos', { login, page }),
+  githubNotifications: (login: string) =>
+    invoke<GitHubNotification[]>('github_notifications', { login }),
+  githubPullRequests: (path: string, login: string, stateFilter = 'open') =>
+    invoke<GitHubIssue[]>('github_pull_requests', { path, login, stateFilter }),
+  githubIssues: (path: string, login: string, stateFilter = 'open') =>
+    invoke<GitHubIssue[]>('github_issues', { path, login, stateFilter }),
+  githubCreatePull: (
+    path: string,
+    login: string,
+    base: string,
+    head: string,
+    title: string,
+    body: string,
+    draft: boolean
+  ) =>
+    invoke<Record<string, unknown>>('github_create_pull', {
+      path,
+      login,
+      base,
+      head,
+      title,
+      body,
+      draft
+    }),
+  githubClone: (url: string, target: string) =>
+    invoke<void>('github_clone', { url, target })
 }
 
 export type { FileStatus }

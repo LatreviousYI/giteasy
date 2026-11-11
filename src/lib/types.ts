@@ -100,6 +100,59 @@ export interface ReflogEntryDto {
   time: number
 }
 
+export interface GitHubAccount {
+  login: string
+  name: string
+  avatarUrl: string
+}
+
+export interface GitHubDeviceStart {
+  deviceCode: string
+  userCode: string
+  verificationUri: string
+  expiresIn: number
+  interval: number
+}
+
+export interface GitHubRepo {
+  id: number
+  fullName: string
+  name: string
+  private: boolean
+  cloneUrl: string
+  sshUrl: string
+  defaultBranch: string
+  description: string | null
+  updatedAt: string
+}
+
+export interface GitHubNotification {
+  id: string
+  unread: boolean
+  reason: string
+  updatedAt: string
+  subject: { title: string; type: string; url: string | null }
+  repository: { fullName: string }
+}
+
+export interface GitHubActor {
+  login: string
+  avatarUrl: string
+}
+
+export interface GitHubIssue {
+  id: number
+  number: number
+  title: string
+  state: string
+  htmlUrl: string
+  createdAt: string
+  updatedAt: string
+  user: GitHubActor
+  pullRequest: unknown | null
+  assignee: GitHubActor | null
+}
+
 export interface CommitResult {
   oid: string
   output: string

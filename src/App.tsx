@@ -21,6 +21,7 @@ import CommandPalette from './features/palette/CommandPalette'
 import FileInspector from './features/inspector/FileInspector'
 import SshTrustDialog from './components/SshTrustDialog'
 import ActivityPanel from './features/activity/ActivityPanel'
+import GitHubPanel from './features/github/GitHubPanel'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
@@ -31,6 +32,7 @@ export default function App() {
   const setSettings = useApp((s) => s.setSettings)
   const settingsOpen = useApp((s) => s.settingsOpen)
   const activityOpen = useApp((s) => s.activityOpen)
+  const githubOpen = useApp((s) => s.githubOpen)
   const paletteOpen = useApp((s) => s.paletteOpen)
   const setPaletteOpen = useApp((s) => s.setPaletteOpen)
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
@@ -244,6 +246,7 @@ export default function App() {
       <ToastHost />
       {settingsOpen && <SettingsDialog />}
       {activityOpen && repo && <ActivityPanel />}
+      {githubOpen && <GitHubPanel />}
       {paletteOpen && <CommandPalette />}
       {repo && <FileInspector />}
       <SshTrustDialog />

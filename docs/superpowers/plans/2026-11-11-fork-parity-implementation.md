@@ -191,36 +191,36 @@
 
 ### M5-01 GitHub 账户与 keyring
 
-- [-] OAuth Device Flow。
-- [-] 系统 keyring 存储和删除 Token。
-- [-] 多账户元数据。
+- [x] OAuth Device Flow。
+- [x] 系统 keyring 存储和删除 Token。
+- [x] 多账户元数据。
 
 ### M5-02 仓库列表与克隆
 
-- [ ] 加载账户仓库、筛选、克隆和打开。
-- [ ] 处理私有仓库、认证失败和限流。
+- [x] 加载账户仓库、筛选、克隆和打开。
+- [x] 处理私有仓库、认证失败和限流。
 
 ### M5-03 通知
 
-- [ ] 拉取通知、未读计数、过滤和跳转。
-- [ ] 轮询、ETag、离线缓存和错误降级。
+- [x] 拉取通知、未读计数、过滤和跳转。
+- [x] 轮询、ETag、离线缓存和错误降级。
 
 ### M5-04 PR 与 Issue
 
-- [ ] Pull Requests / Issues 列表、作者/Assignee 筛选和最近搜索。
-- [ ] 打开网页、复制链接和与本地分支关联。
+- [x] Pull Requests / Issues 列表、作者/Assignee 筛选和最近搜索。
+- [x] 打开网页、复制链接和与本地分支关联。
 
 ### M5-05 创建 Pull Request
 
-- [ ] 从当前分支创建 PR，支持 base、title、body 和 draft。
-- [ ] 预览并确认提交到 GitHub。
+- [x] 从当前分支创建 PR，支持 base、title、body 和 draft。
+- [x] 预览并确认提交到 GitHub。
 
 ## M6 Fork 高级能力补齐
 
 ### M6-01 Patch
 
-- [ ] 保存工作区、Commit、Commit range 和 Stash 为 Patch。
-- [ ] 复制、应用、拖入和冲突校验。
+- [-] 保存工作区、Commit、Commit range 和 Stash 为 Patch。
+- [-] 复制、应用、拖入和冲突校验。
 
 ### M6-02 图片 diff
 
@@ -267,5 +267,5 @@
 
 ## 当前执行
 
-- 当前任务：`M5-01 GitHub 账户与 keyring`
-- 下一任务：`M5-02 仓库列表与克隆`
+- 当前任务：`M6-01 Patch`
+- 下一任务：`M6-02 图片 diff`

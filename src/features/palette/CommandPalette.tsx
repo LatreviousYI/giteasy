@@ -9,6 +9,7 @@ import {
   GitBranch,
   GitCommitHorizontal,
   GitMerge,
+  Github,
   ListChecks,
   Moon,
   RefreshCw,
@@ -41,6 +42,7 @@ export default function CommandPalette() {
   const activateRepoWorkspace = useApp((s) => s.activateRepoWorkspace)
   const closeRepoWorkspace = useApp((s) => s.closeRepoWorkspace)
   const setActivityOpen = useApp((s) => s.setActivityOpen)
+  const setGithubOpen = useApp((s) => s.setGithubOpen)
   const settings = useApp((s) => s.settings)
   const setSettings = useApp((s) => s.setSettings)
   const setView = useApp((s) => s.setView)
@@ -86,6 +88,13 @@ export default function CommandPalette() {
         label: '打开设置',
         icon: <SettingsIcon size={15} />,
         run: () => setSettingsOpen(true)
+      },
+      {
+        id: 'github',
+        label: '打开 GitHub',
+        hint: '账户 / 仓库 / 通知 / PR',
+        icon: <Github size={15} />,
+        run: () => setGithubOpen(true)
       },
       {
         id: 'theme',
@@ -239,6 +248,7 @@ export default function CommandPalette() {
     setView,
     setRepo,
     setActivityOpen,
+    setGithubOpen,
     invalidate,
     toast,
     errorToast,

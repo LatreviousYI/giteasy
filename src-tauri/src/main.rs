@@ -2,6 +2,7 @@
 
 mod activity;
 mod error;
+mod github;
 mod model;
 mod patch;
 mod read;
@@ -21,6 +22,7 @@ pub struct AppState {
     pub settings: Mutex<settings::Settings>,
     pub watchers: Mutex<HashMap<String, RecommendedWatcher>>,
     pub sessions: session::RepoRegistry,
+    pub github: github::GitHubService,
 }
 
 fn main() {
@@ -31,6 +33,7 @@ fn main() {
             settings: Mutex::new(loaded),
             watchers: Mutex::new(HashMap::new()),
             sessions: session::RepoRegistry::default(),
+            github: github::GitHubService::new(),
         })
         .invoke_handler(tauri::generate_handler![
             read::repo_open,
@@ -101,6 +104,17 @@ fn main() {
             ssh::ssh_trust_remote,
             ssh::ssh_public_key,
             activity::activity_list,
+            github::github_accounts,
+            github::github_login_token,
+            github::github_logout,
+            github::github_device_start,
+            github::github_device_poll,
+            github::github_repos,
+            github::github_notifications,
+            github::github_pull_requests,
+            github::github_issues,
+            github::github_create_pull,
+            github::github_clone,
             settings::settings_get,
             settings::settings_set,
             settings::repo_recent,
