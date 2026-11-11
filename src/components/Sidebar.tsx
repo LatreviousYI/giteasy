@@ -491,8 +491,14 @@ export default function Sidebar() {
 
         <SubmoduleSection
           submodules={submodules}
+          repoPath={repo.path}
           onUpdate={() =>
             run(() => ipc.submoduleUpdate(repo.path, true), '子模块已更新')
+          }
+          onOpen={(submodule) =>
+            openRepo(
+              `${repo.path.replace(/\/$/, '')}/${submodule.path.replace(/^\/+/, '')}`
+            )
           }
         />
 
@@ -500,6 +506,7 @@ export default function Sidebar() {
           worktrees={worktrees}
           repoPath={repo.path}
           onAdd={addWorktree}
+          onOpen={(worktree) => openRepo(worktree.path)}
           onRemove={(worktree) =>
             setConfirm({
               title: '移除工作树',

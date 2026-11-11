@@ -8,10 +8,11 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
-import { useInvalidateRepo } from '../../lib/queries'
+import { useCommitDetail, useInvalidateRepo } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 import { Spinner } from '../../components/Empty'
+import { formatDate, statusMeta } from '../../lib/format'
 import type { ProgressEvent, RebaseAction, RebaseCommit, RebaseStep } from '../../lib/types'
 
 const ACTIONS: { value: RebaseAction; label: string; hint: string }[] = [
@@ -46,6 +47,10 @@ export default function RebaseDialog({
   const [loadError, setLoadError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<ProgressEvent | null>(null)
+  const [selectedOid, setSelectedOid] = useState<string | null>(null)
+  const [draggingIndex, setDraggingIndex] = useState<number | null>(null)
+  const [backup, setBackup] = useState(true)
+  const previewQuery = useCommitDetail(repo?.path ?? null, selectedOid)
 
   const load = async () => {
     if (!repo) return
@@ -61,6 +66,7 @@ export default function RebaseDialog({
           originalSubject: commit.subject
         }))
       )
+      setSelectedOid(commits[0]?.oid ?? null)
     } catch (error) {
       setLoadError((error as { message?: string })?.message ?? '读取提交列表失败')
     }
@@ -91,6 +97,17 @@ export default function RebaseDialog({
     })
   }
 
+  const moveBefore = (from: number, to: number) => {
+    if (from === to) return
+    setSteps((prev) => {
+      if (!prev) return prev
+      const next = [...prev]
+      const [item] = next.splice(from, 1)
+      next.splice(to, 0, item)
+      return next
+    })
+  }
+
   const start = async () => {
     if (!steps || busy) return
     const payload: RebaseStep[] = steps.map((step) => ({
@@ -101,9 +118,19 @@ export default function RebaseDialog({
     setBusy(true)
     setProgress(null)
     try {
-      await ipc.rebaseStart(repo.path, base, payload, (event) => setProgress(event))
+      const backupTag = await ipc.rebaseStart(
+        repo.path,
+        base,
+        payload,
+        backup,
+        (event) => setProgress(event)
+      )
       invalidate()
-      toast('success', '交互式变基完成')
+      toast(
+        'success',
+        '交互式变基完成',
+        backupTag ? { message: `备份 Tag：${backupTag}` } : undefined
+      )
       onClose()
     } catch (error) {
       setProgress(null)
@@ -119,7 +146,12 @@ export default function RebaseDialog({
   }
 
   const firstActive = steps?.find((step) => step.action !== 'drop')
-  const canStart = !!steps && steps.length > 0 && !busy
+  const canStart =
+    !!steps &&
+    steps.length > 0 &&
+    !busy &&
+    firstActive?.action !== 'squash' &&
+    firstActive?.action !== 'fixup'
 
   return (
     <Modal
@@ -133,6 +165,14 @@ export default function RebaseDialog({
       wide
       footer={
         <>
+          <label className="check">
+            <input
+              type="checkbox"
+              checked={backup}
+              onChange={(event) => setBackup(event.target.checked)}
+            />
+            创建备份 Tag
+          </label>
           <span className="spacer" />
           <button className="btn" onClick={onClose} disabled={busy}>
             取消
@@ -172,7 +212,22 @@ export default function RebaseDialog({
           {steps.map((step, index) => {
             const isFirstActive = firstActive === step
             return (
-              <div key={step.oid} className="rebase-row">
+              <div
+                key={step.oid}
+                className={`rebase-row ${selectedOid === step.oid ? 'active' : ''} ${
+                  draggingIndex === index ? 'dragging' : ''
+                }`}
+                draggable={!busy}
+                onDragStart={() => setDraggingIndex(index)}
+                onDragOver={(event) => event.preventDefault()}
+                onDrop={(event) => {
+                  event.preventDefault()
+                  if (draggingIndex !== null) moveBefore(draggingIndex, index)
+                  setDraggingIndex(null)
+                }}
+                onDragEnd={() => setDraggingIndex(null)}
+                onClick={() => setSelectedOid(step.oid)}
+              >
                 <div className="rebase-row-main">
                   <GripVertical size={13} className="text-subtle" />
                   <span className="rebase-index">{index + 1}</span>
@@ -237,6 +292,47 @@ export default function RebaseDialog({
               </div>
             )
           })}
+        </div>
+      )}
+
+      {selectedOid && (
+        <div className="rebase-preview">
+          {previewQuery.isLoading || !previewQuery.data ? (
+            <div className="flex items-center gap-2 text-[11.5px] text-[var(--text-muted)]">
+              <Spinner /> 读取提交预览…
+            </div>
+          ) : (
+            <>
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="mono text-[11px] text-[var(--text-subtle)]">
+                  {previewQuery.data.commit.shortOid}
+                </span>
+                <span className="truncate" style={{ flex: 1 }}>
+                  {previewQuery.data.commit.subject}
+                </span>
+                <span className="row-sub">{previewQuery.data.commit.authorName}</span>
+                <span
+                  className="row-sub"
+                  title={formatDate(previewQuery.data.commit.time)}
+                >
+                  {formatDate(previewQuery.data.commit.time)}
+                </span>
+              </div>
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {previewQuery.data.files.map((file) => {
+                  const meta = statusMeta[file.status] ?? statusMeta.modified
+                  return (
+                    <span key={file.path} className="preview-file-chip" title={file.path}>
+                      <span className={`file-letter ${meta.className}`}>{meta.letter}</span>
+                      <span className="truncate">{file.path}</span>
+                      <span className="add-count">+{file.additions}</span>
+                      <span className="del-count">-{file.deletions}</span>
+                    </span>
+                  )
+                })}
+              </div>
+            </>
+          )}
         </div>
       )}
 

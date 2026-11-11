@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, CheckCircle2, FileWarning, GitMerge } from 'lucide-react'
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ExternalLink,
+  FileWarning,
+  GitMerge
+} from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useConflicts, useInvalidateRepo, useStatus } from '../../lib/queries'
 import { useApp } from '../../store/app'
@@ -77,6 +83,14 @@ export default function ConflictsView() {
   const useOurs = () => current?.ours !== null && setContent(current?.ours ?? '')
   const useTheirs = () => current?.theirs !== null && setContent(current?.theirs ?? '')
   const useBoth = () => setContent(`${current?.ours ?? ''}${current?.theirs ?? ''}`)
+  const openExternal = async () => {
+    if (!current) return
+    try {
+      await ipc.openInEditor(repo.path, current.path)
+    } catch (error) {
+      errorToast(error)
+    }
+  }
 
   const blocks = useMemo(() => parseConflictBlocks(content), [content])
 
@@ -157,23 +171,46 @@ export default function ConflictsView() {
           />
         ) : (
           <div className="conflict-body">
-            <div className="conflict-side">
-              <div className="conflict-col-head">
-                我的版本（ours）
-                <span style={{ flex: 1 }} />
-                <button className="btn btn-sm" onClick={useOurs} disabled={!current.ours}>
-                  采用
-                </button>
+            <div className="conflict-versions">
+              <div className="conflict-side">
+                <div className="conflict-col-head">
+                  我的版本（ours）
+                  <span style={{ flex: 1 }} />
+                  <button className="btn btn-sm" onClick={useOurs} disabled={!current.ours}>
+                    采用
+                  </button>
+                </div>
+                <pre className="conflict-code">
+                  {current.ours ?? '（该文件没有 ours 版本）'}
+                </pre>
               </div>
-              <pre className="conflict-code">{current.ours ?? '（该文件没有 ours 版本）'}</pre>
-            </div>
 
-            {showBase && (
-              <div className="conflict-side" style={{ flex: 0.8 }}>
-                <div className="conflict-col-head">共同祖先（base）</div>
-                <pre className="conflict-code">{current.base ?? '（该文件没有 base 版本）'}</pre>
+              {showBase && (
+                <div className="conflict-side">
+                  <div className="conflict-col-head">共同祖先（base）</div>
+                  <pre className="conflict-code">
+                    {current.base ?? '（该文件没有 base 版本）'}
+                  </pre>
+                </div>
+              )}
+
+              <div className="conflict-side conflict-side-last">
+                <div className="conflict-col-head">
+                  对方版本（theirs）
+                  <span style={{ flex: 1 }} />
+                  <button
+                    className="btn btn-sm"
+                    onClick={useTheirs}
+                    disabled={!current.theirs}
+                  >
+                    采用
+                  </button>
+                </div>
+                <pre className="conflict-code">
+                  {current.theirs ?? '（该文件没有 theirs 版本）'}
+                </pre>
               </div>
-            )}
+            </div>
 
             <div className="conflict-result">
               <div className="conflict-col-head">
@@ -186,6 +223,10 @@ export default function ConflictsView() {
                   disabled={busy}
                 >
                   base 对照
+                </button>
+                <button className="btn btn-sm" onClick={openExternal} disabled={busy}>
+                  <ExternalLink size={12} />
+                  外部工具
                 </button>
                 <button className="btn btn-sm" onClick={useBoth} disabled={busy}>
                   两者保留
@@ -279,16 +320,6 @@ export default function ConflictsView() {
               )}
             </div>
 
-            <div className="conflict-side" style={{ borderRight: 0 }}>
-              <div className="conflict-col-head">
-                对方版本（theirs）
-                <span style={{ flex: 1 }} />
-                <button className="btn btn-sm" onClick={useTheirs} disabled={!current.theirs}>
-                  采用
-                </button>
-              </div>
-              <pre className="conflict-code">{current.theirs ?? '（该文件没有 theirs 版本）'}</pre>
-            </div>
           </div>
         )}
       </div>

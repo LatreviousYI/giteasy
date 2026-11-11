@@ -113,8 +113,9 @@ pub async fn rebase_start(
     path: String,
     base: String,
     steps: Vec<RebaseStep>,
+    backup: bool,
     on_event: Channel<ProgressEvent>,
-) -> Result<(), AppError> {
+) -> Result<Option<String>, AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     if base.trim().is_empty() {
         return Err(AppError::user("请选择变基的基点提交"));
@@ -137,6 +138,17 @@ pub async fn rebase_start(
         }
     }
     let todo = build_todo(&steps, &message_paths)?;
+    let backup_tag = if backup {
+        let stamp = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|value| value.as_secs())
+            .unwrap_or(0);
+        let tag = format!("giteasy-backup-{stamp}");
+        util::git(&path, &["tag", tag.as_str(), "HEAD"]).await?;
+        Some(tag)
+    } else {
+        None
+    };
     let todo_path = temp_path("plan.todo");
     std::fs::write(&todo_path, todo)?;
     let editor = format!("cp {}", quote(todo_path.to_string_lossy().as_ref()));
@@ -150,7 +162,8 @@ pub async fn rebase_start(
         &envs,
         &on_event,
     )
-    .await
+    .await?;
+    Ok(backup_tag)
 }
 
 #[cfg(test)]

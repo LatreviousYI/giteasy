@@ -8,6 +8,7 @@ import {
   Cloud,
   CloudUpload,
   FolderTree,
+  FolderOpen,
   GitBranch,
   Play,
   Plus,
@@ -393,10 +394,17 @@ export function StashSection({
 
 interface SubmoduleSectionProps {
   submodules: SubmoduleDto[]
+  repoPath: string
   onUpdate: () => void
+  onOpen: (submodule: SubmoduleDto) => void
 }
 
-export function SubmoduleSection({ submodules, onUpdate }: SubmoduleSectionProps) {
+export function SubmoduleSection({
+  submodules,
+  repoPath,
+  onUpdate,
+  onOpen
+}: SubmoduleSectionProps) {
   if (submodules.length === 0) return null
   return (
     <div className="section">
@@ -416,7 +424,12 @@ export function SubmoduleSection({ submodules, onUpdate }: SubmoduleSectionProps
       </div>
       <div className="section-body">
         {submodules.map((submodule) => (
-          <div key={submodule.path} className="list-row" title={submodule.url}>
+          <div
+            key={submodule.path}
+            className="list-row"
+            title={`${submodule.url}\n双击打开子仓库`}
+            onDoubleClick={() => onOpen(submodule)}
+          >
             <span
               className="w-1.5 h-1.5 rounded-full"
               style={{
@@ -428,6 +441,17 @@ export function SubmoduleSection({ submodules, onUpdate }: SubmoduleSectionProps
               {submodule.path}
             </span>
             <span className="row-sub">{submodule.status}</span>
+            <button
+              className="icon-btn"
+              style={{ width: 20, height: 20 }}
+              title="打开子仓库"
+              onClick={(event) => {
+                event.stopPropagation()
+                onOpen(submodule)
+              }}
+            >
+              <FolderOpen size={12} />
+            </button>
           </div>
         ))}
       </div>
@@ -440,13 +464,15 @@ interface WorktreeSectionProps {
   repoPath: string
   onAdd: () => void
   onRemove: (worktree: WorktreeDto) => void
+  onOpen: (worktree: WorktreeDto) => void
 }
 
 export function WorktreeSection({
   worktrees,
   repoPath,
   onAdd,
-  onRemove
+  onRemove,
+  onOpen
 }: WorktreeSectionProps) {
   return (
     <div className="section">
@@ -466,23 +492,41 @@ export function WorktreeSection({
       </div>
       <div className="section-body">
         {worktrees.map((worktree) => (
-          <div key={worktree.path} className="list-row" title={worktree.path}>
+          <div
+            key={worktree.path}
+            className="list-row"
+            title={`${worktree.path}\n双击切换工作树`}
+            onDoubleClick={() => onOpen(worktree)}
+          >
             <FolderTree size={12} className="text-subtle" />
             <span className="truncate" style={{ flex: 1 }}>
               {worktree.branch ?? splitPath(worktree.path).name}
             </span>
             {worktree.path !== repoPath && (
-              <button
-                className="icon-btn"
-                style={{ width: 20, height: 20 }}
-                title="移除工作树"
-                onClick={(event) => {
-                  event.stopPropagation()
-                  onRemove(worktree)
-                }}
-              >
-                <Trash2 size={12} />
-              </button>
+              <>
+                <button
+                  className="icon-btn"
+                  style={{ width: 20, height: 20 }}
+                  title="打开工作树"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onOpen(worktree)
+                  }}
+                >
+                  <FolderOpen size={12} />
+                </button>
+                <button
+                  className="icon-btn"
+                  style={{ width: 20, height: 20 }}
+                  title="移除工作树"
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onRemove(worktree)
+                  }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              </>
             )}
           </div>
         ))}

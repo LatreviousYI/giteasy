@@ -195,9 +195,16 @@ export const ipc = {
     path: string,
     base: string,
     steps: RebaseStep[],
+    backup: boolean,
     onProgress: ProgressHandler
   ) =>
-    invoke<void>('rebase_start', { path, base, steps, onEvent: channel(onProgress) }),
+    invoke<string | null>('rebase_start', {
+      path,
+      base,
+      steps,
+      backup,
+      onEvent: channel(onProgress)
+    }),
 
   stashSave: (path: string, message?: string | null, includeUntracked?: boolean) =>
     invoke<void>('stash_save', { path, message, includeUntracked }),
