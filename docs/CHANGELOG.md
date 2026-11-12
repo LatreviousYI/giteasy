@@ -11,6 +11,7 @@
 - macOS 后端测试失败时上传 `macos-backend.log`，便于在未登录 Actions 页面时通过 artifact 获取诊断信息。
 - 应用与 DMG 构建失败时上传 `macos-build.log`，保留 Tauri 打包错误。
 - 使用 Tauri 图标生成器补充 macOS `icon.icns` 与 Windows `icon.ico`，修复 `Failed to create app icon: No matching IconType`。
+- macOS workflow 默认生成无签名开发包；只有手动触发并勾选 `sign` 时才使用 Apple 签名和公证 Secret。
 - Worktree 含空格路径测试改为比较 canonical path，兼容 macOS `/tmp` 指向 `/private/tmp`。
 - Linux 补充 `.deb`、AppImage、RPM 的依赖和构建方式。
 - macOS 补充签名、公证 Secret、CI 和产物路径。

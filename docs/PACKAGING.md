@@ -121,7 +121,7 @@ CI：
 .github/workflows/build-macos-arm64.yml
 ```
 
-CI 使用 GitHub 当前支持的 arm64 标准标签 `macos-15`。标签 `v*` 或手动触发后上传 `.app` 和 `.dmg`。
+CI 使用 GitHub 当前支持的 arm64 标准标签 `macos-15`。标签 `v*` 默认生成无签名 `.app` 和 `.dmg` 并上传 artifact。手动触发时可勾选 `sign`，仅在该模式下注入 Apple 证书和公证 Secret。
 
 ### 签名与公证
 
@@ -136,7 +136,7 @@ APPLE_PASSWORD
 APPLE_TEAM_ID
 ```
 
-没有签名证书时可以生成开发包，但 Gatekeeper 会提示未验证。正式发布必须完成 Developer ID 签名和公证。
+没有签名证书时可以生成开发包，但 Gatekeeper 会提示未验证。正式发布必须完成 Developer ID 签名和公证。若仓库存在不完整 Secret，请保持 `sign=false`，否则签名步骤会失败。
 
 ### 尚未配置
 
