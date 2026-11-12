@@ -9,6 +9,7 @@
 - 新增 `docs/PACKAGING.md`，覆盖 Linux、macOS Apple Silicon 和 Windows 的构建状态、依赖、命令与产物路径。
 - macOS CI runner 从已停止支持的 `macos-14` 更新为 arm64 标准标签 `macos-15`。
 - macOS 后端测试失败时上传 `macos-backend.log`，便于在未登录 Actions 页面时通过 artifact 获取诊断信息。
+- Worktree 含空格路径测试改为比较 canonical path，兼容 macOS `/tmp` 指向 `/private/tmp`。
 - Linux 补充 `.deb`、AppImage、RPM 的依赖和构建方式。
 - macOS 补充签名、公证 Secret、CI 和产物路径。
 - 明确 Windows 当前阻塞项及适配完成后的 NSIS/MSI 目标命令，避免发布不可用安装包。

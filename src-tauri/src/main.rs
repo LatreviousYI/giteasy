@@ -485,7 +485,12 @@ mod tests {
         .unwrap();
 
         let listed = read::worktree_list(path.clone()).await.unwrap();
-        assert!(listed.iter().any(|item| item.path == worktree_path));
+        let expected_path = std::fs::canonicalize(&worktree).unwrap();
+        assert!(listed.iter().any(|item| {
+            std::fs::canonicalize(&item.path)
+                .map(|listed_path| listed_path == expected_path)
+                .unwrap_or(false)
+        }));
         assert!(listed
             .iter()
             .any(|item| item.branch.as_deref() == Some("feature/worktree")));
