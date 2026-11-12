@@ -13,14 +13,14 @@
 下载 `.deb` 后安装：
 
 ```bash
-sudo apt install ./giteasy_*.deb
+sudo apt install ./GitEasy_*.deb
 ```
 
 如果希望免安装运行，可以下载 `.AppImage`：
 
 ```bash
-chmod +x GitEasy-*.AppImage
-./GitEasy-*.AppImage
+chmod +x GitEasy_*.AppImage
+./GitEasy_*.AppImage
 ```
 
 系统需要 Git、WebKitGTK 4.1 和可用的桌面环境。

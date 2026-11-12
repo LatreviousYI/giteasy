@@ -17,6 +17,7 @@
 - macOS 与 Ubuntu 的 tag 构建会把安装包上传到同一个 GitHub Release。
 - 新增 `docs/DOWNLOADS.md`，自动作为 Release 正文，说明 Ubuntu、macOS Apple Silicon 和暂不支持的 Windows 分别下载什么。
 - macOS Release 仅上传 `.dmg`；完整 `.app` 目录继续作为 workflow artifact 提供。
+- Release 下载说明使用与实际资产一致的 `GitEasy_*.deb` 和 `GitEasy_*.AppImage` 通配符。
 
 ### 多平台打包文档
 
