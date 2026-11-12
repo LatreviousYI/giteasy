@@ -51,7 +51,17 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: npm run tauri -- build --target aarch64-apple-darwin --bundles app,dmg
+        run: |
+          set -o pipefail
+          npm run tauri -- build --target aarch64-apple-darwin --bundles app,dmg 2>&1 | tee macos-build.log
+
+      - name: Upload build failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitEasy-macOS-build-failure
+          if-no-files-found: ignore
+          path: macos-build.log
 
       - name: Upload macOS artifacts
         uses: actions/upload-artifact@v4
