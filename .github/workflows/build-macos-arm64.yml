@@ -31,7 +31,17 @@ jobs:
         run: npm run test:frontend
 
       - name: Backend tests for macOS
-        run: cargo test --manifest-path src-tauri/Cargo.toml
+        run: |
+          set -o pipefail
+          cargo test --manifest-path src-tauri/Cargo.toml 2>&1 | tee macos-backend.log
+
+      - name: Upload backend failure log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: GitEasy-macOS-backend-failure
+          if-no-files-found: ignore
+          path: macos-backend.log
 
       - name: Build Apple Silicon app and DMG
         env:
