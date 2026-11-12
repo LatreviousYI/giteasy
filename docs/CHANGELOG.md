@@ -11,6 +11,13 @@
 - 目标提交不在首批结果中时自动加载更多历史，避免定位被 300 条限制截断。
 - 验证：前端 28 项、后端 30 项测试通过，生产构建通过；浏览器预览中验证 `origin/main` 单击定位成功。
 
+### GitHub Release 与 Ubuntu 流水线
+
+- 新增 Ubuntu 24.04 GitHub Actions 流水线，构建 `.deb` 和 `.AppImage`。
+- macOS 与 Ubuntu 的 tag 构建会把安装包上传到同一个 GitHub Release。
+- 新增 `docs/DOWNLOADS.md`，自动作为 Release 正文，说明 Ubuntu、macOS Apple Silicon 和暂不支持的 Windows 分别下载什么。
+- macOS Release 仅上传 `.dmg`；完整 `.app` 目录继续作为 workflow artifact 提供。
+
 ### 多平台打包文档
 
 - 新增 `docs/PACKAGING.md`，覆盖 Linux、macOS Apple Silicon 和 Windows 的构建状态、依赖、命令与产物路径。

@@ -59,6 +59,8 @@ Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因�
 
 完整的 Linux、macOS 和 Windows 打包状态、依赖、命令与产物路径见 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
+版本标签会同时触发 Ubuntu 和 macOS Apple Silicon 构建，并将安装包发布到 [GitHub Releases](https://github.com/LatreviousYI/giteasy/releases)。各系统应下载的包见 [docs/DOWNLOADS.md](docs/DOWNLOADS.md)。
+
 ## 凭据与隐私
 
 - GitHub Token 存储在系统 Keyring。

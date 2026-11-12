@@ -15,7 +15,7 @@ jobs:
   build:
     runs-on: macos-15
     permissions:
-      contents: read
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -82,4 +82,17 @@ jobs:
           if-no-files-found: error
           path: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
+            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+
+      - name: Publish macOS release asset
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GitEasy ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          body_path: docs/DOWNLOADS.md
+          make_latest: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          files: |
             src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg

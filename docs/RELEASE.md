@@ -8,6 +8,8 @@
 - macOS Apple Silicon：`.app` 与 `.dmg`。
 - Windows：尚未完成平台适配，不发布。
 
+推送 `v*` 标签后，Ubuntu 与 macOS workflow 会把 `.deb`、`.AppImage` 和 `.dmg` 上传到同一个 GitHub Release。用户下载说明由 `docs/DOWNLOADS.md` 自动写入 Release 正文。
+
 ## 通用验收命令
 
 ```bash
@@ -58,6 +60,21 @@ CI：
 ```
 
 正式发布必须配置 Developer ID 签名和公证 Secret，具体变量见 [PACKAGING.md](PACKAGING.md)。
+
+## Ubuntu 发布
+
+CI：
+
+```text
+.github/workflows/build-linux-ubuntu.yml
+```
+
+产物：
+
+```text
+src-tauri/target/release/bundle/deb/*.deb
+src-tauri/target/release/bundle/appimage/*.AppImage
+```
 
 ## Windows 发布
 
