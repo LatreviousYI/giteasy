@@ -817,4 +817,34 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(dir);
     }
+
+    #[tokio::test]
+    async fn log_query_all_includes_unmerged_branch_tip() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/history-focus"]);
+        std::fs::write(dir.join("hello.txt"), "feature branch change\n").unwrap();
+        git(&dir, &["commit", "-q", "-am", "feature branch commit"]);
+        git(&dir, &["switch", "main"]);
+
+        let page = read::log_query(
+            path,
+            model::LogQuery {
+                rev: Some("--all".to_string()),
+                limit: 20,
+                skip: 0,
+                author: None,
+                query: None,
+                file: None,
+            },
+        )
+        .await
+        .unwrap();
+
+        assert!(page
+            .commits
+            .iter()
+            .any(|commit| commit.subject == "feature branch commit"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
 }

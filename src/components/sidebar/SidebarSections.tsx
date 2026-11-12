@@ -102,7 +102,7 @@ interface BranchTreeProps {
   kind: 'local' | 'remote'
   indent?: number
   picked: string | null
-  onPick: (value: string) => void
+  onPick: (value: string, branch: BranchDto) => void
   onCheckout: (branch: BranchDto) => void
   onContextMenu?: (event: MouseEvent<HTMLDivElement>, branch: BranchDto) => void
   renderActions?: (branch: BranchDto, shortName: string) => ReactNode
@@ -131,7 +131,7 @@ function BranchTree({
         key={`branch:${branch.name}`}
         className={`list-row branch-tree-leaf ${active ? 'active' : ''}`}
         style={{ paddingLeft: 8 + indent + depth * 14 }}
-        onClick={() => onPick(`${kind}:${branch.name}`)}
+        onClick={() => onPick(`${kind}:${branch.name}`, branch)}
         onDoubleClick={() => {
           if (kind === 'remote' || !branch.isHead) onCheckout(branch)
         }}
@@ -208,7 +208,7 @@ function BranchTree({
 interface BranchSectionProps {
   branches: BranchDto[]
   picked: string | null
-  onPick: (value: string) => void
+  onPick: (value: string, branch: BranchDto) => void
   onCreate: () => void
   onCheckout: (branch: BranchDto) => void
   onContextMenu: (event: MouseEvent<HTMLDivElement>, branch: BranchDto) => void
@@ -259,7 +259,7 @@ interface RemoteSectionProps {
   collapsed: Record<string, boolean>
   onAdd: () => void
   onToggle: (name: string) => void
-  onPick: (value: string) => void
+  onPick: (value: string, branch: BranchDto) => void
   onCheckout: (branch: BranchDto) => void
   onWorktree: (branch: BranchDto) => void
   onDeleteRemote: (remote: RemoteDto) => void

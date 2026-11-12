@@ -77,6 +77,7 @@ export default function Sidebar() {
   const repo = useApp((s) => s.repo)
   const view = useApp((s) => s.view)
   const setView = useApp((s) => s.setView)
+  const selectCommit = useApp((s) => s.selectCommit)
   const setRepo = useApp((s) => s.setRepo)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
@@ -151,6 +152,12 @@ export default function Sidebar() {
 
   const locals = useMemo(() => branches.filter((b) => !b.isRemote), [branches])
   const remoteBranches = useMemo(() => branches.filter((b) => b.isRemote), [branches])
+
+  const focusBranchHistory = (value: string, branch: BranchDto) => {
+    setPicked(value)
+    selectCommit(branch.oid)
+    setView('history')
+  }
 
   const run = async (action: () => Promise<unknown>, success: string) => {
     if (!path) return
@@ -354,7 +361,7 @@ export default function Sidebar() {
         <BranchSection
           branches={locals}
           picked={picked}
-          onPick={setPicked}
+          onPick={focusBranchHistory}
           onCreate={() => setPrompt({ kind: 'branch' })}
           onCheckout={(branch) =>
             run(async () => {
@@ -384,7 +391,7 @@ export default function Sidebar() {
               [name]: !prev[name]
             }))
           }
-          onPick={setPicked}
+          onPick={focusBranchHistory}
           onCheckout={(branch) =>
             run(async () => {
               const info = await ipc.branchCheckout(repo.path, branch.name)

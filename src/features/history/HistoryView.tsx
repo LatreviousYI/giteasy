@@ -67,7 +67,7 @@ export default function HistoryView() {
     () => ({
       limit,
       skip: 0,
-      rev: 'HEAD',
+      rev: '--all',
       query: debounced || null,
       author: authorDebounced || null,
       file: pathDebounced || null
@@ -105,10 +105,17 @@ export default function HistoryView() {
       if (selectedCommit) selectCommit(null)
       return
     }
-    if (!selectedCommit || !commits.some((commit) => commit.oid === selectedCommit)) {
+    if (!selectedCommit) {
       selectCommit(commits[0].oid)
+      return
     }
-  }, [commits, selectedCommit, selectCommit])
+    if (commits.some((commit) => commit.oid === selectedCommit)) return
+    if (data?.hasMore) {
+      if (!isFetching) setLimit((value) => value + 300)
+      return
+    }
+    if (!isFetching) selectCommit(commits[0].oid)
+  }, [commits, selectedCommit, selectCommit, data?.hasMore, isFetching])
 
   useEffect(() => {
     const index = listEntries.findIndex(

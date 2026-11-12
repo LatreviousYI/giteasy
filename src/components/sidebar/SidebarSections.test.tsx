@@ -88,4 +88,25 @@ describe('branch tree', () => {
     expect(featureRow.style.paddingLeft).toBe('26px')
     expect(uiRow.style.paddingLeft).toBe('40px')
   })
+
+  it('passes the selected branch to the single-click handler', () => {
+    const onPick = vi.fn()
+    render(
+      <BranchSection
+        branches={[branch('main', true), branch('feature/history')]}
+        picked={null}
+        onPick={onPick}
+        onCreate={vi.fn()}
+        onCheckout={vi.fn()}
+        onContextMenu={vi.fn()}
+      />
+    )
+
+    fireEvent.click(screen.getByText('history'))
+
+    expect(onPick).toHaveBeenCalledWith(
+      'local:feature/history',
+      expect.objectContaining({ name: 'feature/history' })
+    )
+  })
 })
