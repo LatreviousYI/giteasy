@@ -121,7 +121,7 @@ CI：
 .github/workflows/build-macos-arm64.yml
 ```
 
-标签 `v*` 或手动触发后上传 `.app` 和 `.dmg`。
+CI 使用 GitHub 当前支持的 arm64 标准标签 `macos-15`。标签 `v*` 或手动触发后上传 `.app` 和 `.dmg`。
 
 ### 签名与公证
 
