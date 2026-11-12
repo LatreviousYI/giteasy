@@ -69,6 +69,25 @@ describe('per-repository UI state', () => {
     expect(useApp.getState().selectedFile).toBeNull()
   })
 
+  it('remembers a pull strategy independently for each repository', () => {
+    const first = repo('/tmp/repo-a', 'repo-a')
+    const second = repo('/tmp/repo-b', 'repo-b')
+    const state = useApp.getState()
+
+    state.setRepo(first)
+    useApp.getState().setRepoPullStrategy(first.path, 'rebase')
+    expect(useApp.getState().pullStrategy).toBe('rebase')
+
+    state.setRepo(second)
+    expect(useApp.getState().pullStrategy).toBeNull()
+    useApp.getState().setRepoPullStrategy(second.path, 'merge')
+
+    state.setRepo(first)
+    expect(useApp.getState().pullStrategy).toBe('rebase')
+    state.setRepo(second)
+    expect(useApp.getState().pullStrategy).toBe('merge')
+  })
+
   it('opens, activates, reorders and closes workspace tabs', () => {
     const first = repo('/tmp/repo-a', 'repo-a')
     const second = repo('/tmp/repo-b', 'repo-b')

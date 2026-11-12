@@ -16,6 +16,7 @@ import Welcome from './features/welcome/Welcome'
 import ChangesView from './features/changes/ChangesView'
 import HistoryView from './features/history/HistoryView'
 import ConflictsView from './features/conflicts/ConflictsView'
+import PullStrategyDialog from './features/remote/PullStrategyDialog'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
@@ -267,6 +268,7 @@ export default function App() {
         {bisectOpen && repo && <BisectDialog />}
         {repoManagerOpen && <RepositoryManagerDialog />}
         {paletteOpen && <CommandPalette />}
+        <PullStrategyDialog />
         {repo && <FileInspector />}
         <SshTrustDialog />
       </Suspense>

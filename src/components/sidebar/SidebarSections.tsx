@@ -100,6 +100,7 @@ function branchCount(node: BranchTreeNode): number {
 interface BranchTreeProps {
   entries: BranchTreeEntry[]
   kind: 'local' | 'remote'
+  indent?: number
   picked: string | null
   onPick: (value: string) => void
   onCheckout: (branch: BranchDto) => void
@@ -110,6 +111,7 @@ interface BranchTreeProps {
 function BranchTree({
   entries,
   kind,
+  indent = 0,
   picked,
   onPick,
   onCheckout,
@@ -128,7 +130,7 @@ function BranchTree({
       <div
         key={`branch:${branch.name}`}
         className={`list-row branch-tree-leaf ${active ? 'active' : ''}`}
-        style={{ paddingLeft: 8 + depth * 14 }}
+        style={{ paddingLeft: 8 + indent + depth * 14 }}
         onClick={() => onPick(`${kind}:${branch.name}`)}
         onDoubleClick={() => {
           if (kind === 'remote' || !branch.isHead) onCheckout(branch)
@@ -170,7 +172,7 @@ function BranchTree({
       <div key={`directory:${node.path}`}>
         <div
           className="list-row branch-tree-folder"
-          style={{ paddingLeft: 8 + depth * 14, fontWeight: 600 }}
+          style={{ paddingLeft: 8 + indent + depth * 14, fontWeight: 600 }}
           onClick={() =>
             setCollapsed((current) => ({
               ...current,
@@ -343,6 +345,7 @@ export function RemoteSection({
                     name: shortName
                   }))}
                   kind="remote"
+                  indent={18}
                   picked={picked}
                   onPick={onPick}
                   onCheckout={onCheckout}
@@ -698,6 +701,9 @@ export function WorktreeSection({
             <FolderTree size={12} className="text-subtle" />
             <span className="truncate" style={{ flex: 1 }}>
               {worktree.branch ?? splitPath(worktree.path).name}
+            </span>
+            <span className="worktree-badge">
+              {worktree.path === repoPath ? '主' : '附加'}
             </span>
             {worktree.path !== repoPath && (
               <>

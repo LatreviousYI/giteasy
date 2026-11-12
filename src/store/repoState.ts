@@ -1,3 +1,5 @@
+import type { PullStrategy } from '../lib/types'
+
 export type View = 'changes' | 'history' | 'conflicts'
 
 export interface RepoViewState {
@@ -7,6 +9,7 @@ export interface RepoViewState {
   selectedCommit: string | null
   diffIgnoreWhitespace: boolean
   diffContextLines: number
+  pullStrategy: PullStrategy | null
   inspector: {
     file: string
     mode: 'history' | 'blame'
@@ -29,6 +32,7 @@ export function createRepoViewState(): RepoViewState {
     selectedCommit: null,
     diffIgnoreWhitespace: false,
     diffContextLines: 3,
+    pullStrategy: null,
     inspector: null
   }
 }
@@ -41,6 +45,7 @@ export function snapshotRepoViewState(state: RepoViewState): RepoViewState {
     selectedCommit: state.selectedCommit,
     diffIgnoreWhitespace: state.diffIgnoreWhitespace,
     diffContextLines: state.diffContextLines,
+    pullStrategy: state.pullStrategy,
     inspector: state.inspector
   }
 }

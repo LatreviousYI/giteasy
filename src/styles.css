@@ -1626,6 +1626,264 @@ button {
   flex: 1;
 }
 
+/* ---------- Pull strategy ---------- */
+.pull-menu-item {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+.pull-menu-item:hover {
+  background: var(--surface-hover);
+}
+.pull-menu-check {
+  width: 14px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+.pull-menu-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 1px;
+}
+.pull-menu-copy strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.pull-menu-copy span {
+  color: var(--text-subtle);
+  font-size: 10.5px;
+  line-height: 1.35;
+}
+.pull-divergence-summary {
+  display: grid;
+  grid-template-columns: 1fr minmax(90px, auto) 1fr;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-alt);
+}
+.pull-divergence-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.pull-divergence-stat:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+.pull-divergence-stat strong {
+  font-size: 16px;
+  line-height: 1.2;
+  color: var(--accent);
+}
+.pull-divergence-stat span {
+  color: var(--text-subtle);
+  font-size: 10.5px;
+}
+.pull-divergence-branch {
+  max-width: 180px;
+  overflow: hidden;
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: 11px;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pull-strategy-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.pull-strategy-option {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: start;
+  gap: 9px;
+  padding: 10px 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease;
+}
+.pull-strategy-option:hover {
+  background: var(--surface-hover);
+}
+.pull-strategy-option.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+}
+.pull-strategy-option input {
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+.pull-strategy-icon {
+  margin-top: 1px;
+  color: var(--text-subtle);
+}
+.pull-strategy-option.selected .pull-strategy-icon {
+  color: var(--accent);
+}
+.pull-strategy-copy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+.pull-strategy-copy strong {
+  font-size: 12px;
+  font-weight: 650;
+}
+.pull-strategy-copy span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.pull-strategy-copy code {
+  color: var(--text-subtle);
+  font-size: 10.5px;
+}
+.check-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--text-secondary);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+.check-row input {
+  accent-color: var(--accent);
+}
+
+/* ---------- Stash file selection ---------- */
+.stash-picker-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+.stash-picker-head .spacer {
+  flex: 1;
+}
+.stash-file-list {
+  display: flex;
+  max-height: 250px;
+  flex-direction: column;
+  gap: 1px;
+  overflow-y: auto;
+  padding: 5px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-alt);
+}
+.stash-file-row {
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 7px;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.stash-file-row:hover {
+  background: var(--surface-hover);
+}
+.stash-file-row.disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+.stash-file-row input {
+  flex: 0 0 auto;
+  accent-color: var(--accent);
+}
+.stash-file-badge {
+  display: inline-grid;
+  width: 20px;
+  height: 18px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 650;
+}
+.stash-file-badge.conflicted {
+  color: var(--danger);
+}
+.stash-file-path {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.stash-file-note {
+  flex: 0 0 auto;
+  color: var(--danger);
+  font-size: 10px;
+}
+.stash-file-empty {
+  padding: 18px 10px;
+  color: var(--text-subtle);
+  font-size: 11.5px;
+  text-align: center;
+}
+
+/* ---------- Worktree ---------- */
+.worktree-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.worktree-mode label {
+  display: flex;
+  min-height: 34px;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 9px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.worktree-mode label.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  color: var(--text);
+}
+.worktree-mode input {
+  accent-color: var(--accent);
+}
+.worktree-badge {
+  flex: 0 0 auto;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text-subtle);
+  font-size: 9.5px;
+}
+
 /* ---------- GitHub ---------- */
 .github-layout {
   display: grid;

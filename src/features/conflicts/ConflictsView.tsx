@@ -237,7 +237,7 @@ export default function ConflictsView() {
                   disabled={busy}
                   title="写入文件并暂存"
                 >
-                  标记已解决
+                  保存并标记已解决
                 </button>
               </div>
               {current.binary ? (

@@ -3,6 +3,7 @@ import {
   Activity,
   ArrowDown,
   ArrowUp,
+  Check,
   ChevronDown,
   Command,
   FolderOpen,
@@ -18,10 +19,22 @@ import {
 } from 'lucide-react'
 import { ipc } from '../lib/ipc'
 import { useRemoteActions } from '../lib/remote'
+import { pullModeLabel } from '../lib/pull'
 import { useApp } from '../store/app'
-import type { StatusDto } from '../lib/types'
+import type { PullMode, StatusDto } from '../lib/types'
 import { ConfirmDialog } from './Dialogs'
 import { pickDirectory, useOpenRepo } from '../lib/actions'
+
+const PULL_MODES: Array<{ mode: PullMode; title: string; hint: string }> = [
+  {
+    mode: 'auto',
+    title: '使用仓库记忆',
+    hint: '未设置时自动合并；首次分叉会询问'
+  },
+  { mode: 'merge', title: '拉取并合并', hint: '保留本地提交并创建合并提交' },
+  { mode: 'rebase', title: '拉取并变基', hint: '把本地提交重放到远端提交之后' },
+  { mode: 'ff-only', title: '仅允许快进', hint: '无法快进时停止，不创建提交' }
+]
 
 export default function TopBar({ status }: { status?: StatusDto }) {
   const repo = useApp((s) => s.repo)
@@ -41,16 +54,24 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const errorToast = useApp((s) => s.errorToast)
   const openRepo = useOpenRepo()
   const { runRemote, remotes } = useRemoteActions()
+  const savedPullStrategy = useApp((state) =>
+    state.repo ? state.repoStates[state.repo.path]?.pullStrategy ?? null : null
+  )
   const [busy, setBusy] = useState<string | null>(null)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [pushMenuOpen, setPushMenuOpen] = useState(false)
+  const [pullMenuOpen, setPullMenuOpen] = useState(false)
   const [forceConfirm, setForceConfirm] = useState(false)
   const [draggingTab, setDraggingTab] = useState<string | null>(null)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const pushMenuRef = useRef<HTMLDivElement>(null)
+  const pullMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handler = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setMenuOpen(false)
+      if (pushMenuRef.current && !pushMenuRef.current.contains(event.target as Node)) {
+        setPushMenuOpen(false)
+      }
+      if (pullMenuRef.current && !pullMenuRef.current.contains(event.target as Node)) {
+        setPullMenuOpen(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -60,12 +81,14 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const handleRemote = async (
     kind: 'fetch' | 'pull' | 'push',
     force = false,
-    remote?: string
+    remote?: string,
+    pullMode: PullMode = 'auto'
   ) => {
     if (busy) return
     setBusy(kind)
-    setMenuOpen(false)
-    await runRemote(kind, force, remote)
+    setPushMenuOpen(false)
+    setPullMenuOpen(false)
+    await runRemote(kind, force, remote, pullMode)
     setBusy(null)
     setForceConfirm(false)
   }
@@ -272,16 +295,70 @@ export default function TopBar({ status }: { status?: StatusDto }) {
               <RefreshCw size={14} className={busy === 'fetch' ? 'animate-spin' : ''} />
               Fetch
             </button>
-            <button
-              className="btn"
-              title="Pull（拉取并合并）"
-              disabled={!!busy}
-              onClick={() => handleRemote('pull')}
-            >
-              <ArrowDown size={14} />
-              Pull
-            </button>
-            <div className="flex items-center relative" ref={menuRef}>
+            <div className="flex items-center relative" ref={pullMenuRef}>
+              <button
+                className="btn"
+                style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
+                title={`Pull（默认：${pullModeLabel(savedPullStrategy ?? 'auto')}）`}
+                disabled={!!busy}
+                onClick={() => handleRemote('pull')}
+              >
+                <ArrowDown size={14} />
+                Pull
+              </button>
+              <button
+                className="btn"
+                style={{
+                  borderTopLeftRadius: 0,
+                  borderBottomLeftRadius: 0,
+                  padding: '0 6px',
+                  marginLeft: -1
+                }}
+                disabled={!!busy}
+                onClick={() => {
+                  setPushMenuOpen(false)
+                  setPullMenuOpen((open) => !open)
+                }}
+                title="选择拉取策略"
+              >
+                <ChevronDown size={13} />
+              </button>
+              {pullMenuOpen && (
+                <div
+                  className="absolute right-0 top-[34px] z-30 min-w-[250px] p-1.5 rounded-[10px]"
+                  style={{
+                    background: 'var(--surface)',
+                    border: '1px solid var(--border)',
+                    boxShadow: 'var(--shadow-pop)'
+                  }}
+                >
+                  <div className="px-2.5 py-1 text-[10.5px] uppercase tracking-wider text-[var(--text-subtle)]">
+                    拉取策略
+                  </div>
+                  {PULL_MODES.map((option) => {
+                    const remembered = savedPullStrategy === option.mode
+                    return (
+                      <button
+                        key={option.mode}
+                        className="pull-menu-item"
+                        onClick={() =>
+                          handleRemote('pull', false, undefined, option.mode)
+                        }
+                      >
+                        <span className="pull-menu-check">
+                          {remembered && <Check size={12} />}
+                        </span>
+                        <span className="pull-menu-copy">
+                          <strong>{option.title}</strong>
+                          <span>{option.hint}</span>
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+            <div className="flex items-center relative" ref={pushMenuRef}>
               <button
                 className="btn"
                 style={{ borderTopRightRadius: 0, borderBottomRightRadius: 0 }}
@@ -301,12 +378,15 @@ export default function TopBar({ status }: { status?: StatusDto }) {
                   marginLeft: -1
                 }}
                 disabled={!!busy}
-                onClick={() => setMenuOpen((open) => !open)}
+                onClick={() => {
+                  setPullMenuOpen(false)
+                  setPushMenuOpen((open) => !open)
+                }}
                 title="更多推送选项"
               >
                 <ChevronDown size={13} />
               </button>
-              {menuOpen && (
+              {pushMenuOpen && (
                 <div
                   className="absolute right-0 top-[34px] z-30 min-w-[200px] p-1.5 rounded-[10px]"
                   style={{
@@ -318,7 +398,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
                   <button
                     className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px] danger-text"
                     onClick={() => {
-                      setMenuOpen(false)
+                      setPushMenuOpen(false)
                       setForceConfirm(true)
                     }}
                   >

@@ -218,9 +218,27 @@ export default function CommandPalette() {
         },
         {
           id: 'pull',
-          label: 'Pull（拉取并合并）',
+          label: 'Pull（自动策略）',
           icon: <ArrowDown size={15} />,
           run: () => runRemote('pull')
+        },
+        {
+          id: 'pull-merge',
+          label: 'Pull（拉取并合并）',
+          icon: <ArrowDown size={15} />,
+          run: () => runRemote('pull', false, null, 'merge')
+        },
+        {
+          id: 'pull-rebase',
+          label: 'Pull（拉取并变基）',
+          icon: <ArrowDown size={15} />,
+          run: () => runRemote('pull', false, null, 'rebase')
+        },
+        {
+          id: 'pull-ff-only',
+          label: 'Pull（仅允许快进）',
+          icon: <ArrowDown size={15} />,
+          run: () => runRemote('pull', false, null, 'ff-only')
         },
         {
           id: 'push',
@@ -230,11 +248,11 @@ export default function CommandPalette() {
         },
         {
           id: 'stash',
-          label: '储藏当前改动',
+          label: '储藏全部改动（快速）',
           icon: <Archive size={15} />,
           run: async () => {
             try {
-              await ipc.stashSave(repo.path, null, true)
+              await ipc.stashSave(repo.path, null, true, [])
               invalidate()
               toast('success', '已储藏当前改动')
             } catch (error) {

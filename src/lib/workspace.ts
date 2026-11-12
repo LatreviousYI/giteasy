@@ -22,6 +22,10 @@ export function loadPersistedWorkspace(): PersistedWorkspace | null {
         diffIgnoreWhitespace: Boolean(saved?.diffIgnoreWhitespace),
         diffContextLines:
           typeof saved?.diffContextLines === 'number' ? saved.diffContextLines : 3,
+        pullStrategy:
+          saved?.pullStrategy === 'merge' || saved?.pullStrategy === 'rebase'
+            ? saved.pullStrategy
+            : null,
         inspector:
           saved?.inspector &&
           typeof saved.inspector.file === 'string' &&

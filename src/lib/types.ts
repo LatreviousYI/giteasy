@@ -303,6 +303,10 @@ export interface ProgressEvent {
   error: string | null
 }
 
+export type PullStrategy = 'merge' | 'rebase'
+
+export type PullMode = PullStrategy | 'auto' | 'ff-only'
+
 export interface RecentRepo {
   path: string
   name: string

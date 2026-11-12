@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { BranchDto } from '../../lib/types'
-import { BranchSection, buildBranchTree } from './SidebarSections'
+import { BranchSection, RemoteSection, buildBranchTree } from './SidebarSections'
 
 function branch(name: string, isHead = false): BranchDto {
   return {
@@ -19,6 +19,8 @@ function branch(name: string, isHead = false): BranchDto {
 }
 
 describe('branch tree', () => {
+  afterEach(cleanup)
+
   it('groups slash-separated names into nested directories', () => {
     const tree = buildBranchTree([
       { branch: branch('feature/ui'), name: 'feature/ui' },
@@ -50,5 +52,40 @@ describe('branch tree', () => {
     expect(screen.queryByText('ui')).toBeNull()
     fireEvent.click(screen.getByTitle('展开分支目录 feature'))
     expect(screen.getByText('ui')).toBeTruthy()
+  })
+
+  it('indents remote branches below their remote parent', () => {
+    const remoteBranch = (name: string): BranchDto => ({
+      ...branch(name),
+      isRemote: true,
+      isHead: false
+    })
+
+    render(
+      <RemoteSection
+        remotes={[{ name: 'origin', url: 'git@example.com:demo/repo.git' }]}
+        branches={[
+          remoteBranch('origin/main'),
+          remoteBranch('origin/feature/ui')
+        ]}
+        picked={null}
+        collapsed={{}}
+        onAdd={vi.fn()}
+        onToggle={vi.fn()}
+        onPick={vi.fn()}
+        onCheckout={vi.fn()}
+        onWorktree={vi.fn()}
+        onDeleteRemote={vi.fn()}
+        onDeleteBranch={vi.fn()}
+      />
+    )
+
+    const mainRow = screen.getByText('main').closest('.list-row') as HTMLElement
+    const featureRow = screen.getByText('feature').closest('.list-row') as HTMLElement
+    const uiRow = screen.getByText('ui').closest('.list-row') as HTMLElement
+
+    expect(mainRow.style.paddingLeft).toBe('26px')
+    expect(featureRow.style.paddingLeft).toBe('26px')
+    expect(uiRow.style.paddingLeft).toBe('40px')
   })
 })

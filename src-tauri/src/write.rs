@@ -605,17 +605,52 @@ pub async fn stash_save(
     path: String,
     message: Option<String>,
     include_untracked: bool,
+    paths: Option<Vec<String>>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    stash_save_impl(
+        &path,
+        message.as_deref(),
+        include_untracked,
+        paths.as_deref().unwrap_or(&[]),
+    )
+    .await
+}
+
+pub(crate) fn stash_args(
+    message: Option<&str>,
+    include_untracked: bool,
+    paths: &[String],
+) -> Vec<String> {
     let mut args: Vec<String> = vec!["stash".into(), "push".into()];
     if include_untracked {
         args.push("-u".into());
     }
     if let Some(msg) = message.filter(|m| !m.trim().is_empty()) {
         args.push("-m".into());
-        args.push(msg);
+        args.push(msg.to_string());
     }
-    util::git(&path, &args).await?;
+    let paths: Vec<String> = paths
+        .iter()
+        .filter(|path| !path.trim().is_empty())
+        .cloned()
+        .collect();
+    if !paths.is_empty() {
+        args.push("--".into());
+        args.extend(paths);
+    }
+    args
+}
+
+pub(crate) async fn stash_save_impl(
+    path: &str,
+    message: Option<&str>,
+    include_untracked: bool,
+    paths: &[String],
+) -> Result<(), AppError> {
+    let args = stash_args(message, include_untracked, paths);
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    util::git(path, &refs).await?;
     Ok(())
 }
 
@@ -695,17 +730,38 @@ pub async fn pull(
     path: String,
     remote: Option<String>,
     branch: Option<String>,
+    mode: Option<String>,
     on_event: Channel<ProgressEvent>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    let args = pull_args(
+        remote.as_deref(),
+        branch.as_deref(),
+        mode.as_deref().unwrap_or("auto"),
+    )?;
+    run_stream_owned(&path, args, &on_event).await
+}
+
+pub(crate) fn pull_args(
+    remote: Option<&str>,
+    branch: Option<&str>,
+    mode: &str,
+) -> Result<Vec<String>, AppError> {
     let mut args = vec!["pull".to_string(), "--progress".to_string()];
+    match mode {
+        "auto" => args.push("--ff".to_string()),
+        "merge" => args.extend(["--no-rebase".to_string(), "--ff".to_string()]),
+        "rebase" => args.push("--rebase".to_string()),
+        "ff-only" => args.push("--ff-only".to_string()),
+        _ => return Err(AppError::user("不支持的 Pull 策略")),
+    }
     if let Some(remote) = remote.filter(|value| !value.trim().is_empty()) {
-        args.push(remote);
+        args.push(remote.to_string());
         if let Some(branch) = branch.filter(|value| !value.trim().is_empty()) {
-            args.push(branch);
+            args.push(branch.to_string());
         }
     }
-    run_stream_owned(&path, args, &on_event).await
+    Ok(args)
 }
 
 #[tauri::command]
@@ -878,26 +934,48 @@ pub async fn worktree_add(
     start_point: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    worktree_add_impl(&path, &dir, branch.as_deref(), new_branch, start_point.as_deref())
+        .await
+}
+
+pub(crate) fn worktree_add_args(
+    dir: &str,
+    branch: Option<&str>,
+    new_branch: bool,
+    start_point: Option<&str>,
+) -> Vec<String> {
     let mut args: Vec<String> = vec!["worktree".into(), "add".into()];
     let branch = branch.filter(|b| !b.trim().is_empty());
     if new_branch {
-        if let Some(branch) = branch.as_ref() {
+        if let Some(branch) = branch {
             args.push("-b".into());
-            args.push(branch.clone());
+            args.push(branch.to_string());
         }
     }
-    args.push(dir);
+    args.push(dir.to_string());
     if !new_branch {
-        if let Some(branch) = branch.as_ref() {
-            args.push(branch.clone());
+        if let Some(branch) = branch {
+            args.push(branch.to_string());
         }
     }
     if new_branch {
         if let Some(start_point) = start_point.filter(|value| !value.trim().is_empty()) {
-            args.push(start_point);
+            args.push(start_point.to_string());
         }
     }
-    util::git(&path, &args).await?;
+    args
+}
+
+pub(crate) async fn worktree_add_impl(
+    path: &str,
+    dir: &str,
+    branch: Option<&str>,
+    new_branch: bool,
+    start_point: Option<&str>,
+) -> Result<(), AppError> {
+    let args = worktree_add_args(dir, branch, new_branch, start_point);
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    util::git(path, &refs).await?;
     Ok(())
 }
 
@@ -909,11 +987,20 @@ pub async fn worktree_remove(
     force: bool,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    let mut args: Vec<String> = vec!["worktree".into(), "remove".into(), dir];
+    worktree_remove_impl(&path, &dir, force).await
+}
+
+pub(crate) async fn worktree_remove_impl(
+    path: &str,
+    dir: &str,
+    force: bool,
+) -> Result<(), AppError> {
+    let mut args: Vec<String> = vec!["worktree".into(), "remove".into(), dir.to_string()];
     if force {
         args.push("--force".into());
     }
-    util::git(&path, &args).await?;
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    util::git(path, &refs).await?;
     Ok(())
 }
 

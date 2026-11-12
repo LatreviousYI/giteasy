@@ -46,11 +46,12 @@ import {
   type SidebarConfirmState
 } from './sidebar/SidebarSections'
 import StashModal from '../features/stashes/StashModal'
+import StashCreateDialog from '../features/stashes/StashCreateDialog'
 import { repoSidebarWidthKey } from '../lib/workspace'
 import WorktreeDialog from '../features/repo/WorktreeDialog'
 import SubmoduleDialog from '../features/repo/SubmoduleDialog'
 
-type PromptKind = 'branch' | 'rename' | 'stash' | 'upstream'
+type PromptKind = 'branch' | 'rename' | 'upstream'
 
 interface PromptState {
   kind: PromptKind
@@ -99,13 +100,16 @@ export default function Sidebar() {
   const [confirm, setConfirm] = useState<SidebarConfirmState | null>(null)
   const [menu, setMenu] = useState<BranchMenu | null>(null)
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
+  const [stashCreateOpen, setStashCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const [addRemoteOpen, setAddRemoteOpen] = useState(false)
   const [collapsedRemotes, setCollapsedRemotes] = useState<Record<string, boolean>>({})
   const [pushBranch, setPushBranch] = useState<BranchDto | null>(null)
   const [discoverRoot, setDiscoverRoot] = useState<string | null>(null)
   const [tagDialogOpen, setTagDialogOpen] = useState(false)
-  const [worktreeBranch, setWorktreeBranch] = useState<BranchDto | null>(null)
+  const [worktreeDialog, setWorktreeDialog] = useState<{
+    initialBranch: BranchDto | null
+  } | null>(null)
   const [submoduleDialogOpen, setSubmoduleDialogOpen] = useState(false)
   const [editingSubmodule, setEditingSubmodule] = useState<SubmoduleDto | null>(null)
   const [picked, setPicked] = useState<string | null>(null)
@@ -166,7 +170,6 @@ export default function Sidebar() {
       label: '新的分支名称',
       value: prompt?.branch?.name ?? ''
     },
-    stash: { title: '储藏当前改动', label: '储藏说明（可选）', placeholder: 'wip: 描述' },
     upstream: {
       title: '设置上游分支',
       label: '上游分支',
@@ -187,9 +190,6 @@ export default function Sidebar() {
         const info = await ipc.branchRename(path, prompt.branch.name, value)
         setRepo(info)
         toast('success', `已重命名为 ${value}`)
-      } else if (prompt.kind === 'stash') {
-        await ipc.stashSave(path, value || null, true)
-        toast('success', '已储藏当前改动')
       } else if (prompt.kind === 'upstream' && prompt.branch) {
         await ipc.branchSetUpstream(path, prompt.branch.name, value)
         toast('success', `已将 ${prompt.branch.name} 的上游设为 ${value}`)
@@ -215,13 +215,6 @@ export default function Sidebar() {
     } finally {
       setBusy(false)
     }
-  }
-
-  const addWorktree = async () => {
-    if (!path) return
-    const dir = await pickDirectory('选择工作树目录')
-    if (!dir) return
-    await run(() => ipc.worktreeAdd(path, dir, null, false, null), '已添加工作树')
   }
 
   if (!repo) return null
@@ -398,7 +391,7 @@ export default function Sidebar() {
               setRepo(info)
             }, `已检出 ${branch.name}`)
           }
-          onWorktree={setWorktreeBranch}
+          onWorktree={(branch) => setWorktreeDialog({ initialBranch: branch })}
           onDeleteRemote={(remote) =>
             setConfirm({
               title: '删除远程',
@@ -473,7 +466,7 @@ export default function Sidebar() {
 
         <StashSection
           stashes={stashes}
-          onCreate={() => setPrompt({ kind: 'stash' })}
+          onCreate={() => setStashCreateOpen(true)}
           onPreview={setStashPreview}
           onPop={(stash) =>
             run(
@@ -536,7 +529,7 @@ export default function Sidebar() {
         <WorktreeSection
           worktrees={worktrees}
           repoPath={repo.path}
-          onAdd={addWorktree}
+          onAdd={() => setWorktreeDialog({ initialBranch: null })}
           onOpen={(worktree) => openRepo(worktree.path)}
           onRemove={(worktree) =>
             setConfirm({
@@ -710,6 +703,14 @@ export default function Sidebar() {
           }}
         />
       )}
+      {stashCreateOpen && (
+        <StashCreateDialog
+          repoPath={repo.path}
+          files={status?.files ?? []}
+          onClose={() => setStashCreateOpen(false)}
+          onChanged={invalidate}
+        />
+      )}
 
       {addRemoteOpen && <RemotesDialog addOnly onClose={() => setAddRemoteOpen(false)} />}
       {pushBranch && (
@@ -719,10 +720,12 @@ export default function Sidebar() {
         <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />
       )}
       {tagDialogOpen && <TagDialog onClose={() => setTagDialogOpen(false)} />}
-      {worktreeBranch && (
+      {worktreeDialog && (
         <WorktreeDialog
-          branch={worktreeBranch}
-          onClose={() => setWorktreeBranch(null)}
+          initialBranch={worktreeDialog.initialBranch}
+          branches={branches}
+          onClose={() => setWorktreeDialog(null)}
+          onCreated={invalidate}
         />
       )}
       {submoduleDialogOpen && (

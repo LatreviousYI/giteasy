@@ -23,6 +23,7 @@ import type {
   LogQuery,
   LfsStatusDto,
   ProgressEvent,
+  PullMode,
   RebaseCommit,
   RebaseStep,
   RecentRepo,
@@ -54,6 +55,9 @@ async function invoke<T>(command: string, args?: Record<string, unknown>): Promi
 type ProgressHandler = (event: ProgressEvent) => void
 
 function channel(handler: ProgressHandler): Channel<ProgressEvent> {
+  if (!isTauri && import.meta.env.DEV) {
+    return undefined as unknown as Channel<ProgressEvent>
+  }
   const ch = new Channel<ProgressEvent>()
   ch.onmessage = handler
   return ch
@@ -256,8 +260,12 @@ export const ipc = {
       onEvent: channel(onProgress)
     }),
 
-  stashSave: (path: string, message?: string | null, includeUntracked?: boolean) =>
-    invoke<void>('stash_save', { path, message, includeUntracked }),
+  stashSave: (
+    path: string,
+    message?: string | null,
+    includeUntracked?: boolean,
+    paths?: string[]
+  ) => invoke<void>('stash_save', { path, message, includeUntracked, paths }),
   stashApply: (path: string, index: number, pop: boolean) =>
     invoke<void>('stash_apply', { path, index, pop }),
   stashDrop: (path: string, index: number) =>
@@ -273,8 +281,9 @@ export const ipc = {
     path: string,
     remote: string | null,
     branch: string | null,
+    mode: PullMode,
     onProgress: ProgressHandler
-  ) => invoke<void>('pull', { path, remote, branch, onEvent: channel(onProgress) }),
+  ) => invoke<void>('pull', { path, remote, branch, mode, onEvent: channel(onProgress) }),
   push: (
     path: string,
     remote: string | null,

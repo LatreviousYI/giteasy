@@ -1,54 +1,67 @@
 # GitEasy 发布检查
 
-## 支持环境
+完整的多平台依赖、构建命令和产物路径见 [PACKAGING.md](PACKAGING.md)。
 
-- Ubuntu LTS / Fedora / Arch Linux
-- macOS 11+，Apple Silicon（arm64）
-- X11 与 Wayland
-- WebKitGTK 4.1
-- Git 2.30+
-- 可选：Git LFS、GPG、系统 Secret Service
+## 发布平台状态
 
-## 发布前命令
+- Linux x86_64：`.deb` 默认发布目标。
+- macOS Apple Silicon：`.app` 与 `.dmg`。
+- Windows：尚未完成平台适配，不发布。
+
+## 通用验收命令
 
 ```bash
 npm ci
+npm run test:all
+```
+
+单独执行：
+
+```bash
 npm run test:frontend
 npm run test:backend
 npm run build
 npm run test:e2e
+```
+
+## Linux 发布
+
+```bash
 npm run build:app
 ```
 
-Apple Silicon DMG：
-
-```bash
-npm run build:macos-arm64
-```
-
-macOS CI：`.github/workflows/build-macos-arm64.yml`，产出 arm64 `.app` 和 `.dmg`。
-
-## 安装包
-
-产物位于：
+默认产物：
 
 ```text
 src-tauri/target/release/bundle/deb/
 ```
 
-macOS：
-
-```text
-src-tauri/target/aarch64-apple-darwin/release/bundle/macos/GitEasy.app
-src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/GitEasy_0.1.0_aarch64.dmg
-```
-
-安装：
+可选 AppImage / RPM：
 
 ```bash
-sudo dpkg -i GitEasy_0.1.0_amd64.deb
-sudo apt-get install -f
+npm run tauri -- build --bundles appimage
+npm run tauri -- build --bundles rpm
 ```
+
+## macOS 发布
+
+Apple Silicon：
+
+```bash
+npm run build:macos-arm64
+```
+
+CI：
+
+```text
+.github/workflows/build-macos-arm64.yml
+```
+
+正式发布必须配置 Developer ID 签名和公证 Secret，具体变量见 [PACKAGING.md](PACKAGING.md)。
+
+## Windows 发布
+
+Windows 当前不可发布。应先完成 Keyring、Shell、终端、文件打开、`.ico` 图标和 `windows-latest` CI 适配，再启用 NSIS/MSI 打包。
 
 ## 手动验收
 
@@ -66,3 +79,4 @@ sudo apt-get install -f
 - 无系统 Secret Service 时 GitHub Keyring 登录会失败，但本地 Git 功能不受影响。
 - GitHub Device Flow 需要配置 GitEasy 自己的 OAuth App Client ID。
 - 图片 diff 支持 PNG、JPEG、GIF、WebP、SVG、BMP 和 ICO。
+- Linux 安装包依赖系统 Git、WebKitGTK 4.1 和系统凭据环境。

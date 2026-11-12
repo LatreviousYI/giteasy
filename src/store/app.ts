@@ -1,5 +1,11 @@
 import { create } from 'zustand'
-import type { AppError, ProgressEvent, RepoInfo, Settings } from '../lib/types'
+import type {
+  AppError,
+  ProgressEvent,
+  PullStrategy,
+  RepoInfo,
+  Settings
+} from '../lib/types'
 import {
   createRepoViewState,
   snapshotRepoViewState,
@@ -28,6 +34,14 @@ export interface SshPrompt {
   retry: () => void
 }
 
+export interface PullPrompt {
+  repoPath: string
+  remoteName: string | null
+  branch: string
+  ahead: number
+  behind: number
+}
+
 interface AppStore {
   repo: RepoInfo | null
   repos: Record<string, RepoInfo>
@@ -40,6 +54,7 @@ interface AppStore {
   closeRepoWorkspace: (repoId: string) => void
   reorderRepoWorkspace: (from: number, to: number) => void
   setRepoViewState: (repoId: string, viewState: RepoViewState) => void
+  setRepoPullStrategy: (repoId: string, strategy: PullStrategy | null) => void
   persistedWorkspace: () => PersistedWorkspace
   view: View
   setView: (view: View) => void
@@ -52,6 +67,9 @@ interface AppStore {
   setDiffIgnoreWhitespace: (value: boolean) => void
   diffContextLines: number
   setDiffContextLines: (value: number) => void
+  pullStrategy: PullStrategy | null
+  pullPrompt: PullPrompt | null
+  setPullPrompt: (prompt: PullPrompt | null) => void
   paletteOpen: boolean
   setPaletteOpen: (open: boolean) => void
   settingsOpen: boolean
@@ -239,6 +257,16 @@ export const useApp = create<AppStore>((set, get) => ({
         ...viewState
       }
     }),
+  setRepoPullStrategy: (repoId, strategy) =>
+    set((state) => {
+      const current = state.repoStates[repoId] ?? createRepoViewState()
+      const repoStates = {
+        ...state.repoStates,
+        [repoId]: { ...current, pullStrategy: strategy }
+      }
+      if (state.activeRepoId !== repoId) return { repoStates }
+      return { repoStates, pullStrategy: strategy }
+    }),
   persistedWorkspace: () => {
     const state = get()
     const views = Object.fromEntries(
@@ -270,6 +298,9 @@ export const useApp = create<AppStore>((set, get) => ({
   diffContextLines: 3,
   setDiffContextLines: (diffContextLines) =>
     set((state) => activeRepoPatch(state, { diffContextLines })),
+  pullStrategy: null,
+  pullPrompt: null,
+  setPullPrompt: (pullPrompt) => set({ pullPrompt }),
   paletteOpen: false,
   setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
   settingsOpen: false,

@@ -358,6 +358,147 @@ mod tests {
     }
 
     #[test]
+    fn pull_args_make_divergent_strategy_explicit() {
+        let auto = write::pull_args(None, None, "auto").unwrap();
+        assert!(auto.iter().any(|arg| arg == "--ff"));
+        assert!(!auto.iter().any(|arg| arg == "--ff-only"));
+
+        let merge = write::pull_args(Some("origin"), Some("main"), "merge").unwrap();
+        assert!(merge.iter().any(|arg| arg == "--no-rebase"));
+        assert!(merge.iter().any(|arg| arg == "--ff"));
+        assert_eq!(merge.last().map(String::as_str), Some("main"));
+
+        let rebase = write::pull_args(None, None, "rebase").unwrap();
+        assert!(rebase.iter().any(|arg| arg == "--rebase"));
+
+        let ff_only = write::pull_args(None, None, "ff-only").unwrap();
+        assert!(ff_only.iter().any(|arg| arg == "--ff-only"));
+
+        assert!(write::pull_args(None, None, "unknown").is_err());
+    }
+
+    #[test]
+    fn stash_args_include_only_selected_paths() {
+        let paths = vec!["src/app.ts".to_string(), "notes with space.txt".to_string()];
+        let args = write::stash_args(Some("wip: selected files"), true, &paths);
+        assert!(args.iter().any(|arg| arg == "-u"));
+        assert!(args.iter().any(|arg| arg == "-m"));
+        assert_eq!(args.last().map(String::as_str), Some("notes with space.txt"));
+        assert_eq!(
+            args.get(args.len() - 3).map(String::as_str),
+            Some("--")
+        );
+
+        let all = write::stash_args(None, false, &[]);
+        assert!(!all.iter().any(|arg| arg == "--"));
+    }
+
+    #[tokio::test]
+    async fn partial_stash_leaves_unselected_changes_in_worktree() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        std::fs::write(dir.join("hello.txt"), "line one\nline two changed\n").unwrap();
+        std::fs::write(dir.join("new.txt"), "brand new\n").unwrap();
+
+        write::stash_save_impl(
+            &path,
+            Some("partial stash"),
+            false,
+            &["hello.txt".to_string()],
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(
+            std::fs::read_to_string(dir.join("hello.txt")).unwrap(),
+            "line one\nline two\n"
+        );
+        assert!(dir.join("new.txt").exists());
+        let stashes = Command::new("git")
+            .current_dir(&dir)
+            .args(["stash", "list"])
+            .output()
+            .unwrap();
+        assert_eq!(String::from_utf8_lossy(&stashes.stdout).lines().count(), 1);
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn worktree_add_args_support_new_and_existing_branches() {
+        let new_branch = write::worktree_add_args(
+            "/tmp/worktree demo",
+            Some("feature/worktree"),
+            true,
+            Some("HEAD"),
+        );
+        assert_eq!(
+            new_branch,
+            vec![
+                "worktree",
+                "add",
+                "-b",
+                "feature/worktree",
+                "/tmp/worktree demo",
+                "HEAD"
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+        );
+
+        let existing = write::worktree_add_args(
+            "/tmp/existing worktree",
+            Some("feature/existing"),
+            false,
+            None,
+        );
+        assert_eq!(
+            existing,
+            vec![
+                "worktree",
+                "add",
+                "/tmp/existing worktree",
+                "feature/existing"
+            ]
+            .into_iter()
+            .map(String::from)
+            .collect::<Vec<_>>()
+        );
+    }
+
+    #[tokio::test]
+    async fn worktree_add_list_and_remove_round_trip_with_spaced_path() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let worktree = dir.join("worktree demo");
+        let worktree_path = worktree.to_string_lossy().to_string();
+
+        write::worktree_add_impl(
+            &path,
+            &worktree_path,
+            Some("feature/worktree"),
+            true,
+            Some("HEAD"),
+        )
+        .await
+        .unwrap();
+
+        let listed = read::worktree_list(path.clone()).await.unwrap();
+        assert!(listed.iter().any(|item| item.path == worktree_path));
+        assert!(listed
+            .iter()
+            .any(|item| item.branch.as_deref() == Some("feature/worktree")));
+
+        write::worktree_remove_impl(&path, &worktree_path, true)
+            .await
+            .unwrap();
+        assert!(!worktree.exists());
+
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
     fn remote_branch_checkout_preserves_nested_path() {
         let remotes = "origin\nupstream\n";
         assert_eq!(

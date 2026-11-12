@@ -3,7 +3,8 @@ import { ipc } from './ipc'
 import { useInvalidateRepo, useRemotes, useStatus } from './queries'
 import { isHostKeyError } from './errors'
 import { useApp } from '../store/app'
-import type { ProgressEvent } from './types'
+import { effectivePullMode, isDiverged } from './pull'
+import type { ProgressEvent, PullMode } from './types'
 
 export type RemoteAction = 'fetch' | 'pull' | 'push'
 
@@ -17,7 +18,12 @@ export function useRemoteActions() {
   const invalidate = useInvalidateRepo(repo?.path ?? null)
 
   const runRemote = useCallback(
-    async (kind: RemoteAction, force = false, targetRemote?: string | null) => {
+    async (
+      kind: RemoteAction,
+      force = false,
+      targetRemote?: string | null,
+      requestedPullMode: PullMode = 'auto'
+    ) => {
       if (!repo) return
       const branch = status?.branch ?? repo.branch
       const upstreamRemote = status?.upstream?.split('/')[0] ?? null
@@ -62,9 +68,28 @@ export function useRemoteActions() {
         if (kind === 'fetch') {
           await ipc.fetch(repo.path, null, onProgress)
         } else if (kind === 'pull') {
+          const savedStrategy =
+            useApp.getState().repoStates[repo.path]?.pullStrategy ?? null
+          const mode = effectivePullMode(requestedPullMode, savedStrategy)
+          if (mode === 'auto') {
+            await ipc.fetch(repo.path, remoteName, onProgress)
+            const preview = await ipc.statusGet(repo.path)
+            invalidate()
+            if (isDiverged(preview)) {
+              setProgress(null)
+              useApp.getState().setPullPrompt({
+                repoPath: repo.path,
+                remoteName,
+                branch: preview.branch ?? branch!,
+                ahead: preview.ahead,
+                behind: preview.behind
+              })
+              return
+            }
+          }
           // 已有上游时交给 git 使用默认 upstream，避免分支名不一致导致拉错
-          if (status?.upstream) await ipc.pull(repo.path, null, null, onProgress)
-          else await ipc.pull(repo.path, remoteName, branch, onProgress)
+          if (status?.upstream) await ipc.pull(repo.path, null, null, mode, onProgress)
+          else await ipc.pull(repo.path, remoteName, branch, mode, onProgress)
         } else if (targetRemote) {
           // 显式推送到指定远程
           await ipc.push(repo.path, targetRemote, branch, null, force, false, onProgress)
@@ -80,6 +105,15 @@ export function useRemoteActions() {
         toast('success', `${label} 完成`)
       } catch (error) {
         setProgress(null)
+        if (kind === 'pull' && (error as { kind?: string })?.kind === 'conflict') {
+          invalidate()
+          useApp.getState().setPullPrompt(null)
+          useApp.getState().setView('conflicts')
+          toast('warn', '拉取产生冲突', {
+            message: '请在冲突页解决并标记全部文件后继续 Pull。'
+          })
+          return
+        }
         if (kind !== 'fetch' && isHostKeyError(error)) {
           const probeRemote =
             targetRemote ?? status?.upstream?.split('/')[0] ?? preferredRemote

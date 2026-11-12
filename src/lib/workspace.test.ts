@@ -24,7 +24,11 @@ describe('workspace persistence', () => {
       tabs: ['/tmp/repo-a', '/tmp/repo-b'],
       activeRepoId: '/tmp/repo-b',
       views: {
-        '/tmp/repo-a': { ...createRepoViewState(), view: 'history' },
+        '/tmp/repo-a': {
+          ...createRepoViewState(),
+          view: 'history',
+          pullStrategy: 'rebase'
+        },
         '/tmp/repo-b': { ...createRepoViewState(), view: 'conflicts' }
       }
     })
@@ -33,6 +37,7 @@ describe('workspace persistence', () => {
     expect(restored?.tabs).toEqual(['/tmp/repo-a', '/tmp/repo-b'])
     expect(restored?.activeRepoId).toBe('/tmp/repo-b')
     expect(restored?.views['/tmp/repo-a'].view).toBe('history')
+    expect(restored?.views['/tmp/repo-a'].pullStrategy).toBe('rebase')
     expect(restored?.views['/tmp/repo-b'].view).toBe('conflicts')
   })
 

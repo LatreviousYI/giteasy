@@ -55,6 +55,10 @@ npm run build:macos-arm64
 
 也可以通过 GitHub Actions 的 `Build macOS Apple Silicon` 工作流构建 `.app` 和 `.dmg`。
 
+Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因此暂不发布 Windows 安装包。
+
+完整的 Linux、macOS 和 Windows 打包状态、依赖、命令与产物路径见 [docs/PACKAGING.md](docs/PACKAGING.md)。
+
 ## 凭据与隐私
 
 - GitHub Token 存储在系统 Keyring。
