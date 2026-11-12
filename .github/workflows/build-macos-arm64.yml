@@ -48,14 +48,21 @@ jobs:
           if-no-files-found: ignore
           path: macos-backend.log
 
-      - name: Build Apple Silicon app and DMG
+      - name: Build unsigned Apple Silicon app and DMG
+        if: ${{ !inputs.sign }}
+        run: |
+          set -o pipefail
+          npm run tauri -- build --target aarch64-apple-darwin --bundles app,dmg 2>&1 | tee macos-build.log
+
+      - name: Build signed Apple Silicon app and DMG
+        if: ${{ inputs.sign }}
         env:
-          APPLE_CERTIFICATE: ${{ inputs.sign && secrets.APPLE_CERTIFICATE || '' }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ inputs.sign && secrets.APPLE_CERTIFICATE_PASSWORD || '' }}
-          APPLE_SIGNING_IDENTITY: ${{ inputs.sign && secrets.APPLE_SIGNING_IDENTITY || '' }}
-          APPLE_ID: ${{ inputs.sign && secrets.APPLE_ID || '' }}
-          APPLE_PASSWORD: ${{ inputs.sign && secrets.APPLE_PASSWORD || '' }}
-          APPLE_TEAM_ID: ${{ inputs.sign && secrets.APPLE_TEAM_ID || '' }}
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           set -o pipefail
           npm run tauri -- build --target aarch64-apple-darwin --bundles app,dmg 2>&1 | tee macos-build.log
