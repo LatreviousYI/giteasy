@@ -10,6 +10,7 @@
 - macOS CI runner 从已停止支持的 `macos-14` 更新为 arm64 标准标签 `macos-15`。
 - macOS 后端测试失败时上传 `macos-backend.log`，便于在未登录 Actions 页面时通过 artifact 获取诊断信息。
 - 应用与 DMG 构建失败时上传 `macos-build.log`，保留 Tauri 打包错误。
+- 使用 Tauri 图标生成器补充 macOS `icon.icns` 与 Windows `icon.ico`，修复 `Failed to create app icon: No matching IconType`。
 - Worktree 含空格路径测试改为比较 canonical path，兼容 macOS `/tmp` 指向 `/private/tmp`。
 - Linux 补充 `.deb`、AppImage、RPM 的依赖和构建方式。
 - macOS 补充签名、公证 Secret、CI 和产物路径。
