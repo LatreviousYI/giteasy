@@ -66,3 +66,8 @@ Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因�
 - GitHub Token 存储在系统 Keyring。
 - Git 认证交给 credential helper、SSH agent 和系统 Git。
 - ActivityLog 对 URL 内嵌凭据进行脱敏。
+
+
+
+
+
