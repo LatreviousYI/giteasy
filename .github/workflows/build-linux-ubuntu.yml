@@ -38,8 +38,36 @@ jobs:
       - name: Backend tests
         run: npm run test:backend
 
+      - name: Verify updater signing key
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+        run: |
+          if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
+            echo "TAURI_SIGNING_PRIVATE_KEY is required for tagged releases" >&2
+            exit 1
+          fi
+
       - name: Build Ubuntu packages
-        run: npm run tauri -- build --bundles deb,appimage
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          ARGS=(--bundles deb,appimage)
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            ARGS+=(--config src-tauri/tauri.updater.conf.json)
+          fi
+          npm run tauri -- build "${ARGS[@]}"
+
+      - name: Generate Linux updater manifest
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          ASSET=$(find src-tauri/target/release/bundle/appimage -name '*.AppImage' -print -quit)
+          node scripts/generate-updater-manifest.mjs \
+            --target linux-x86_64 \
+            --asset "$ASSET" \
+            --signature "$ASSET.sig" \
+            --output src-tauri/target/release/bundle/appimage/updater-linux-x86_64.json
 
       - name: Upload Ubuntu artifacts
         uses: actions/upload-artifact@v4
@@ -49,6 +77,8 @@ jobs:
           path: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            src-tauri/target/release/bundle/appimage/updater-linux-x86_64.json
 
       - name: Publish Ubuntu release assets
         if: startsWith(github.ref, 'refs/tags/')
@@ -63,4 +93,6 @@ jobs:
           files: |
             src-tauri/target/release/bundle/deb/*.deb
             src-tauri/target/release/bundle/appimage/*.AppImage
+            src-tauri/target/release/bundle/appimage/*.AppImage.sig
+            src-tauri/target/release/bundle/appimage/updater-linux-x86_64.json
 

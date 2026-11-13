@@ -307,6 +307,13 @@ export type PullStrategy = 'merge' | 'rebase'
 
 export type PullMode = PullStrategy | 'auto' | 'ff-only'
 
+export interface UpdateContextDto {
+  currentVersion: string
+  installKind: 'appimage' | 'macos' | 'deb' | 'portable' | string
+  canInstallInPlace: boolean
+  executable: string
+}
+
 export interface RecentRepo {
   path: string
   name: string

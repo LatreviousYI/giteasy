@@ -4,19 +4,19 @@
 
 | 系统 | 架构 | 推荐下载 | 备用 |
 | --- | --- | --- | --- |
-| Ubuntu 24.04+ / Debian | x86_64 | `.deb` | `.AppImage` |
+| Ubuntu 24.04+ / Debian | x86_64 | `.AppImage`（支持客户端内更新） | `.deb` |
 | macOS 11+ | Apple Silicon（M1/M2/M3/M4） | `.dmg` | `.app` 构建 artifact |
 | Windows | x86_64 | 暂未支持 | 无 |
 
 ## Ubuntu / Debian
 
-下载 `.deb` 后安装：
+需要系统菜单集成时下载 `.deb`：
 
 ```bash
 sudo apt install ./GitEasy_*.deb
 ```
 
-如果希望免安装运行，可以下载 `.AppImage`：
+如果希望免安装运行并支持客户端内更新，推荐下载 `.AppImage`：
 
 ```bash
 chmod +x GitEasy_*.AppImage

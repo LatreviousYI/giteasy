@@ -6,6 +6,7 @@ import {
   Check,
   ChevronDown,
   Command,
+  Download,
   FolderOpen,
   Github,
   FileDown,
@@ -21,6 +22,7 @@ import { ipc } from '../lib/ipc'
 import { useRemoteActions } from '../lib/remote'
 import { pullModeLabel } from '../lib/pull'
 import { useApp } from '../store/app'
+import { useUpdates } from '../store/updates'
 import type { PullMode, StatusDto } from '../lib/types'
 import { ConfirmDialog } from './Dialogs'
 import { pickDirectory, useOpenRepo } from '../lib/actions'
@@ -57,6 +59,8 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const savedPullStrategy = useApp((state) =>
     state.repo ? state.repoStates[state.repo.path]?.pullStrategy ?? null : null
   )
+  const updateAvailable = useUpdates((state) => state.status === 'available')
+  const availableVersion = useUpdates((state) => state.availableVersion)
   const [busy, setBusy] = useState<string | null>(null)
   const [pushMenuOpen, setPushMenuOpen] = useState(false)
   const [pullMenuOpen, setPullMenuOpen] = useState(false)
@@ -229,6 +233,16 @@ export default function TopBar({ status }: { status?: StatusDto }) {
           >
             <Command size={16} />
           </button>
+          {updateAvailable && (
+            <button
+              className="icon-btn update-available"
+              title={`有新版本 ${availableVersion ?? ''} 可安装`}
+              onClick={() => setSettingsOpen(true)}
+            >
+              <Download size={16} />
+              <span className="update-dot" />
+            </button>
+          )}
           <button
             className="icon-btn"
             title="设置"

@@ -842,6 +842,15 @@ export async function mockInvoke<T>(
       return settings as T
     case 'settings_set':
       return (payload.settings ?? settings) as T
+    case 'update_context':
+      return {
+        currentVersion: '0.1.1',
+        installKind: 'portable',
+        canInstallInPlace: false,
+        executable: '/tmp/giteasy'
+      } as T
+    case 'open_update_page':
+      return undefined as T
     case 'identity_get':
       return identity as T
     case 'identity_set':

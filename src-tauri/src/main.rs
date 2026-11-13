@@ -11,6 +11,7 @@ mod session;
 mod settings;
 mod ssh;
 mod tools;
+mod updater;
 mod util;
 mod watcher;
 mod write;
@@ -30,6 +31,8 @@ fn main() {
     let loaded = settings::load();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_process::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             settings: Mutex::new(loaded),
             watchers: Mutex::new(HashMap::new()),
@@ -115,6 +118,8 @@ fn main() {
             write::bisect_reset,
             write::open_in_editor,
             write::open_in_terminal,
+            updater::update_context,
+            updater::open_update_page,
             tools::run_custom_command,
             tools::run_external_tool,
             ssh::ssh_probe_remote,
@@ -783,6 +788,26 @@ mod tests {
             .starts_with("data:image/svg+xml;base64,"));
 
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn updater_install_kind_distinguishes_package_formats() {
+        assert_eq!(
+            updater::classify_install_kind("/tmp/GitEasy.AppImage", true, false),
+            "appimage"
+        );
+        assert_eq!(
+            updater::classify_install_kind("/Applications/GitEasy.app/Contents/MacOS/giteasy", false, true),
+            "macos"
+        );
+        assert_eq!(
+            updater::classify_install_kind("/usr/bin/giteasy", false, false),
+            "deb"
+        );
+        assert_eq!(
+            updater::classify_install_kind("/home/user/.local/opt/giteasy/giteasy", false, false),
+            "portable"
+        );
     }
 
     #[tokio::test]

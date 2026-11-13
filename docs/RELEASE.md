@@ -10,6 +10,8 @@
 
 推送 `v*` 标签后，Ubuntu 与 macOS workflow 会把 `.deb`、`.AppImage` 和 `.dmg` 上传到同一个 GitHub Release。用户下载说明由 `docs/DOWNLOADS.md` 自动写入 Release 正文。
 
+标签发布还会生成 updater 签名包和平台更新清单。发布前必须配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，具体流程见 [UPDATES.md](UPDATES.md)。
+
 ## 通用验收命令
 
 ```bash

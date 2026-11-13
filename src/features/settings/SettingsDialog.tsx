@@ -4,6 +4,7 @@ import { ipc } from '../../lib/ipc'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 import type { Settings, SshPublicKey } from '../../lib/types'
+import UpdateSection from './UpdateSection'
 
 export default function SettingsDialog() {
   const close = () => useApp.getState().setSettingsOpen(false)
@@ -270,9 +271,9 @@ export default function SettingsDialog() {
 
       <div className="text-[11px] text-[var(--text-subtle)] leading-relaxed">
         GitEasy 不存储任何凭据，推送认证完全交由系统 git 的 credential helper / SSH agent 处理。
-        <br />
-        版本 0.1.0 · Tauri 2 + libgit2 + system git
       </div>
+
+      <UpdateSection />
 
       <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
 

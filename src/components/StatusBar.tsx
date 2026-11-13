@@ -1,4 +1,6 @@
 import { useApp } from '../store/app'
+import { useUpdates } from '../store/updates'
+import packageJson from '../../package.json'
 import type { StatusDto } from '../lib/types'
 
 const stateLabels: Record<string, string> = {
@@ -12,6 +14,7 @@ const stateLabels: Record<string, string> = {
 
 export default function StatusBar({ status }: { status?: StatusDto }) {
   const repo = useApp((s) => s.repo)
+  const currentVersion = useUpdates((s) => s.context?.currentVersion)
   const fileCount = status?.files.length ?? 0
 
   return (
@@ -37,7 +40,7 @@ export default function StatusBar({ status }: { status?: StatusDto }) {
       <span className="spacer" />
       <span className="hidden md:inline">{repo?.path}</span>
       <span>UTF-8</span>
-      <span>GitEasy 0.1.0</span>
+      <span>GitEasy {currentVersion ?? packageJson.version}</span>
     </footer>
   )
 }

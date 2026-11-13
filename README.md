@@ -18,6 +18,7 @@ GitEasy 是一个面向 Linux 和 macOS 的原生 Git GUI，目标是覆盖 Fork
 - GitHub Device Flow / PAT、仓库克隆、通知、PR/Issue 和创建 PR
 - Patch、图片 diff、LFS、GPG、自定义命令和外部工具
 - Bisect、Repository Manager 和仓库统计
+- AppImage 与 macOS 客户端内更新
 
 ## 开发
 
@@ -60,6 +61,8 @@ Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因�
 完整的 Linux、macOS 和 Windows 打包状态、依赖、命令与产物路径见 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
 版本标签会同时触发 Ubuntu 和 macOS Apple Silicon 构建，并将安装包发布到 [GitHub Releases](https://github.com/LatreviousYI/giteasy/releases)。各系统应下载的包见 [docs/DOWNLOADS.md](docs/DOWNLOADS.md)。
+
+客户端内更新的密钥配置、发布资产和平台行为见 [docs/UPDATES.md](docs/UPDATES.md)。
 
 ## 凭据与隐私
 

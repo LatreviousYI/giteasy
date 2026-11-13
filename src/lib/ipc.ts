@@ -40,6 +40,7 @@ import type {
   SubmoduleDto,
   TagDto,
   TreeEntryDto,
+  UpdateContextDto,
   WorktreeDto
 } from './types'
 
@@ -275,6 +276,8 @@ export const ipc = {
     invoke<void>('remote_add', { path, name, url }),
   remoteRemove: (path: string, name: string) =>
     invoke<void>('remote_remove', { path, name }),
+  updateContext: () => invoke<UpdateContextDto>('update_context'),
+  openUpdatePage: () => invoke<void>('open_update_page'),
   fetch: (path: string, remote: string | null, onProgress: ProgressHandler) =>
     invoke<void>('fetch', { path, remote, onEvent: channel(onProgress) }),
   pull: (
