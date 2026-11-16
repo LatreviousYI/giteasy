@@ -11,6 +11,7 @@ import {
   UserRound
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { copyTextWithToast } from '../../lib/clipboard'
 import { useInvalidateRepo, useLog, useStashes } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import { buildGraph, type GraphRow } from '../../lib/graph'
@@ -150,12 +151,7 @@ export default function HistoryView() {
   }
 
   const copyOid = async (oid: string) => {
-    try {
-      await navigator.clipboard.writeText(oid)
-      toast('success', '已复制提交哈希')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(oid, '已复制提交哈希', toast)
   }
 
   return (

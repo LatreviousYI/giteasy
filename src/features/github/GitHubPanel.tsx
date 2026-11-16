@@ -11,7 +11,7 @@ import {
   Search
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
-import { useBranches } from '../../lib/queries'
+import { invalidateRepoQueries, useBranches } from '../../lib/queries'
 import { pickDirectory, useOpenRepo } from '../../lib/actions'
 import { useApp } from '../../store/app'
 import { relativeTime } from '../../lib/format'
@@ -185,7 +185,7 @@ export default function GitHubPanel() {
       )
       toast('success', 'Pull Request 已创建')
       setPrOpen(false)
-      await queryClient.invalidateQueries({ queryKey: ['githubPulls', repo.path] })
+      invalidateRepoQueries(queryClient, repo.path, ['githubPulls'])
     } catch (error) {
       errorToast(error)
     }

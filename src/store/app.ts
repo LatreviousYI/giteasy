@@ -1,5 +1,6 @@
 import { create } from 'zustand'
-import type { AppError, ProgressEvent, PullStrategy, RepoInfo, Settings } from '../lib/types'
+import { normalizeError } from '../lib/errors'
+import type { ProgressEvent, PullStrategy, RepoInfo, Settings } from '../lib/types'
 import {
   createRepoViewState,
   snapshotRepoViewState,
@@ -116,20 +117,6 @@ function activeRepoPatch(state: AppStore, patch: Partial<RepoViewState>): Partia
       [state.repo.path]: { ...current, ...patch }
     }
   }
-}
-
-function normalizeError(error: unknown): AppError {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const candidate = error as Partial<AppError>
-    return {
-      kind: candidate.kind ?? 'unknown',
-      code: candidate.code ?? 'E_UNKNOWN',
-      message: String(candidate.message ?? '未知错误'),
-      hint: candidate.hint,
-      detail: candidate.detail
-    }
-  }
-  return { kind: 'unknown', code: 'E_UNKNOWN', message: String(error) }
 }
 
 export const useApp = create<AppStore>((set, get) => ({

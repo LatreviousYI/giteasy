@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { useApp } from './store/app'
-import { useSettings, useStatus } from './lib/queries'
+import { invalidateRepoQueries, useSettings, useStatus } from './lib/queries'
 import { ipc } from './lib/ipc'
 import { useOpenRepo } from './lib/actions'
 import { useUpdates } from './store/updates'
@@ -154,21 +154,7 @@ export default function App() {
     listen('repo://changed', (event) => {
       const payload = event.payload as { repoPath?: string }
       if (!repo?.path || payload.repoPath !== repo.path) return
-      for (const key of [
-        'status',
-        'log',
-        'branches',
-        'tags',
-        'remotes',
-        'stashes',
-        'conflicts',
-        'submodules',
-        'worktrees',
-        'commit',
-        'diff'
-      ]) {
-        queryClient.invalidateQueries({ queryKey: [key, repo.path] })
-      }
+      invalidateRepoQueries(queryClient, repo.path)
     })
       .then((fn) => {
         unlisten = fn
@@ -227,9 +213,7 @@ export default function App() {
       ipc
         .fetch(repoPath, null, () => undefined)
         .then(() => {
-          for (const key of ['status', 'log', 'branches']) {
-            queryClient.invalidateQueries({ queryKey: [key, repoPath] })
-          }
+          invalidateRepoQueries(queryClient, repoPath, ['status', 'log', 'branches'])
         })
         .catch(() => undefined)
     }, autoFetch * 60_000)

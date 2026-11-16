@@ -4,6 +4,14 @@
 
 ## 2026-11-16
 
+### 前端稳定工具收敛
+
+- 新增统一的错误标准化、剪贴板 toast、活动时间和文件大小格式化工具。
+- Activity、历史、设置、Diff 与 Patch 的剪贴板操作改为复用 `copyTextWithToast`。
+- `invalidateRepoQueries` 统一覆盖全部仓库级查询域，watcher、自动 Fetch、GitHub PR 和业务 Mutation 共用同一刷新入口。
+- 新增错误标准化、剪贴板、格式化和查询 invalidation 测试。
+- 验证：`npm run test:frontend`（44 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
 ### 共享 Git 执行层
 
 - 新增统一 Git command builder，普通执行与流式执行共享固定环境变量和额外环境变量覆盖规则。

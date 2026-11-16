@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Monitor, Moon, Sun } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { copyTextWithToast } from '../../lib/clipboard'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 import type { Settings, SshPublicKey } from '../../lib/types'
@@ -54,12 +55,7 @@ export default function SettingsDialog() {
 
   const copyPublicKey = async () => {
     if (!sshKey?.exists) return
-    try {
-      await navigator.clipboard.writeText(sshKey.content)
-      toast('success', 'SSH 公钥已复制')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(sshKey.content, 'SSH 公钥已复制', toast)
   }
 
   const save = async () => {

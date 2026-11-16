@@ -10,6 +10,7 @@ import {
   UserRound
 } from 'lucide-react'
 import type { DiffDto, DiffLine, Selection } from '../../lib/types'
+import { copyTextWithToast } from '../../lib/clipboard'
 import { statusMeta } from '../../lib/format'
 import { Empty, Spinner } from '../../components/Empty'
 import { useApp } from '../../store/app'
@@ -152,12 +153,7 @@ export default function DiffViewer({
 
   const copyPath = async () => {
     if (!diff) return
-    try {
-      await navigator.clipboard.writeText(diff.path)
-      toast('success', '路径已复制')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(diff.path, '路径已复制', toast)
   }
 
   useEffect(() => {

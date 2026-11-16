@@ -2,14 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronDown, ChevronRight, FileCode2, FileText, Folder, FolderOpen } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { formatFileSize } from '../../lib/format'
 import { Spinner } from '../../components/Empty'
 import type { TreeEntryDto } from '../../lib/types'
-
-function formatSize(size: number) {
-  if (size < 1024) return `${size} B`
-  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
-  return `${(size / 1024 / 1024).toFixed(1)} MB`
-}
 
 function hasCollapsedParent(path: string, collapsed: Record<string, boolean>) {
   const parts = path.split('/')
@@ -104,7 +99,7 @@ export default function CommitTreePane({ repoPath, rev }: { repoPath: string; re
               <span className="truncate" style={{ flex: 1 }}>
                 {entry.name}
               </span>
-              {!isTree && <span className="row-sub">{formatSize(entry.size)}</span>}
+              {!isTree && <span className="row-sub">{formatFileSize(entry.size)}</span>}
             </div>
           )
         })}
@@ -117,7 +112,9 @@ export default function CommitTreePane({ repoPath, rev }: { repoPath: string; re
             <Spinner />
           </div>
         ) : contentQuery.data?.binary ? (
-          <div className="binary-note">二进制文件，大小 {formatSize(contentQuery.data.size)}</div>
+          <div className="binary-note">
+            二进制文件，大小 {formatFileSize(contentQuery.data.size)}
+          </div>
         ) : (
           <pre className="commit-file-content">{contentQuery.data?.content ?? ''}</pre>
         )}
