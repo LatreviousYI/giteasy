@@ -42,7 +42,7 @@ https://github.com/LatreviousYI/giteasy/releases/download/v0.1.0/updater-linux-x
 
 ## 自动发布
 
-合并到 `master` 后，`Publish GitHub Release` 工作流会读取 `package.json` 版本并自动创建 `v<版本>` Release。发布前必须提升版本号并配置 updater 签名 Secret。
+合并到 `master` 后，`Publish GitHub Release` 会根据最新标签自动生成下一个版本并创建 Release。默认递增 patch；PR 标题包含 `[minor]` 或 `[major]` 时提升 minor 或 major。版本会在 CI 构建工作区自动写入应用配置，不需要在功能 PR 中手工修改。
 
 ## 首次升级
 

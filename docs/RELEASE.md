@@ -8,24 +8,24 @@
 - macOS Apple Silicon：`.app` 与 `.dmg`。
 - Windows：尚未完成平台适配，不发布。
 
-合并到 `master` 后，`Publish GitHub Release` 会自动读取 `package.json` 版本：
+合并到 `master` 后，`Publish GitHub Release` 会自动生成版本：
 
-1. 检查对应 `v<版本>` 标签是否已经属于其他提交。
-2. 并行构建 Ubuntu 和 macOS 产物。
-3. 下载两端 artifact，确认 `.deb`、`.AppImage`、`.dmg` 和 updater 清单齐全。
-4. 统一创建 GitHub Release 并设置为 `latest`。
+1. 查找当前最新 `vX.Y.Z` 标签。
+2. 默认递增 patch，例如 `v0.1.3 → v0.1.4`。
+3. 将计算出的版本应用到构建工作区中的 `package.json`、锁文件、Cargo 配置和 Tauri 配置。
+4. 并行构建 Ubuntu 和 macOS 产物。
+5. 下载两端 artifact，确认 `.deb`、`.AppImage`、`.dmg` 和 updater 清单齐全。
+6. 统一创建 GitHub Release 并设置为 `latest`。
 
-不再需要手工推送版本标签。版本号就是发布开关，合并前必须同步提升以下文件：
+不需要在功能 PR 中手工修改版本，也不需要推送标签。默认发布 patch：
 
 ```text
-package.json
-package-lock.json
-src-tauri/Cargo.toml
-src-tauri/Cargo.lock
-src-tauri/tauri.conf.json
+普通合并       -> patch
+PR 标题含 [minor] -> minor
+PR 标题含 [major] -> major
 ```
 
-如果 `package.json` 版本对应的标签已经存在且指向其他提交，流水线会失败并要求先提升版本。
+同一提交重跑发布时会复用已经创建的标签，不会重复递增版本。
 
 发布必须配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，具体流程见 [UPDATES.md](UPDATES.md)。
 

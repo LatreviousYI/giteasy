@@ -60,7 +60,7 @@ Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因�
 
 完整的 Linux、macOS 和 Windows 打包状态、依赖、命令与产物路径见 [docs/PACKAGING.md](docs/PACKAGING.md)。
 
-合并到 `master` 会读取 `package.json` 版本并自动创建 `v<版本>` Release。合并前必须同步提升 `package.json`、`src-tauri/Cargo.toml` 和 `src-tauri/tauri.conf.json` 的版本，否则流水线会拒绝覆盖已有标签。各系统应下载的包见 [docs/DOWNLOADS.md](docs/DOWNLOADS.md)。
+合并到 `master` 后，发布工作流会基于最新标签自动递增 patch 版本并创建 Release。默认例如 `v0.1.3 → v0.1.4`；PR 标题包含 `[minor]` 或 `[major]` 时分别提升次版本或主版本。各系统应下载的包见 [docs/DOWNLOADS.md](docs/DOWNLOADS.md)。
 
 客户端内更新的密钥配置、发布资产和平台行为见 [docs/UPDATES.md](docs/UPDATES.md)。
 

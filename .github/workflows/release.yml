@@ -14,6 +14,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-master
+  cancel-in-progress: false
+
 jobs:
   prepare:
     runs-on: ubuntu-24.04
@@ -22,6 +26,9 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
 
       - name: Resolve release version
         id: version
@@ -31,19 +38,50 @@ jobs:
             exit 1
           fi
 
-          VERSION=$(node -p "require('./package.json').version")
+          HEAD_TAG=$(git tag --points-at "$GITHUB_SHA" \
+            | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' \
+            | sort -V \
+            | tail -1 || true)
+
+          if [ -n "$HEAD_TAG" ]; then
+            VERSION="${HEAD_TAG#v}"
+            echo "Reusing ${HEAD_TAG} for the current commit."
+          else
+            LATEST_TAG=$(git tag --list 'v[0-9]*' --sort=-v:refname | head -1)
+            if [ -z "$LATEST_TAG" ]; then
+              LATEST_TAG="v0.1.0"
+            fi
+
+            BASE_VERSION="${LATEST_TAG#v}"
+            IFS=. read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+            BUMP=patch
+            COMMIT_MESSAGE=$(git log -1 --pretty=%B)
+            if grep -qiE '\[major\]|#major' <<< "$COMMIT_MESSAGE"; then
+              BUMP=major
+            elif grep -qiE '\[minor\]|#minor' <<< "$COMMIT_MESSAGE"; then
+              BUMP=minor
+            fi
+
+            case "$BUMP" in
+              major)
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              minor)
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              patch)
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+
+            VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            echo "Calculated a ${BUMP} release from ${LATEST_TAG}: v${VERSION}."
+          fi
+
           TAG="v${VERSION}"
-          REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/${TAG}^{}" | awk '{print $1}')
-          if [ -z "$REMOTE_TAG_SHA" ]; then
-            REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/${TAG}" | awk '{print $1}')
-          fi
-
-          if [ -n "$REMOTE_TAG_SHA" ] && [ "$REMOTE_TAG_SHA" != "$GITHUB_SHA" ]; then
-            echo "${TAG} already exists at ${REMOTE_TAG_SHA}." >&2
-            echo "Bump package.json, Cargo.toml and tauri.conf.json before merging again." >&2
-            exit 1
-          fi
-
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
           echo "Releasing ${TAG} from ${GITHUB_SHA}."
@@ -51,12 +89,15 @@ jobs:
   build-linux:
     needs: prepare
     uses: ./.github/workflows/build-linux-ubuntu.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
     secrets: inherit
 
   build-macos:
     needs: prepare
     uses: ./.github/workflows/build-macos-arm64.yml
     with:
+      version: ${{ needs.prepare.outputs.version }}
       sign: ${{ inputs.sign_apple || false }}
     secrets: inherit
 
@@ -75,6 +116,13 @@ jobs:
           pattern: GitEasy-Release-*
           path: release-assets
           merge-multiple: true
+
+      - name: Verify release version
+        run: |
+          jq -e '.version == "${{ needs.prepare.outputs.version }}"' \
+            release-assets/updater-linux-x86_64.json
+          jq -e '.version == "${{ needs.prepare.outputs.version }}"' \
+            release-assets/updater-darwin-aarch64.json
 
       - name: Verify release assets
         run: |

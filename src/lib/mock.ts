@@ -14,6 +14,7 @@ import type {
   TagDto,
   WorktreeDto
 } from './types'
+import packageJson from '../../package.json'
 
 const now = Math.floor(Date.now() / 1000)
 const oid = (n: number) => n.toString(16).padStart(40, '0')
@@ -844,7 +845,7 @@ export async function mockInvoke<T>(
       return (payload.settings ?? settings) as T
     case 'update_context':
       return {
-        currentVersion: '0.1.3',
+        currentVersion: packageJson.version,
         installKind: 'portable',
         canInstallInPlace: false,
         executable: '/tmp/giteasy'
