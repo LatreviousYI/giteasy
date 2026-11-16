@@ -22,6 +22,8 @@ GitEasy 是一个面向 Linux 和 macOS 的原生 Git GUI，目标是覆盖 Fork
 
 ## 开发
 
+修改代码前请先阅读 [AGENTS.md](AGENTS.md) 中的架构、复用、测试和发布约束。
+
 ```bash
 npm install
 npm run dev
