@@ -1,0 +1,108 @@
+name: Publish GitHub Release
+
+on:
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      sign_apple:
+        description: Sign and notarize the macOS bundle
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  prepare:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve release version
+        id: version
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/master" ]; then
+            echo "Releases must run from master." >&2
+            exit 1
+          fi
+
+          VERSION=$(node -p "require('./package.json').version")
+          TAG="v${VERSION}"
+          REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/${TAG}^{}" | awk '{print $1}')
+          if [ -z "$REMOTE_TAG_SHA" ]; then
+            REMOTE_TAG_SHA=$(git ls-remote --tags origin "refs/tags/${TAG}" | awk '{print $1}')
+          fi
+
+          if [ -n "$REMOTE_TAG_SHA" ] && [ "$REMOTE_TAG_SHA" != "$GITHUB_SHA" ]; then
+            echo "${TAG} already exists at ${REMOTE_TAG_SHA}." >&2
+            echo "Bump package.json, Cargo.toml and tauri.conf.json before merging again." >&2
+            exit 1
+          fi
+
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "Releasing ${TAG} from ${GITHUB_SHA}."
+
+  build-linux:
+    needs: prepare
+    uses: ./.github/workflows/build-linux-ubuntu.yml
+    secrets: inherit
+
+  build-macos:
+    needs: prepare
+    uses: ./.github/workflows/build-macos-arm64.yml
+    with:
+      sign: ${{ inputs.sign_apple || false }}
+    secrets: inherit
+
+  publish:
+    needs:
+      - prepare
+      - build-linux
+      - build-macos
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download release artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: GitEasy-Release-*
+          path: release-assets
+          merge-multiple: true
+
+      - name: Verify release assets
+        run: |
+          test -n "$(find release-assets -maxdepth 1 -name '*.deb' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*.AppImage.sig' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*.dmg' -print -quit)"
+          test -n "$(find release-assets -maxdepth 1 -name '*.app.tar.gz' -print -quit)"
+          test -f release-assets/updater-linux-x86_64.json
+          test -f release-assets/updater-darwin-aarch64.json
+          find release-assets -maxdepth 1 -type f -printf '%f %s bytes\n' | sort
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: GitEasy ${{ needs.prepare.outputs.tag }}
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          body_path: docs/DOWNLOADS.md
+          make_latest: true
+          fail_on_unmatched_files: true
+          overwrite_files: true
+          files: |
+            release-assets/*.deb
+            release-assets/*.AppImage
+            release-assets/*.AppImage.sig
+            release-assets/*.dmg
+            release-assets/*.app.tar.gz
+            release-assets/*.app.tar.gz.sig
+            release-assets/updater-linux-x86_64.json
+            release-assets/updater-darwin-aarch64.json

@@ -8,7 +8,26 @@
 - macOS Apple Silicon：`.app` 与 `.dmg`。
 - Windows：尚未完成平台适配，不发布。
 
-推送 `v*` 标签后，Ubuntu 与 macOS workflow 会把 `.deb`、`.AppImage` 和 `.dmg` 上传到同一个 GitHub Release。用户下载说明由 `docs/DOWNLOADS.md` 自动写入 Release 正文。
+合并到 `master` 后，`Publish GitHub Release` 会自动读取 `package.json` 版本：
+
+1. 检查对应 `v<版本>` 标签是否已经属于其他提交。
+2. 并行构建 Ubuntu 和 macOS 产物。
+3. 下载两端 artifact，确认 `.deb`、`.AppImage`、`.dmg` 和 updater 清单齐全。
+4. 统一创建 GitHub Release 并设置为 `latest`。
+
+不再需要手工推送版本标签。版本号就是发布开关，合并前必须同步提升以下文件：
+
+```text
+package.json
+package-lock.json
+src-tauri/Cargo.toml
+src-tauri/Cargo.lock
+src-tauri/tauri.conf.json
+```
+
+如果 `package.json` 版本对应的标签已经存在且指向其他提交，流水线会失败并要求先提升版本。
+
+发布必须配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，具体流程见 [UPDATES.md](UPDATES.md)。
 
 ## 通用验收命令
 
