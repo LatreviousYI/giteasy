@@ -75,14 +75,15 @@ async fn pump<R: AsyncRead + Unpin>(
             if text.is_empty() {
                 continue;
             }
-            collected.lock().unwrap().push_str(&text);
-            collected.lock().unwrap().push('\n');
+            let mut buffer = util::lock_or_recover(&collected);
+            buffer.push_str(&text);
+            buffer.push('\n');
             let _ = on_event.send(parse_progress(&text));
         }
     }
     let text = pending.trim().to_string();
     if !text.is_empty() {
-        collected.lock().unwrap().push_str(&text);
+        util::lock_or_recover(&collected).push_str(&text);
         let _ = on_event.send(parse_progress(&text));
     }
 }
@@ -175,8 +176,8 @@ pub(crate) async fn run_stream_env(
         let _ = handle.await;
     }
 
-    let stdout_text = out_buf.lock().unwrap().clone();
-    let stderr_text = err_buf.lock().unwrap().clone();
+    let stdout_text = util::lock_or_recover(&out_buf).clone();
+    let stderr_text = util::lock_or_recover(&err_buf).clone();
     if !status.success() {
         let err = util::map_git_failure(stderr_text, stdout_text);
         crate::activity::record_error(
@@ -302,14 +303,7 @@ pub async fn commit_create(
     stage_all: bool,
     gpg_sign: bool,
 ) -> Result<crate::model::CommitResult, AppError> {
-    let gpg_key = gpg_sign.then(|| {
-        state
-            .settings
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .gpg_key
-            .clone()
-    });
+    let gpg_key = gpg_sign.then(|| util::lock_or_recover(&state.settings).gpg_key.clone());
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     commit_create_impl(path, message, amend, signoff, stage_all, gpg_key).await
 }
@@ -1077,7 +1071,9 @@ pub fn open_in_editor(
     path: String,
     file: Option<String>,
 ) -> Result<(), AppError> {
-    let editor = state.settings.lock().unwrap().external_editor.clone();
+    let editor = util::lock_or_recover(&state.settings)
+        .external_editor
+        .clone();
     let target = file
         .map(|f| Path::new(&path).join(f).to_string_lossy().to_string())
         .unwrap_or_else(|| path.clone());
@@ -1102,7 +1098,7 @@ pub fn open_in_terminal(
     state: tauri::State<'_, crate::AppState>,
     path: String,
 ) -> Result<(), AppError> {
-    let configured = state.settings.lock().unwrap().terminal.clone();
+    let configured = util::lock_or_recover(&state.settings).terminal.clone();
     let terminal = if !configured.trim().is_empty() {
         configured
     } else {

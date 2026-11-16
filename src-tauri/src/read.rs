@@ -91,11 +91,7 @@ pub(crate) fn repo_close_inner(state: &crate::AppState, path: &str) {
     let repo_id = util::canonical(path)
         .map(|value| value.to_string_lossy().to_string())
         .unwrap_or_else(|_| path.to_string());
-    state
-        .watchers
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .remove(&repo_id);
+    util::lock_or_recover(&state.watchers).remove(&repo_id);
     state.sessions.remove(&repo_id);
 }
 

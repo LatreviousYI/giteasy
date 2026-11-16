@@ -4,6 +4,13 @@
 
 ## 2026-11-16
 
+### Mutex 毒化恢复
+
+- 新增统一的 `lock_or_recover` helper，在锁持有者 panic 后恢复内部状态，避免命令路径直接 panic。
+- 迁移 settings、watcher、Activity、GitHub、RepoSession 和 Git 流式输出缓冲的生产锁调用。
+- 新增 Mutex poisoning recovery 单元测试。
+- 验证：`npm run test:backend`（32 项）、Clippy 和 rustfmt 检查通过。
+
 ### 静态质量门禁
 
 - 接入 ESLint、Prettier、rustfmt 和 Clippy，新增对应的 npm scripts。

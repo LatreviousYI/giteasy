@@ -140,10 +140,7 @@ impl GitHubService {
     }
 
     pub fn accounts(&self) -> Vec<GitHubAccount> {
-        self.accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
+        crate::util::lock_or_recover(&self.accounts).clone()
     }
 
     async fn login_with_token(&self, token: String) -> Result<GitHubAccount, AppError> {
@@ -169,14 +166,8 @@ impl GitHubService {
         entry
             .set_password(&token)
             .map_err(|error| credential_error(error.to_string()))?;
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .insert(account.login.clone(), token);
-        let mut accounts = self
-            .accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        crate::util::lock_or_recover(&self.tokens).insert(account.login.clone(), token);
+        let mut accounts = crate::util::lock_or_recover(&self.accounts);
         accounts.retain(|item| item.login != account.login);
         accounts.insert(0, account.clone());
         save_accounts(&accounts)?;
@@ -187,23 +178,14 @@ impl GitHubService {
         if let Ok(entry) = keyring_entry(login) {
             let _ = entry.delete_credential();
         }
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .remove(login);
-        let mut accounts = self
-            .accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        crate::util::lock_or_recover(&self.tokens).remove(login);
+        let mut accounts = crate::util::lock_or_recover(&self.accounts);
         accounts.retain(|account| account.login != login);
         save_accounts(&accounts)
     }
 
     fn token_for(&self, login: &str) -> Result<String, AppError> {
-        if let Some(token) = self
-            .tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        if let Some(token) = crate::util::lock_or_recover(&self.tokens)
             .get(login)
             .cloned()
         {
@@ -214,10 +196,7 @@ impl GitHubService {
                 .with_hint("请重新登录 GitHub 账户")
                 .with_detail(error.to_string())
         })?;
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .insert(login.to_string(), token.clone());
+        crate::util::lock_or_recover(&self.tokens).insert(login.to_string(), token.clone());
         Ok(token)
     }
 
@@ -229,12 +208,7 @@ impl GitHubService {
     ) -> Result<T, AppError> {
         let token = self.token_for(login)?;
         let key = format!("{login}:{cache_key}");
-        let cached = self
-            .cache
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .get(&key)
-            .cloned();
+        let cached = crate::util::lock_or_recover(&self.cache).get(&key).cloned();
         let mut request = self
             .client
             .get(url)
@@ -272,16 +246,13 @@ impl GitHubService {
             .to_string();
         let body: Value = response.json().await.map_err(network_error)?;
         if !etag.is_empty() {
-            self.cache
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .insert(
-                    key,
-                    CachedResponse {
-                        etag,
-                        body: body.clone(),
-                    },
-                );
+            crate::util::lock_or_recover(&self.cache).insert(
+                key,
+                CachedResponse {
+                    etag,
+                    body: body.clone(),
+                },
+            );
         }
         serde_json::from_value(body).map_err(|error| {
             AppError::new("github", "E_GITHUB_DECODE", "GitHub 返回数据解析失败")

@@ -7,7 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Emitter;
 
 pub fn watch(app: &tauri::AppHandle, state: &crate::AppState, path: &str) -> Result<(), AppError> {
-    let mut watchers = state.watchers.lock().unwrap();
+    let mut watchers = crate::util::lock_or_recover(&state.watchers);
     if watchers.contains_key(path) {
         return Ok(());
     }

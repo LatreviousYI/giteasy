@@ -3,9 +3,16 @@ use git2::{Repository, Status, StatusOptions};
 use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Stdio;
+use std::sync::{Mutex, MutexGuard};
 use std::time::Instant;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command;
+
+pub fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
+    mutex
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
 
 pub fn open_repo(path: &str) -> Result<Repository, AppError> {
     Repository::open(path).map_err(|e| {
@@ -245,4 +252,24 @@ pub fn workdir_content(repo: &Repository, file: &str) -> Option<String> {
 
 pub fn short(oid: &str) -> String {
     oid.chars().take(7).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lock_or_recover;
+    use std::panic::{catch_unwind, AssertUnwindSafe};
+    use std::sync::Mutex;
+
+    #[test]
+    fn lock_or_recover_recovers_a_poisoned_mutex() {
+        let mutex = Mutex::new(0);
+        let _ = catch_unwind(AssertUnwindSafe(|| {
+            let _guard = mutex.lock().unwrap();
+            panic!("poison mutex");
+        }));
+
+        *lock_or_recover(&mutex) = 1;
+
+        assert_eq!(*lock_or_recover(&mutex), 1);
+    }
 }

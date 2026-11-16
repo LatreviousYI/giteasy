@@ -31,10 +31,7 @@ pub struct RepoRegistry {
 
 impl RepoRegistry {
     pub fn ensure(&self, repo_id: &str) -> Arc<RepoSession> {
-        let mut sessions = self
-            .sessions
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        let mut sessions = crate::util::lock_or_recover(&self.sessions);
         sessions
             .entry(repo_id.to_string())
             .or_insert_with(|| Arc::new(RepoSession::new(repo_id.to_string())))
@@ -42,18 +39,13 @@ impl RepoRegistry {
     }
 
     pub fn get(&self, repo_id: &str) -> Option<Arc<RepoSession>> {
-        self.sessions
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        crate::util::lock_or_recover(&self.sessions)
             .get(repo_id)
             .cloned()
     }
 
     pub fn remove(&self, repo_id: &str) -> Option<Arc<RepoSession>> {
-        self.sessions
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .remove(repo_id)
+        crate::util::lock_or_recover(&self.sessions).remove(repo_id)
     }
 }
 
