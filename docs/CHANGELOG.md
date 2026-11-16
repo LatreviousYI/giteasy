@@ -4,6 +4,13 @@
 
 ## 2026-11-16
 
+### Sidebar 仓库菜单拆分
+
+- 将仓库切换菜单拆为纯展示组件 `SidebarRepoMenu`，查询、状态与 IPC 命令仍保留在 Sidebar。
+- 新增菜单动作回调测试，并保持最近仓库、打开、初始化、扫描、终端和关闭行为不变。
+- `Sidebar.tsx` 从 723 行降至 679 行，本轮只迁移一个独立展示边界。
+- 验证：`npm run test:frontend`（49 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
 ### 对话框可访问性
 
 - `Modal` 增加 `role="dialog"`、`aria-modal`、可访问标题和关闭按钮名称。

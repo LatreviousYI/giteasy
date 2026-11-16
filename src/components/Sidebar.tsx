@@ -1,14 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import {
-  Check,
-  ChevronDown,
-  ChevronRight,
-  FolderGit2,
-  FolderOpen,
-  FolderSearch,
-  Plus,
-  Terminal
-} from 'lucide-react'
+import { ChevronDown, FolderGit2 } from 'lucide-react'
 import { useApp } from '../store/app'
 import {
   useBranches,
@@ -44,6 +35,7 @@ import StashCreateDialog from '../features/stashes/StashCreateDialog'
 import { repoSidebarWidthKey } from '../lib/workspace'
 import WorktreeDialog from '../features/repo/WorktreeDialog'
 import SubmoduleDialog from '../features/repo/SubmoduleDialog'
+import SidebarRepoMenu from './sidebar/SidebarRepoMenu'
 
 type PromptKind = 'branch' | 'rename' | 'upstream'
 
@@ -224,6 +216,48 @@ export default function Sidebar() {
 
   if (!repo) return null
 
+  const openRecentRepository = async (repoPath: string) => {
+    setRepoMenu(false)
+    await openRepo(repoPath)
+  }
+
+  const openRepositoryDirectory = async () => {
+    setRepoMenu(false)
+    const dir = await pickDirectory('选择 Git 仓库目录')
+    if (dir) await openRepo(dir)
+  }
+
+  const initializeRepository = async () => {
+    setRepoMenu(false)
+    const dir = await pickDirectory('选择用于初始化仓库的目录')
+    if (dir) await initRepo(dir)
+  }
+
+  const discoverRepositories = async () => {
+    setRepoMenu(false)
+    const dir = await pickDirectory('选择要扫描的目录')
+    if (dir) setDiscoverRoot(dir)
+  }
+
+  const openRepositoryTerminal = async () => {
+    setRepoMenu(false)
+    try {
+      await ipc.openInTerminal(repo.path)
+    } catch (error) {
+      errorToast(error)
+    }
+  }
+
+  const closeRepository = async () => {
+    setRepoMenu(false)
+    try {
+      await ipc.repoClose(repo.path)
+      setRepo(null)
+    } catch (error) {
+      errorToast(error)
+    }
+  }
+
   return (
     <aside className="sidebar" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
       <div className="sidebar-resizer" onPointerDown={startResize} title="拖动调整侧边栏宽度" />
@@ -238,95 +272,17 @@ export default function Sidebar() {
         </button>
 
         {repoMenu && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setRepoMenu(false)} />
-            <div
-              className="absolute left-2 right-2 top-[52px] z-40 rounded-[10px] p-1.5"
-              style={{
-                background: 'var(--surface)',
-                border: '1px solid var(--border)',
-                boxShadow: 'var(--shadow-pop)'
-              }}
-            >
-              <div className="px-2 pt-1 pb-1 text-[10.5px] uppercase tracking-wider text-[var(--text-subtle)]">
-                最近仓库
-              </div>
-              {recent.slice(0, 6).map((item) => (
-                <button
-                  key={item.path}
-                  className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2"
-                  onClick={async () => {
-                    setRepoMenu(false)
-                    await openRepo(item.path)
-                  }}
-                >
-                  <FolderGit2 size={13} className="text-subtle" />
-                  <span className="truncate flex-1">{item.name}</span>
-                  {item.path === repo.path && <Check size={12} className="text-[var(--accent)]" />}
-                </button>
-              ))}
-              <div className="my-1 h-px" style={{ background: 'var(--border)' }} />
-              <button
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2"
-                onClick={async () => {
-                  setRepoMenu(false)
-                  const dir = await pickDirectory('选择 Git 仓库目录')
-                  if (dir) await openRepo(dir)
-                }}
-              >
-                <FolderOpen size={13} className="text-subtle" />
-                打开其他仓库…
-              </button>
-              <button
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2"
-                onClick={async () => {
-                  setRepoMenu(false)
-                  const dir = await pickDirectory('选择用于初始化仓库的目录')
-                  if (dir) await initRepo(dir)
-                }}
-              >
-                <Plus size={13} className="text-subtle" />
-                初始化新仓库…
-              </button>
-              <button
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2"
-                onClick={async () => {
-                  setRepoMenu(false)
-                  const dir = await pickDirectory('选择要扫描的目录')
-                  if (dir) setDiscoverRoot(dir)
-                }}
-              >
-                <FolderSearch size={13} className="text-subtle" />
-                扫描子仓库…
-              </button>
-              <button
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2"
-                onClick={async () => {
-                  setRepoMenu(false)
-                  try {
-                    await ipc.openInTerminal(repo.path)
-                  } catch (error) {
-                    errorToast(error)
-                  }
-                }}
-              >
-                <Terminal size={13} className="text-subtle" />
-                在终端中打开
-              </button>
-              <div className="my-1 h-px" style={{ background: 'var(--border)' }} />
-              <button
-                className="w-full text-left px-2 py-1.5 rounded-md hover:bg-[var(--surface-hover)] text-[12px] flex items-center gap-2 text-[var(--text-muted)]"
-                onClick={async () => {
-                  setRepoMenu(false)
-                  await ipc.repoClose(repo.path).catch(errorToast)
-                  setRepo(null)
-                }}
-              >
-                <ChevronRight size={13} />
-                关闭当前仓库
-              </button>
-            </div>
-          </>
+          <SidebarRepoMenu
+            repoPath={repo.path}
+            recent={recent}
+            onDismiss={() => setRepoMenu(false)}
+            onOpenRecent={openRecentRepository}
+            onOpenDirectory={openRepositoryDirectory}
+            onInitializeRepository={initializeRepository}
+            onDiscoverRepositories={discoverRepositories}
+            onOpenTerminal={openRepositoryTerminal}
+            onCloseRepository={closeRepository}
+          />
         )}
       </div>
 
