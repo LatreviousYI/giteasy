@@ -1,21 +1,36 @@
 name: Build macOS Apple Silicon
 
 on:
-  workflow_dispatch:
+  workflow_call:
     inputs:
       sign:
         description: Sign and notarize the macOS bundle
         type: boolean
         default: false
-  push:
-    tags:
-      - "v*"
+    secrets:
+      TAURI_SIGNING_PRIVATE_KEY:
+        required: true
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD:
+        required: true
+      APPLE_CERTIFICATE:
+        required: false
+      APPLE_CERTIFICATE_PASSWORD:
+        required: false
+      APPLE_SIGNING_IDENTITY:
+        required: false
+      APPLE_ID:
+        required: false
+      APPLE_PASSWORD:
+        required: false
+      APPLE_TEAM_ID:
+        required: false
+
+permissions:
+  contents: read
 
 jobs:
   build:
     runs-on: macos-15
-    permissions:
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -49,12 +64,11 @@ jobs:
           path: macos-backend.log
 
       - name: Verify updater signing key
-        if: startsWith(github.ref, 'refs/tags/')
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
         run: |
           if [ -z "$TAURI_SIGNING_PRIVATE_KEY" ]; then
-            echo "TAURI_SIGNING_PRIVATE_KEY is required for tagged releases" >&2
+            echo "TAURI_SIGNING_PRIVATE_KEY is required for releases" >&2
             exit 1
           fi
 
@@ -65,11 +79,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ARGS=(--target aarch64-apple-darwin --bundles app,dmg)
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            ARGS+=(--config src-tauri/tauri.updater.conf.json)
-          fi
-          npm run tauri -- build "${ARGS[@]}" 2>&1 | tee macos-build.log
+          npm run tauri -- build \
+            --target aarch64-apple-darwin \
+            --bundles app,dmg \
+            --config src-tauri/tauri.updater.conf.json \
+            2>&1 | tee macos-build.log
 
       - name: Build signed Apple Silicon app and DMG
         if: ${{ inputs.sign }}
@@ -84,11 +98,11 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         run: |
           set -o pipefail
-          ARGS=(--target aarch64-apple-darwin --bundles app,dmg)
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            ARGS+=(--config src-tauri/tauri.updater.conf.json)
-          fi
-          npm run tauri -- build "${ARGS[@]}" 2>&1 | tee macos-build.log
+          npm run tauri -- build \
+            --target aarch64-apple-darwin \
+            --bundles app,dmg \
+            --config src-tauri/tauri.updater.conf.json \
+            2>&1 | tee macos-build.log
 
       - name: Upload build failure log
         if: failure()
@@ -99,7 +113,6 @@ jobs:
           path: macos-build.log
 
       - name: Generate macOS updater manifest
-        if: startsWith(github.ref, 'refs/tags/')
         run: |
           ASSET=$(find src-tauri/target/aarch64-apple-darwin/release/bundle/macos -name '*.app.tar.gz' -print -quit)
           node scripts/generate-updater-manifest.mjs \
@@ -108,30 +121,24 @@ jobs:
             --signature "$ASSET.sig" \
             --output src-tauri/target/aarch64-apple-darwin/release/bundle/macos/updater-darwin-aarch64.json
 
-      - name: Upload macOS artifacts
+      - name: Stage release assets
+        run: |
+          mkdir -p release
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg release/
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz release/
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig release/
+          cp src-tauri/target/aarch64-apple-darwin/release/bundle/macos/updater-darwin-aarch64.json release/
+
+      - name: Upload macOS release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: GitEasy-macOS-arm64
+          name: GitEasy-Release-macOS-arm64
           if-no-files-found: error
-          path: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/updater-darwin-aarch64.json
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
+          path: release/*
 
-      - name: Publish macOS release asset
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
+      - name: Upload macOS app bundle for diagnostics
+        uses: actions/upload-artifact@v4
         with:
-          name: GitEasy ${{ github.ref_name }}
-          tag_name: ${{ github.ref_name }}
-          body_path: docs/DOWNLOADS.md
-          make_latest: true
-          fail_on_unmatched_files: true
-          overwrite_files: true
-          files: |
-            src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig
-            src-tauri/target/aarch64-apple-darwin/release/bundle/macos/updater-darwin-aarch64.json
+          name: GitEasy-macOS-app-bundle
+          if-no-files-found: error
+          path: src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app

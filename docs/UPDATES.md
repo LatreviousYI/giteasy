@@ -22,6 +22,28 @@ Tauri 配置使用模板：
 updater-{{target}}-{{arch}}.json
 ```
 
+## URL 中的版本
+
+客户端不会请求固定版本的 `v0.1.0` 地址。实际配置是：
+
+```text
+https://github.com/LatreviousYI/giteasy/releases/latest/download/updater-linux-x86_64.json
+```
+
+`latest` 由 GitHub 动态重定向到当前最新 Release。因此每次发布后，客户端会自动请求新版本目录中的清单。
+
+固定地址不会自动变化：
+
+```text
+https://github.com/LatreviousYI/giteasy/releases/download/v0.1.0/updater-linux-x86_64.json
+```
+
+`v0.1.0` 发布时还没有 updater 清单，因此这个固定地址会一直返回 `404`。当 `latest` 仍指向 `v0.1.0` 时，`latest/download/...` 也会因为重定向到旧版本而返回 `404`；只有新的 updater Release 发布成功后，后者才会恢复正常。
+
+## 自动发布
+
+合并到 `master` 后，`Publish GitHub Release` 工作流会读取 `package.json` 版本并自动创建 `v<版本>` Release。发布前必须提升版本号并配置 updater 签名 Secret。
+
 ## 首次升级
 
 `0.1.0` 不包含 updater 插件，因此不能自动升级到 `0.1.2`。
