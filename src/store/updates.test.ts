@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { check } from '@tauri-apps/plugin-updater'
 import { useUpdates } from './updates'
 
 const { updateContext, openUpdatePage } = vi.hoisted(() => ({
@@ -19,6 +20,8 @@ vi.mock('@tauri-apps/plugin-updater', () => ({
 vi.mock('@tauri-apps/plugin-process', () => ({
   relaunch: vi.fn()
 }))
+
+const checkMock = vi.mocked(check)
 
 describe('update store', () => {
   beforeEach(() => {
@@ -39,6 +42,7 @@ describe('update store', () => {
       executable: '/tmp/giteasy'
     })
     openUpdatePage.mockReset().mockResolvedValue(undefined)
+    checkMock.mockReset()
     useUpdates.setState({
       status: 'idle',
       context: null,
@@ -75,5 +79,31 @@ describe('update store', () => {
     expect(updateContext).toHaveBeenCalledTimes(2)
     expect(useUpdates.getState().status).toBe('up-to-date')
     expect(useUpdates.getState().context?.currentVersion).toBe('0.1.1')
+  })
+
+  it('does not apply the check interval when an update is available', async () => {
+    Object.defineProperty(window, '__TAURI_INTERNALS__', {
+      configurable: true,
+      value: {}
+    })
+    checkMock.mockResolvedValue({
+      version: '0.1.2',
+      body: 'Release notes',
+      date: '2026-11-16T00:00:00Z',
+      close: vi.fn().mockResolvedValue(undefined)
+    } as never)
+
+    try {
+      vi.resetModules()
+      const { useUpdates: tauriUpdates } = await import('./updates')
+      await tauriUpdates.getState().check(true)
+
+      expect(tauriUpdates.getState().status).toBe('available')
+      expect(tauriUpdates.getState().availableVersion).toBe('0.1.2')
+      expect(window.localStorage.getItem('giteasy.updates.lastCheck')).toBeNull()
+    } finally {
+      delete (window as unknown as Record<string, unknown>).__TAURI_INTERNALS__
+      vi.resetModules()
+    }
   })
 })

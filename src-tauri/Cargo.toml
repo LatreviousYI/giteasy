@@ -1,6 +1,6 @@
 [package]
 name = "giteasy"
-version = "0.1.1"
+version = "0.1.2"
 description = "GitEasy - a modern Git GUI for Linux and macOS"
 authors = ["GitEasy"]
 edition = "2021"

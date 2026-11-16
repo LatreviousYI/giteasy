@@ -91,8 +91,8 @@ export const useUpdates = create<UpdateStore>((set, get) => ({
       }
 
       const pendingUpdate = await check({ timeout: 15_000 })
-      writeLastCheck(Date.now())
       if (!pendingUpdate) {
+        writeLastCheck(Date.now())
         set({
           status: 'up-to-date',
           pendingUpdate: null,
