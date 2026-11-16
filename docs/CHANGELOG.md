@@ -4,6 +4,14 @@
 
 ## 2026-11-16
 
+### 对话框可访问性
+
+- `Modal` 增加 `role="dialog"`、`aria-modal`、可访问标题和关闭按钮名称。
+- 新增共享 `useModalFocus`：顶层对话框处理 Escape、Tab 焦点循环、初始焦点与关闭后焦点恢复。
+- `PromptDialog` 的 label 与输入框建立关联，命令面板复用同一焦点管理并补齐 dialog 语义。
+- 新增 Modal 语义、焦点锁定、焦点恢复和 Prompt label 组件测试。
+- 验证：`npm run test:frontend`（47 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
 ### 前端稳定工具收敛
 
 - 新增统一的错误标准化、剪贴板 toast、活动时间和文件大小格式化工具。

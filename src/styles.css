@@ -1622,6 +1622,10 @@ button {
   font-weight: 650;
   font-size: 13.5px;
 }
+.modal-title {
+  margin: 0;
+  font: inherit;
+}
 .modal-head .spacer {
   flex: 1;
 }
