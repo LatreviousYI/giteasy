@@ -247,6 +247,39 @@ button {
   padding-bottom: 2px;
 }
 
+.window-controls {
+  align-self: flex-start;
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+  margin: -5px -12px 0 2px;
+}
+
+.window-control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 36px;
+  border: 0;
+  border-radius: 0;
+  color: var(--text-muted);
+  background: transparent;
+  transition:
+    color 120ms ease,
+    background 120ms ease;
+}
+
+.window-control:hover {
+  color: var(--text);
+  background: var(--surface-hover);
+}
+
+.window-control-close:hover {
+  color: #fff;
+  background: var(--danger);
+}
+
 .topbar-toolbar {
   display: flex;
   align-items: center;

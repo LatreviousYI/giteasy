@@ -26,6 +26,7 @@ import { useUpdates } from '../store/updates'
 import type { PullMode, StatusDto } from '../lib/types'
 import { ConfirmDialog } from './Dialogs'
 import { pickDirectory, useOpenRepo } from '../lib/actions'
+import WindowControls from './WindowControls'
 
 const PULL_MODES: Array<{ mode: PullMode; title: string; hint: string }> = [
   {
@@ -123,7 +124,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
 
   return (
     <header className="topbar workspace-topbar">
-      <div className="topbar-tabs">
+      <div className="topbar-tabs" data-tauri-drag-region>
         <div className="brand">
           <span className="brand-mark">G</span>
           <span>GitEasy</span>
@@ -227,6 +228,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
             <Settings size={16} />
           </button>
         </div>
+        <WindowControls />
       </div>
 
       <div className="topbar-toolbar">
