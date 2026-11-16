@@ -14,6 +14,94 @@ pub fn lock_or_recover<T>(mutex: &Mutex<T>) -> MutexGuard<'_, T> {
         .unwrap_or_else(|poisoned| poisoned.into_inner())
 }
 
+pub fn git_command<S: AsRef<OsStr>>(
+    cwd: &str,
+    args: &[S],
+    pipe_stdin: bool,
+    envs: &[(&str, String)],
+) -> Command {
+    let mut command = Command::new("git");
+    command
+        .current_dir(cwd)
+        .args(args)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("LC_ALL", "C")
+        .env("GIT_EDITOR", "true")
+        .env("GIT_MERGE_AUTOEDIT", "no")
+        .stdin(if pipe_stdin {
+            Stdio::piped()
+        } else {
+            Stdio::null()
+        })
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+    for (key, value) in envs {
+        command.env(key, value);
+    }
+    command
+}
+
+pub struct GitInvocation {
+    command: String,
+    started_at: i64,
+    timer: Instant,
+}
+
+impl GitInvocation {
+    pub fn new<S: AsRef<OsStr>>(args: &[S]) -> Self {
+        Self {
+            command: crate::activity::command_text("git", args),
+            started_at: crate::activity::now_millis(),
+            timer: Instant::now(),
+        }
+    }
+
+    pub fn spawn_error(&self, cwd: &str, error: std::io::Error) -> AppError {
+        let error = AppError::new("git", "E_SPAWN", "无法启动系统 git")
+            .with_hint("请确认已安装 git 并位于 PATH 中")
+            .with_detail(error.to_string());
+        self.record_error(cwd, &error);
+        error
+    }
+
+    pub fn io_error(&self, cwd: &str, error: std::io::Error) -> AppError {
+        let error = AppError::from(error);
+        self.record_error(cwd, &error);
+        error
+    }
+
+    pub fn failure(&self, cwd: &str, stderr: String, stdout: String) -> AppError {
+        let error = map_git_failure(stderr, stdout);
+        self.record_error(cwd, &error);
+        error
+    }
+
+    pub fn success(&self, cwd: &str, stdout: &str, stderr: &str) {
+        crate::activity::record_success(
+            cwd,
+            &self.command,
+            self.started_at,
+            self.elapsed_ms(),
+            stdout,
+            stderr,
+        );
+    }
+
+    fn record_error(&self, cwd: &str, error: &AppError) {
+        crate::activity::record_error(
+            cwd,
+            &self.command,
+            self.started_at,
+            self.elapsed_ms(),
+            error,
+        );
+    }
+
+    fn elapsed_ms(&self) -> u64 {
+        self.timer.elapsed().as_millis() as u64
+    }
+}
+
 pub fn open_repo(path: &str) -> Result<Repository, AppError> {
     Repository::open(path).map_err(|e| {
         AppError::not_found(format!("无法打开 Git 仓库：{path}"))
@@ -106,80 +194,36 @@ pub async fn git_output<S: AsRef<OsStr>>(
     args: &[S],
     input: Option<&[u8]>,
 ) -> Result<std::process::Output, AppError> {
-    let command = crate::activity::command_text("git", args);
-    let started_at = crate::activity::now_millis();
-    let timer = Instant::now();
-    let mut cmd = Command::new("git");
-    cmd.current_dir(cwd)
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("LC_ALL", "C")
-        .env("GIT_EDITOR", "true")
-        .env("GIT_MERGE_AUTOEDIT", "no")
-        .stdin(if input.is_some() {
-            Stdio::piped()
-        } else {
-            Stdio::null()
-        })
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-
-    let mut child = match cmd.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            let error = AppError::new("git", "E_SPAWN", "无法启动系统 git")
-                .with_hint("请确认已安装 git 并位于 PATH 中")
-                .with_detail(error.to_string());
-            crate::activity::record_error(
-                cwd,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let invocation = GitInvocation::new(args);
+    let mut cmd = git_command(cwd, args, input.is_some(), &[]);
+    let mut child = cmd
+        .spawn()
+        .map_err(|error| invocation.spawn_error(cwd, error))?;
 
     if let Some(bytes) = input {
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(bytes).await?;
-            stdin.shutdown().await?;
+            stdin
+                .write_all(bytes)
+                .await
+                .map_err(|error| invocation.io_error(cwd, error))?;
+            stdin
+                .shutdown()
+                .await
+                .map_err(|error| invocation.io_error(cwd, error))?;
         }
     }
 
-    let output = match child.wait_with_output().await {
-        Ok(output) => output,
-        Err(error) => {
-            let error = AppError::from(error);
-            crate::activity::record_error(
-                cwd,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let output = child
+        .wait_with_output()
+        .await
+        .map_err(|error| invocation.io_error(cwd, error))?;
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let error = map_git_failure(stderr, stdout);
-        crate::activity::record_error(
-            cwd,
-            &command,
-            started_at,
-            timer.elapsed().as_millis() as u64,
-            &error,
-        );
-        return Err(error);
+        return Err(invocation.failure(cwd, stderr, stdout));
     }
-    crate::activity::record_success(
+    invocation.success(
         cwd,
-        &command,
-        started_at,
-        timer.elapsed().as_millis() as u64,
         &String::from_utf8_lossy(&output.stdout),
         &String::from_utf8_lossy(&output.stderr),
     );
@@ -256,7 +300,8 @@ pub fn short(oid: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::lock_or_recover;
+    use super::{git_command, lock_or_recover, map_git_failure, GitInvocation};
+    use std::ffi::OsStr;
     use std::panic::{catch_unwind, AssertUnwindSafe};
     use std::sync::Mutex;
 
@@ -271,5 +316,59 @@ mod tests {
         *lock_or_recover(&mutex) = 1;
 
         assert_eq!(*lock_or_recover(&mutex), 1);
+    }
+
+    #[test]
+    fn git_command_applies_shared_environment_and_overrides() {
+        let command = git_command(
+            ".",
+            &["status"],
+            false,
+            &[("GIT_EDITOR", "custom-editor".to_string())],
+        );
+        let envs: std::collections::HashMap<_, _> = command.as_std().get_envs().collect();
+
+        assert_eq!(
+            envs.get(OsStr::new("GIT_TERMINAL_PROMPT"))
+                .and_then(|value| *value),
+            Some(OsStr::new("0"))
+        );
+        assert_eq!(
+            envs.get(OsStr::new("LC_ALL")).and_then(|value| *value),
+            Some(OsStr::new("C"))
+        );
+        assert_eq!(
+            envs.get(OsStr::new("GIT_EDITOR")).and_then(|value| *value),
+            Some(OsStr::new("custom-editor"))
+        );
+    }
+
+    #[test]
+    fn git_failure_maps_authentication_errors() {
+        let error = map_git_failure(
+            "fatal: Authentication failed for 'https://example.com/repo.git'".to_string(),
+            String::new(),
+        );
+
+        assert_eq!(error.code, "E_AUTH");
+        assert_eq!(error.kind, "auth");
+    }
+
+    #[test]
+    fn git_invocation_records_failures_in_activity() {
+        let repo = format!("/tmp/giteasy-git-activity-test-{}", std::process::id());
+        let invocation = GitInvocation::new(&["fetch"]);
+
+        let error = invocation.failure(
+            &repo,
+            "fatal: Authentication failed for 'https://example.com/repo.git'".to_string(),
+            String::new(),
+        );
+        let events = crate::activity::activity_list(repo, Some(1)).unwrap();
+
+        assert_eq!(error.code, "E_AUTH");
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].status, "error");
+        assert_eq!(events[0].command, "git fetch");
     }
 }

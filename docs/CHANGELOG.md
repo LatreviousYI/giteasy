@@ -4,6 +4,14 @@
 
 ## 2026-11-16
 
+### 共享 Git 执行层
+
+- 新增统一 Git command builder，普通执行与流式执行共享固定环境变量和额外环境变量覆盖规则。
+- 新增 `GitInvocation` 统一处理启动、等待、认证/冲突等失败映射以及 Activity 成功/失败记录。
+- 普通 Git 执行和 Fetch/Pull/Push/Rebase 等流式操作不再各自维护命令环境与日志路径。
+- 新增命令环境、认证错误映射和 Activity 记录测试。
+- 验证：`npm run test:backend`（35 项）、Clippy 和 rustfmt 检查通过。
+
 ### Mutex 毒化恢复
 
 - 新增统一的 `lock_or_recover` helper，在锁持有者 panic 后恢复内部状态，避免命令路径直接 panic。

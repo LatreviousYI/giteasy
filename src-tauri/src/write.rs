@@ -2,12 +2,9 @@ use crate::error::AppError;
 use crate::model::ProgressEvent;
 use crate::util;
 use std::path::Path;
-use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use tauri::{ipc::Channel, State};
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::process::Command;
 
 fn parse_progress(line: &str) -> ProgressEvent {
     let lower = line.to_lowercase();
@@ -102,9 +99,7 @@ pub(crate) async fn run_stream_env(
     envs: &[(&str, String)],
     on_event: &Channel<ProgressEvent>,
 ) -> Result<(), AppError> {
-    let command = crate::activity::command_text("git", args);
-    let started_at = crate::activity::now_millis();
-    let timer = Instant::now();
+    let invocation = util::GitInvocation::new(args);
     let _ = on_event.send(ProgressEvent {
         phase: "start".to_string(),
         percent: None,
@@ -113,33 +108,10 @@ pub(crate) async fn run_stream_env(
         error: None,
     });
 
-    let mut cmd = Command::new("git");
-    cmd.current_dir(path)
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("LC_ALL", "C")
-        .env("GIT_EDITOR", "true")
-        .env("GIT_MERGE_AUTOEDIT", "no")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    for (key, value) in envs {
-        cmd.env(key, value);
-    }
-    let mut child = match cmd.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            let error = AppError::from(error);
-            crate::activity::record_error(
-                path,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let mut cmd = util::git_command(path, args, false, envs);
+    let mut child = cmd
+        .spawn()
+        .map_err(|error| invocation.spawn_error(path, error))?;
 
     let out_buf = Arc::new(Mutex::new(String::new()));
     let err_buf = Arc::new(Mutex::new(String::new()));
@@ -158,20 +130,10 @@ pub(crate) async fn run_stream_env(
             err_buf.clone(),
         )));
     }
-    let status = match child.wait().await {
-        Ok(status) => status,
-        Err(error) => {
-            let error = AppError::from(error);
-            crate::activity::record_error(
-                path,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let status = child
+        .wait()
+        .await
+        .map_err(|error| invocation.io_error(path, error))?;
     for handle in handles {
         let _ = handle.await;
     }
@@ -179,14 +141,7 @@ pub(crate) async fn run_stream_env(
     let stdout_text = util::lock_or_recover(&out_buf).clone();
     let stderr_text = util::lock_or_recover(&err_buf).clone();
     if !status.success() {
-        let err = util::map_git_failure(stderr_text, stdout_text);
-        crate::activity::record_error(
-            path,
-            &command,
-            started_at,
-            timer.elapsed().as_millis() as u64,
-            &err,
-        );
+        let err = invocation.failure(path, stderr_text, stdout_text);
         let _ = on_event.send(ProgressEvent {
             phase: "error".to_string(),
             percent: None,
@@ -196,14 +151,7 @@ pub(crate) async fn run_stream_env(
         });
         return Err(err);
     }
-    crate::activity::record_success(
-        path,
-        &command,
-        started_at,
-        timer.elapsed().as_millis() as u64,
-        &stdout_text,
-        &stderr_text,
-    );
+    invocation.success(path, &stdout_text, &stderr_text);
     let _ = on_event.send(ProgressEvent {
         phase: "done".to_string(),
         percent: Some(100.0),
