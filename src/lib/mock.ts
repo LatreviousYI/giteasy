@@ -844,7 +844,7 @@ export async function mockInvoke<T>(
       return (payload.settings ?? settings) as T
     case 'update_context':
       return {
-        currentVersion: '0.1.2',
+        currentVersion: '0.1.3',
         installKind: 'portable',
         canInstallInPlace: false,
         executable: '/tmp/giteasy'

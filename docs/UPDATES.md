@@ -46,13 +46,13 @@ https://github.com/LatreviousYI/giteasy/releases/download/v0.1.0/updater-linux-x
 
 ## 首次升级
 
-`0.1.0` 不包含 updater 插件，因此不能自动升级到 `0.1.2`。
+`0.1.0` 不包含 updater 插件，因此不能自动升级到 `0.1.3`。
 
 升级顺序：
 
 ```text
-0.1.0 手动安装 0.1.2
-0.1.2 应用内升级到后续版本
+0.1.0 手动安装 0.1.3
+0.1.3 应用内升级到后续版本
 ```
 
 ## GitHub Secrets
@@ -92,10 +92,10 @@ TAURI_SIGNING_PRIVATE_KEY_PASSWORD
 Ubuntu：
 
 ```text
-GitEasy_0.1.2_amd64.AppImage
-GitEasy_0.1.2_amd64.AppImage.sig
+GitEasy_0.1.3_amd64.AppImage
+GitEasy_0.1.3_amd64.AppImage.sig
 updater-linux-x86_64.json
-GitEasy_0.1.2_amd64.deb
+GitEasy_0.1.3_amd64.deb
 ```
 
 macOS Apple Silicon：
@@ -104,7 +104,7 @@ macOS Apple Silicon：
 GitEasy.app.tar.gz
 GitEasy.app.tar.gz.sig
 updater-darwin-aarch64.json
-GitEasy_0.1.2_aarch64.dmg
+GitEasy_0.1.3_aarch64.dmg
 ```
 
 ## 签名边界
