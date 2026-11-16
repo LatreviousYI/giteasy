@@ -6,6 +6,7 @@ import { useApp } from './store/app'
 import { useSettings, useStatus } from './lib/queries'
 import { ipc } from './lib/ipc'
 import { useOpenRepo } from './lib/actions'
+import { useUpdates } from './store/updates'
 import { loadPersistedWorkspace, savePersistedWorkspace } from './lib/workspace'
 import { createRepoViewState } from './store/repoState'
 import TopBar from './components/TopBar'
@@ -238,6 +239,13 @@ export default function App() {
     }, autoFetch * 60_000)
     return () => window.clearInterval(timer)
   }, [repo?.path, autoFetch, queryClient])
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void useUpdates.getState().check()
+    }, 1_500)
+    return () => window.clearTimeout(timer)
+  }, [])
 
   return (
     <div className="app-shell">

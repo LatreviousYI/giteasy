@@ -2,21 +2,34 @@
 
 请根据操作系统和 CPU 架构选择安装包。
 
+## v0.1.3 更新内容
+
+- 合并到 `master` 后自动读取版本号并发布 GitHub Release。
+- Ubuntu 与 macOS 构建完成后统一创建 Release，避免并发创建标签。
+- 客户端通过动态 `latest` 地址获取最新 updater 清单。
+
+## v0.1.2 更新内容
+
+- 新增客户端内检查更新、下载、签名校验和自动重启。
+- AppImage 支持直接升级；`.deb` 与便携版会打开 Release 下载页。
+- 修复检查到新版本后错误应用 24 小时限频的问题。
+- 设置中心新增“关于与更新”，顶部会在新版本可用时显示入口。
+
 | 系统 | 架构 | 推荐下载 | 备用 |
 | --- | --- | --- | --- |
-| Ubuntu 24.04+ / Debian | x86_64 | `.deb` | `.AppImage` |
+| Ubuntu 24.04+ / Debian | x86_64 | `.AppImage`（支持客户端内更新） | `.deb` |
 | macOS 11+ | Apple Silicon（M1/M2/M3/M4） | `.dmg` | `.app` 构建 artifact |
 | Windows | x86_64 | 暂未支持 | 无 |
 
 ## Ubuntu / Debian
 
-下载 `.deb` 后安装：
+需要系统菜单集成时下载 `.deb`：
 
 ```bash
 sudo apt install ./GitEasy_*.deb
 ```
 
-如果希望免安装运行，可以下载 `.AppImage`：
+如果希望免安装运行并支持客户端内更新，推荐下载 `.AppImage`：
 
 ```bash
 chmod +x GitEasy_*.AppImage
