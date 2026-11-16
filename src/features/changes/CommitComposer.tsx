@@ -32,10 +32,11 @@ export default function CommitComposer({
   const [convType, setConvType] = useState('feat')
   const [convScope, setConvScope] = useState('')
   const [convDesc, setConvDesc] = useState('')
+  const gpgSignSetting = settings?.gpgSign ?? false
 
   useEffect(() => {
-    if (settings) setGpgSign(settings.gpgSign)
-  }, [settings?.gpgSign])
+    setGpgSign(gpgSignSetting)
+  }, [gpgSignSetting])
 
   const applyConventional = () => {
     const description = convDesc.trim()
@@ -50,14 +51,7 @@ export default function CommitComposer({
     if (!message.trim() || committing) return
     setCommitting(true)
     try {
-      const result = await ipc.commitCreate(
-        repo.path,
-        message,
-        amend,
-        signoff,
-        stageAll,
-        gpgSign
-      )
+      const result = await ipc.commitCreate(repo.path, message, amend, signoff, stageAll, gpgSign)
       setMessage('')
       setAmend(false)
       onCommitted()
@@ -106,13 +100,23 @@ export default function CommitComposer({
           onChange={(event) => setConvType(event.target.value)}
           title="Conventional Commit 类型"
         >
-          {['feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert'].map(
-            (type) => (
-              <option key={type} value={type}>
-                {type}
-              </option>
-            )
-          )}
+          {[
+            'feat',
+            'fix',
+            'docs',
+            'style',
+            'refactor',
+            'perf',
+            'test',
+            'build',
+            'ci',
+            'chore',
+            'revert'
+          ].map((type) => (
+            <option key={type} value={type}>
+              {type}
+            </option>
+          ))}
         </select>
         <input
           className="input"
@@ -134,11 +138,7 @@ export default function CommitComposer({
             }
           }}
         />
-        <button
-          className="btn btn-sm"
-          onClick={applyConventional}
-          disabled={!convDesc.trim()}
-        >
+        <button className="btn btn-sm" onClick={applyConventional} disabled={!convDesc.trim()}>
           套用
         </button>
       </div>
@@ -164,11 +164,7 @@ export default function CommitComposer({
           Sign-off
         </label>
         <label className="check">
-          <input
-            type="checkbox"
-            checked={gpgSign}
-            onChange={(e) => setGpgSign(e.target.checked)}
-          />
+          <input type="checkbox" checked={gpgSign} onChange={(e) => setGpgSign(e.target.checked)} />
           GPG 签名
         </label>
         <label className="check">

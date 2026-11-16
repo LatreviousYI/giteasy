@@ -16,9 +16,8 @@ pub fn open_repo(path: &str) -> Result<Repository, AppError> {
 }
 
 pub fn canonical(path: &str) -> Result<PathBuf, AppError> {
-    std::fs::canonicalize(path).map_err(|e| {
-        AppError::not_found(format!("路径不存在：{path}")).with_detail(e.to_string())
-    })
+    std::fs::canonicalize(path)
+        .map_err(|e| AppError::not_found(format!("路径不存在：{path}")).with_detail(e.to_string()))
 }
 
 pub fn state_string(state: git2::RepositoryState) -> String {
@@ -181,11 +180,17 @@ pub async fn git_output<S: AsRef<OsStr>>(
 }
 
 pub fn map_git_failure(stderr: String, stdout: String) -> AppError {
-    let text = if stderr.trim().is_empty() { stdout } else { stderr };
+    let text = if stderr.trim().is_empty() {
+        stdout
+    } else {
+        stderr
+    };
     let lower = text.to_lowercase();
     if lower.contains("identification has changed") {
         return AppError::new("ssh", "E_SSH_KEY_CHANGED", "SSH 主机密钥已变更")
-            .with_hint("可能存在中间人攻击。请先核对代码托管平台公布的主机指纹，再手动更新 known_hosts")
+            .with_hint(
+                "可能存在中间人攻击。请先核对代码托管平台公布的主机指纹，再手动更新 known_hosts",
+            )
             .with_detail(text);
     }
     if lower.contains("host key verification failed") {
@@ -195,7 +200,9 @@ pub fn map_git_failure(stderr: String, stdout: String) -> AppError {
     }
     if lower.contains("permission denied (publickey)") {
         return AppError::new("auth", "E_SSH_AUTH", "SSH 公钥认证失败")
-            .with_hint("请在 设置 → SSH 公钥 复制公钥，并添加到 Gitee/GitHub 等平台的 SSH 公钥设置中")
+            .with_hint(
+                "请在 设置 → SSH 公钥 复制公钥，并添加到 Gitee/GitHub 等平台的 SSH 公钥设置中",
+            )
             .with_detail(text);
     }
     if lower.contains("authentication failed")

@@ -4,6 +4,13 @@
 
 ## 2026-11-16
 
+### 静态质量门禁
+
+- 接入 ESLint、Prettier、rustfmt 和 Clippy，新增对应的 npm scripts。
+- 新增 `Static Checks` GitHub Actions 工作流，在 PR 和 `master` / `dev` 推送时执行前后端静态检查。
+- 统一 TypeScript 文件的无分号、单引号和 100 列格式基线。
+- 验证：`npm run lint`、`npm run format:check`、`npm run rust:fmt:check`、`npm run rust:clippy`。
+
 ### 自动发布流程
 
 - 版本提升到 `0.1.3`，验证合并到 `master` 自动发布流程。

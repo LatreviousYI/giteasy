@@ -9,13 +9,7 @@ const CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
 export type UpdateStatus =
-  | 'idle'
-  | 'checking'
-  | 'up-to-date'
-  | 'available'
-  | 'downloading'
-  | 'installing'
-  | 'error'
+  'idle' | 'checking' | 'up-to-date' | 'available' | 'downloading' | 'installing' | 'error'
 
 interface UpdateStore {
   status: UpdateStatus
@@ -69,15 +63,18 @@ export const useUpdates = create<UpdateStore>((set, get) => ({
 
   check: async (force = false) => {
     const state = get()
-    if (state.status === 'checking' || state.status === 'downloading' || state.status === 'installing') {
+    if (
+      state.status === 'checking' ||
+      state.status === 'downloading' ||
+      state.status === 'installing'
+    ) {
       return
     }
 
     set({ status: 'checking', error: null })
     try {
       const context = await ipc.updateContext()
-      const recentlyChecked =
-        !force && Date.now() - readLastCheck() < CHECK_INTERVAL_MS
+      const recentlyChecked = !force && Date.now() - readLastCheck() < CHECK_INTERVAL_MS
       if (recentlyChecked) {
         set({ context, status: 'up-to-date' })
         return

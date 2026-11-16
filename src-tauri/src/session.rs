@@ -57,10 +57,7 @@ impl RepoRegistry {
     }
 }
 
-pub async fn acquire_repo_write(
-    state: &crate::AppState,
-    repo_id: &str,
-) -> OwnedMutexGuard<()> {
+pub async fn acquire_repo_write(state: &crate::AppState, repo_id: &str) -> OwnedMutexGuard<()> {
     state.sessions.ensure(repo_id).acquire_write().await
 }
 
@@ -126,12 +123,9 @@ mod tests {
         let second = registry.ensure("/tmp/repo-two");
         let first_guard = first.acquire_write().await;
 
-        let second_guard = tokio::time::timeout(
-            Duration::from_millis(50),
-            second.acquire_write(),
-        )
-        .await
-        .expect("different repository lock should not wait");
+        let second_guard = tokio::time::timeout(Duration::from_millis(50), second.acquire_write())
+            .await
+            .expect("different repository lock should not wait");
 
         drop(second_guard);
         drop(first_guard);

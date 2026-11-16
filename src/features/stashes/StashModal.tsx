@@ -40,7 +40,7 @@ export default function StashModal({
     return () => {
       cancelled = true
     }
-  }, [repoPath, stash.oid])
+  }, [repoPath, stash.oid, errorToast])
 
   const diff = diffs.find((item) => item.path === selected) ?? null
 
@@ -129,9 +129,7 @@ export default function StashModal({
         </div>
         <div className="flex-1 min-w-0">
           {diff ? (
-            <DiffViewer
-              diff={diff}
-            />
+            <DiffViewer diff={diff} />
           ) : (
             <Empty icon={<Archive size={20} />} title="选择文件查看储藏内容" />
           )}

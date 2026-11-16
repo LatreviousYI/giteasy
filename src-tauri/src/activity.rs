@@ -110,10 +110,7 @@ fn push(mut event: ActivityEvent) {
         .unwrap_or_else(|poisoned| poisoned.into_inner());
     store.next_id = store.next_id.saturating_add(1);
     event.id = store.next_id;
-    let events = store
-        .by_repo
-        .entry(event.repo_path.clone())
-        .or_default();
+    let events = store.by_repo.entry(event.repo_path.clone()).or_default();
     events.push_back(event);
     while events.len() > MAX_EVENTS_PER_REPO {
         events.pop_front();
@@ -121,10 +118,7 @@ fn push(mut event: ActivityEvent) {
 }
 
 #[tauri::command]
-pub fn activity_list(
-    path: String,
-    limit: Option<usize>,
-) -> Result<Vec<ActivityEvent>, AppError> {
+pub fn activity_list(path: String, limit: Option<usize>) -> Result<Vec<ActivityEvent>, AppError> {
     let key = repo_key(&path);
     let store = store()
         .lock()

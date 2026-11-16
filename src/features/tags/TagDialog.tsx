@@ -46,11 +46,7 @@ export default function TagDialog({ onClose }: { onClose: () => void }) {
           <button className="btn" onClick={onClose} disabled={busy}>
             取消
           </button>
-          <button
-            className="btn btn-primary"
-            onClick={create}
-            disabled={busy || !name.trim()}
-          >
+          <button className="btn btn-primary" onClick={create} disabled={busy || !name.trim()}>
             {busy ? '创建中…' : '创建'}
           </button>
         </>

@@ -35,24 +35,20 @@ export default function ActivityPanel() {
     refetchInterval: 3000
   })
 
-  if (!repo) return null
   const events = useMemo(
     () =>
       (query.data ?? []).filter((event) => {
         if (status !== 'all' && event.status !== status) return false
-        const value = `${event.command} ${event.summary} ${event.output ?? ''} ${event.error ?? ''}`.toLowerCase()
+        const value =
+          `${event.command} ${event.summary} ${event.output ?? ''} ${event.error ?? ''}`.toLowerCase()
         return !keyword.trim() || value.includes(keyword.trim().toLowerCase())
       }),
     [query.data, keyword, status]
   )
+  if (!repo) return null
 
   const copyEvent = async (event: ActivityEvent) => {
-    const text = [
-      `$ ${event.command}`,
-      event.summary,
-      event.output ?? '',
-      event.error ?? ''
-    ]
+    const text = [`$ ${event.command}`, event.summary, event.output ?? '', event.error ?? '']
       .filter(Boolean)
       .join('\n')
     try {
@@ -70,9 +66,7 @@ export default function ActivityPanel() {
         <span className="flex items-center gap-2">
           <Activity size={15} />
           操作记录
-          <span className="text-[11px] font-normal text-[var(--text-subtle)]">
-            {repo.name}
-          </span>
+          <span className="text-[11px] font-normal text-[var(--text-subtle)]">{repo.name}</span>
         </span>
       }
       onClose={close}

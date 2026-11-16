@@ -92,11 +92,7 @@ export default function RepositoryManagerDialog() {
                 <button className="btn btn-sm" onClick={() => void openRepo(item.path)}>
                   打开
                 </button>
-                <button
-                  className="icon-btn"
-                  title="重命名"
-                  onClick={() => setRenameTarget(item)}
-                >
+                <button className="icon-btn" title="重命名" onClick={() => setRenameTarget(item)}>
                   <Pencil size={13} />
                 </button>
                 <button

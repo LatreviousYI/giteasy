@@ -144,10 +144,18 @@ pub(crate) async fn run_stream_env(
     let err_buf = Arc::new(Mutex::new(String::new()));
     let mut handles = Vec::new();
     if let Some(stdout) = child.stdout.take() {
-        handles.push(tokio::spawn(pump(stdout, on_event.clone(), out_buf.clone())));
+        handles.push(tokio::spawn(pump(
+            stdout,
+            on_event.clone(),
+            out_buf.clone(),
+        )));
     }
     if let Some(stderr) = child.stderr.take() {
-        handles.push(tokio::spawn(pump(stderr, on_event.clone(), err_buf.clone())));
+        handles.push(tokio::spawn(pump(
+            stderr,
+            on_event.clone(),
+            err_buf.clone(),
+        )));
     }
     let status = match child.wait().await {
         Ok(status) => status,
@@ -270,12 +278,9 @@ pub async fn discard_paths(
             )
             .await;
             if restored.is_err() {
-                let _ = util::git_output(
-                    &path,
-                    &["restore", "--staged", "--", file.as_str()],
-                    None,
-                )
-                .await;
+                let _ =
+                    util::git_output(&path, &["restore", "--staged", "--", file.as_str()], None)
+                        .await;
                 if full.is_file() {
                     let _ = std::fs::remove_file(full);
                 }
@@ -412,7 +417,11 @@ pub(crate) async fn branch_checkout_impl(
     } else if name.contains('/') {
         let remotes = util::git(&path, &["remote"]).await.unwrap_or_default();
         let local = local_branch_name(&remotes, &name);
-        util::git(&path, &["switch", "-c", local.as_str(), "--track", name.as_str()]).await?;
+        util::git(
+            &path,
+            &["switch", "-c", local.as_str(), "--track", name.as_str()],
+        )
+        .await?;
     } else {
         util::git(&path, &["switch", name.as_str()]).await?;
     }
@@ -703,7 +712,11 @@ pub async fn remote_remove(
     Ok(())
 }
 
-async fn run_stream_owned(path: &str, args: Vec<String>, on_event: &Channel<ProgressEvent>) -> Result<(), AppError> {
+async fn run_stream_owned(
+    path: &str,
+    args: Vec<String>,
+    on_event: &Channel<ProgressEvent>,
+) -> Result<(), AppError> {
     let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     run_stream(path, &refs, on_event).await
 }
@@ -716,7 +729,11 @@ pub async fn fetch(
     on_event: Channel<ProgressEvent>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    let mut args = vec!["fetch".to_string(), "--prune".to_string(), "--progress".to_string()];
+    let mut args = vec![
+        "fetch".to_string(),
+        "--prune".to_string(),
+        "--progress".to_string(),
+    ];
     match remote.filter(|r| !r.trim().is_empty()) {
         Some(remote) => args.push(remote),
         None => args.push("--all".to_string()),
@@ -765,6 +782,7 @@ pub(crate) fn pull_args(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn push(
     state: State<'_, crate::AppState>,
     path: String,
@@ -898,11 +916,7 @@ pub async fn submodule_remove(
     target: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(
-        &path,
-        &["submodule", "deinit", "-f", "--", target.as_str()],
-    )
-    .await?;
+    util::git(&path, &["submodule", "deinit", "-f", "--", target.as_str()]).await?;
     util::git(&path, &["rm", "-f", "--", target.as_str()]).await?;
     Ok(())
 }
@@ -915,11 +929,7 @@ pub async fn submodule_move(
     new_path: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(
-        &path,
-        &["mv", old_path.as_str(), new_path.as_str()],
-    )
-    .await?;
+    util::git(&path, &["mv", old_path.as_str(), new_path.as_str()]).await?;
     util::git(&path, &["submodule", "sync", "--recursive"]).await?;
     Ok(())
 }
@@ -934,8 +944,14 @@ pub async fn worktree_add(
     start_point: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    worktree_add_impl(&path, &dir, branch.as_deref(), new_branch, start_point.as_deref())
-        .await
+    worktree_add_impl(
+        &path,
+        &dir,
+        branch.as_deref(),
+        new_branch,
+        start_point.as_deref(),
+    )
+    .await
 }
 
 pub(crate) fn worktree_add_args(
@@ -1042,20 +1058,14 @@ pub async fn bisect_mark(
 }
 
 #[tauri::command]
-pub async fn bisect_skip(
-    state: State<'_, crate::AppState>,
-    path: String,
-) -> Result<(), AppError> {
+pub async fn bisect_skip(state: State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(&path, &["bisect", "skip"]).await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn bisect_reset(
-    state: State<'_, crate::AppState>,
-    path: String,
-) -> Result<(), AppError> {
+pub async fn bisect_reset(state: State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(&path, &["bisect", "reset"]).await?;
     Ok(())
@@ -1080,11 +1090,11 @@ pub fn open_in_editor(
             .arg(&target)
             .spawn()
     };
-    spawned
-        .map(|_| ())
-        .map_err(|e| AppError::new("io", "E_OPEN", "无法打开编辑器")
+    spawned.map(|_| ()).map_err(|e| {
+        AppError::new("io", "E_OPEN", "无法打开编辑器")
             .with_hint("请在设置中配置外部编辑器命令")
-            .with_detail(e.to_string()))
+            .with_detail(e.to_string())
+    })
 }
 
 #[tauri::command]
@@ -1115,8 +1125,8 @@ pub fn open_in_terminal(
             .spawn()
     };
     spawned.map(|_| ()).map_err(|e| {
-            AppError::new("io", "E_TERMINAL", "无法启动终端")
-                .with_hint("请在设置中配置终端命令")
-                .with_detail(e.to_string())
-        })
+        AppError::new("io", "E_TERMINAL", "无法启动终端")
+            .with_hint("请在设置中配置终端命令")
+            .with_detail(e.to_string())
+    })
 }

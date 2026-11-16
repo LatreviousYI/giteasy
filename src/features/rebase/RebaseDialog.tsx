@@ -118,12 +118,8 @@ export default function RebaseDialog({
     setBusy(true)
     setProgress(null)
     try {
-      const backupTag = await ipc.rebaseStart(
-        repo.path,
-        base,
-        payload,
-        backup,
-        (event) => setProgress(event)
+      const backupTag = await ipc.rebaseStart(repo.path, base, payload, backup, (event) =>
+        setProgress(event)
       )
       invalidate()
       toast(
@@ -244,8 +240,7 @@ export default function RebaseDialog({
                         key={action.value}
                         value={action.value}
                         disabled={
-                          isFirstActive &&
-                          (action.value === 'squash' || action.value === 'fixup')
+                          isFirstActive && (action.value === 'squash' || action.value === 'fixup')
                         }
                       >
                         {action.label}
@@ -311,10 +306,7 @@ export default function RebaseDialog({
                   {previewQuery.data.commit.subject}
                 </span>
                 <span className="row-sub">{previewQuery.data.commit.authorName}</span>
-                <span
-                  className="row-sub"
-                  title={formatDate(previewQuery.data.commit.time)}
-                >
+                <span className="row-sub" title={formatDate(previewQuery.data.commit.time)}>
                   {formatDate(previewQuery.data.commit.time)}
                 </span>
               </div>

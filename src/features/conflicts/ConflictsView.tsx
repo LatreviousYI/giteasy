@@ -1,11 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  AlertTriangle,
-  CheckCircle2,
-  ExternalLink,
-  FileWarning,
-  GitMerge
-} from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ExternalLink, FileWarning, GitMerge } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useConflicts, useInvalidateRepo, useStatus } from '../../lib/queries'
 import { useApp } from '../../store/app'
@@ -180,17 +174,13 @@ export default function ConflictsView() {
                     采用
                   </button>
                 </div>
-                <pre className="conflict-code">
-                  {current.ours ?? '（该文件没有 ours 版本）'}
-                </pre>
+                <pre className="conflict-code">{current.ours ?? '（该文件没有 ours 版本）'}</pre>
               </div>
 
               {showBase && (
                 <div className="conflict-side">
                   <div className="conflict-col-head">共同祖先（base）</div>
-                  <pre className="conflict-code">
-                    {current.base ?? '（该文件没有 base 版本）'}
-                  </pre>
+                  <pre className="conflict-code">{current.base ?? '（该文件没有 base 版本）'}</pre>
                 </div>
               )}
 
@@ -198,11 +188,7 @@ export default function ConflictsView() {
                 <div className="conflict-col-head">
                   对方版本（theirs）
                   <span style={{ flex: 1 }} />
-                  <button
-                    className="btn btn-sm"
-                    onClick={useTheirs}
-                    disabled={!current.theirs}
-                  >
+                  <button className="btn btn-sm" onClick={useTheirs} disabled={!current.theirs}>
                     采用
                   </button>
                 </div>
@@ -301,7 +287,9 @@ export default function ConflictsView() {
                             </button>
                           </div>
                           <div className="conflict-block-preview">
-                            <pre className="conflict-block-side add-text">{block.ours || '（空）'}</pre>
+                            <pre className="conflict-block-side add-text">
+                              {block.ours || '（空）'}
+                            </pre>
                             <pre className="conflict-block-side del-text">
                               {block.theirs || '（空）'}
                             </pre>
@@ -319,7 +307,6 @@ export default function ConflictsView() {
                 </>
               )}
             </div>
-
           </div>
         )}
       </div>

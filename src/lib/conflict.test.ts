@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import {
-  parseConflictBlocks,
-  resolveAllConflictBlocks,
-  resolveConflictBlock
-} from './conflict'
+import { parseConflictBlocks, resolveAllConflictBlocks, resolveConflictBlock } from './conflict'
 
 describe('conflict block resolution', () => {
   it('parses merge-style conflict markers', () => {

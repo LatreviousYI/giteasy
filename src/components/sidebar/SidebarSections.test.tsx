@@ -30,9 +30,7 @@ describe('branch tree', () => {
 
     expect(tree.map((node) => node.name)).toEqual(['feature', 'main'])
     expect(tree[0].directories.map((node) => node.name)).toEqual(['auth', 'ui'])
-    expect(tree[0].directories[0].directories[0].branch?.name).toBe(
-      'feature/auth/login'
-    )
+    expect(tree[0].directories[0].directories[0].branch?.name).toBe('feature/auth/login')
   })
 
   it('collapses and restores a branch directory', () => {
@@ -64,10 +62,7 @@ describe('branch tree', () => {
     render(
       <RemoteSection
         remotes={[{ name: 'origin', url: 'git@example.com:demo/repo.git' }]}
-        branches={[
-          remoteBranch('origin/main'),
-          remoteBranch('origin/feature/ui')
-        ]}
+        branches={[remoteBranch('origin/main'), remoteBranch('origin/feature/ui')]}
         picked={null}
         collapsed={{}}
         onAdd={vi.fn()}

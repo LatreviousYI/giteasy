@@ -1,9 +1,4 @@
-import {
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent
-} from 'react'
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   Copy,
   ChevronDown,
@@ -18,11 +13,7 @@ import {
   Undo2
 } from 'lucide-react'
 import { useCommitDetail, useCommitDiff } from '../../lib/queries'
-import {
-  laneColor,
-  LANE_COLORS,
-  type GraphRow
-} from '../../lib/graph'
+import { laneColor, LANE_COLORS, type GraphRow } from '../../lib/graph'
 import { formatDate, initials, relativeTime } from '../../lib/format'
 import type { CommitDto } from '../../lib/types'
 import { Spinner } from '../../components/Empty'
@@ -55,9 +46,7 @@ export function GraphCell({ row }: { row: GraphRow }) {
   const x = (lane: number) => 8 + lane * 14
   const passing = row.before
     .map((oid, index) => ({ oid, index }))
-    .filter(
-      (item) => item.oid && row.after[item.index] === item.oid && item.index !== row.lane
-    )
+    .filter((item) => item.oid && row.after[item.index] === item.oid && item.index !== row.lane)
 
   return (
     <svg width={width} height={height} style={{ display: 'block' }}>
@@ -158,19 +147,15 @@ export function CommitDetailPane({
   const [actionsOpen, setActionsOpen] = useState(false)
   const [filesHeight, setFilesHeight] = useState(() => readCommitFilesHeight(repoPath))
   const filesHeightRepoRef = useRef<string | null>(null)
-  const diffQuery = useCommitDiff(
-    repoPath,
-    oid,
-    selectedPath,
-    ignoreWhitespace,
-    contextLines
-  )
+  const diffQuery = useCommitDiff(repoPath, oid, selectedPath, ignoreWhitespace, contextLines)
+  const detailOid = detail?.commit.oid
+  const firstDetailPath = detail?.files[0]?.path ?? null
 
   useEffect(() => {
-    if (detail) setSelectedPath(detail.files[0]?.path ?? null)
+    if (detailOid) setSelectedPath(firstDetailPath)
     setDetailTab('changes')
     setActionsOpen(false)
-  }, [detail?.commit.oid])
+  }, [detailOid, firstDetailPath])
 
   useEffect(() => {
     const saved = readCommitFilesHeight(repoPath)

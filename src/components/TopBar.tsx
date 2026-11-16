@@ -57,7 +57,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const openRepo = useOpenRepo()
   const { runRemote, remotes } = useRemoteActions()
   const savedPullStrategy = useApp((state) =>
-    state.repo ? state.repoStates[state.repo.path]?.pullStrategy ?? null : null
+    state.repo ? (state.repoStates[state.repo.path]?.pullStrategy ?? null) : null
   )
   const updateAvailable = useUpdates((state) => state.status === 'available')
   const availableVersion = useUpdates((state) => state.availableVersion)
@@ -186,43 +186,23 @@ export default function TopBar({ status }: { status?: StatusDto }) {
         </button>
         <div className="topbar-global-actions">
           {repo && (
-            <button
-              className="icon-btn"
-              title="操作记录"
-              onClick={() => setActivityOpen(true)}
-            >
+            <button className="icon-btn" title="操作记录" onClick={() => setActivityOpen(true)}>
               <Activity size={16} />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="工具与自定义命令"
-            onClick={() => setToolsOpen(true)}
-          >
+          <button className="icon-btn" title="工具与自定义命令" onClick={() => setToolsOpen(true)}>
             <Wrench size={16} />
           </button>
           {repo && (
-            <button
-              className="icon-btn"
-              title="Git LFS"
-              onClick={() => setLfsOpen(true)}
-            >
+            <button className="icon-btn" title="Git LFS" onClick={() => setLfsOpen(true)}>
               <HardDrive size={16} />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="GitHub"
-            onClick={() => setGithubOpen(true)}
-          >
+          <button className="icon-btn" title="GitHub" onClick={() => setGithubOpen(true)}>
             <Github size={16} />
           </button>
           {repo && (
-            <button
-              className="icon-btn"
-              title="Patch 工具"
-              onClick={() => setPatchOpen(true)}
-            >
+            <button className="icon-btn" title="Patch 工具" onClick={() => setPatchOpen(true)}>
               <FileDown size={16} />
             </button>
           )}
@@ -243,11 +223,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
               <span className="update-dot" />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="设置"
-            onClick={() => setSettingsOpen(true)}
-          >
+          <button className="icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>
             <Settings size={16} />
           </button>
         </div>
@@ -355,13 +331,9 @@ export default function TopBar({ status }: { status?: StatusDto }) {
                       <button
                         key={option.mode}
                         className="pull-menu-item"
-                        onClick={() =>
-                          handleRemote('pull', false, undefined, option.mode)
-                        }
+                        onClick={() => handleRemote('pull', false, undefined, option.mode)}
                       >
-                        <span className="pull-menu-check">
-                          {remembered && <Check size={12} />}
-                        </span>
+                        <span className="pull-menu-check">{remembered && <Check size={12} />}</span>
                         <span className="pull-menu-copy">
                           <strong>{option.title}</strong>
                           <span>{option.hint}</span>

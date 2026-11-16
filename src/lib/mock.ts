@@ -11,8 +11,7 @@ import type {
   Settings,
   StashDto,
   StatusDto,
-  TagDto,
-  WorktreeDto
+  TagDto
 } from './types'
 import packageJson from '../../package.json'
 
@@ -42,7 +41,10 @@ const commits: CommitDto[] = [
     time: now - 120,
     subject: 'refactor: 收敛主题变量',
     body: '将散落的颜色收敛到 theme 配置中。',
-    refs: [{ name: 'main', kind: 'head' }, { name: 'origin/main', kind: 'remote' }]
+    refs: [
+      { name: 'main', kind: 'head' },
+      { name: 'origin/main', kind: 'remote' }
+    ]
   },
   {
     oid: oid(11),
@@ -230,8 +232,7 @@ function activateMockBranch(name: string) {
   const remoteKnown = branches.some(
     (item) => item.isRemote && item.name.split('/')[0] === name.split('/')[0]
   )
-  const localName =
-    remoteKnown && name.includes('/') ? name.split('/').slice(1).join('/') : name
+  const localName = remoteKnown && name.includes('/') ? name.split('/').slice(1).join('/') : name
   let branch = branches.find((item) => !item.isRemote && item.name === localName)
   if (!branch) {
     branch = {
@@ -308,7 +309,8 @@ const conflicts: ConflictFile[] = [
     ours: 'line 1\nline 2 from main\nline 3\n',
     theirs: 'line 1\nline 2 from other\nline 3\n',
     base: 'line 1\nline 2\nline 3\n',
-    result: 'line 1\n<<<<<<< HEAD\nline 2 from main\n=======\nline 2 from other\n>>>>>>> other\nline 3\n',
+    result:
+      'line 1\n<<<<<<< HEAD\nline 2 from main\n=======\nline 2 from other\n>>>>>>> other\nline 3\n',
     binary: false
   }
 ]
@@ -339,7 +341,7 @@ const settings: Settings = {
 
 const identity: Identity = { name: 'Demo User', email: 'demo@example.com' }
 
-function diffFor(file: string, staged = false): DiffDto {
+function diffFor(file: string): DiffDto {
   const readable = file.endsWith('.md')
   return {
     path: file,
@@ -366,9 +368,7 @@ function diffFor(file: string, staged = false): DiffDto {
             kind: 'context',
             oldLineNo: 2,
             newLineNo: 2,
-            content: readable
-              ? ''
-              : "  return `Hello, ${name}!`"
+            content: readable ? '' : '  return `Hello, ${name}!`'
           },
           {
             kind: 'del',
@@ -386,9 +386,7 @@ function diffFor(file: string, staged = false): DiffDto {
             kind: 'add',
             oldLineNo: null,
             newLineNo: 4,
-            content: readable
-              ? ''
-              : 'export function slugify(input: string): string {'
+            content: readable ? '' : 'export function slugify(input: string): string {'
           },
           {
             kind: 'add',
@@ -414,17 +412,13 @@ function diffFor(file: string, staged = false): DiffDto {
             kind: 'context',
             oldLineNo: 5,
             newLineNo: 8,
-            content: readable
-              ? '## 快速开始'
-              : 'export function sum(values: number[]): number {'
+            content: readable ? '## 快速开始' : 'export function sum(values: number[]): number {'
           },
           {
             kind: 'context',
             oldLineNo: 6,
             newLineNo: 9,
-            content: readable
-              ? ''
-              : '  return values.reduce((total, value) => total + value, 0)'
+            content: readable ? '' : '  return values.reduce((total, value) => total + value, 0)'
           },
           {
             kind: 'context',
@@ -441,16 +435,34 @@ function diffFor(file: string, staged = false): DiffDto {
 const commitDetail: CommitDetail = {
   commit: commits[0],
   files: [
-    { path: 'src/theme.ts', oldPath: null, status: 'added', additions: 6, deletions: 0, binary: false },
-    { path: 'src/app.ts', oldPath: null, status: 'modified', additions: 8, deletions: 1, binary: false },
-    { path: 'docs/guide.md', oldPath: null, status: 'modified', additions: 2, deletions: 2, binary: false }
+    {
+      path: 'src/theme.ts',
+      oldPath: null,
+      status: 'added',
+      additions: 6,
+      deletions: 0,
+      binary: false
+    },
+    {
+      path: 'src/app.ts',
+      oldPath: null,
+      status: 'modified',
+      additions: 8,
+      deletions: 1,
+      binary: false
+    },
+    {
+      path: 'docs/guide.md',
+      oldPath: null,
+      status: 'modified',
+      additions: 2,
+      deletions: 2,
+      binary: false
+    }
   ]
 }
 
-export async function mockInvoke<T>(
-  command: string,
-  args?: Record<string, unknown>
-): Promise<T> {
+export async function mockInvoke<T>(command: string, args?: Record<string, unknown>): Promise<T> {
   await new Promise((resolve) => setTimeout(resolve, 30))
   const payload = args ?? {}
   switch (command) {
@@ -583,8 +595,7 @@ export async function mockInvoke<T>(
             login: 'demo-user',
             avatarUrl: 'https://avatars.githubusercontent.com/u/1?v=4'
           },
-          pullRequest:
-            command === 'github_pull_requests' ? { merged: false } : null,
+          pullRequest: command === 'github_pull_requests' ? { merged: false } : null,
           assignee: {
             login: 'reviewer',
             avatarUrl: 'https://avatars.githubusercontent.com/u/2?v=4'
@@ -602,8 +613,7 @@ export async function mockInvoke<T>(
             login: 'contributor',
             avatarUrl: 'https://avatars.githubusercontent.com/u/3?v=4'
           },
-          pullRequest:
-            command === 'github_pull_requests' ? { merged: false } : null,
+          pullRequest: command === 'github_pull_requests' ? { merged: false } : null,
           assignee: null
         }
       ] as T
@@ -676,8 +686,7 @@ export async function mockInvoke<T>(
         leftLabel: String(payload.left ?? 'main'),
         rightLabel: String(payload.right ?? 'HEAD'),
         leftOid: oid(10),
-        rightOid:
-          payload.right === 'WORKTREE' ? 'WORKTREE' : oid(12),
+        rightOid: payload.right === 'WORKTREE' ? 'WORKTREE' : oid(12),
         files: commitDetail.files
       } as T
     case 'commit_tree':
@@ -735,8 +744,7 @@ export async function mockInvoke<T>(
     case 'file_at_rev':
       return {
         path: String(payload.file ?? 'src/theme.ts'),
-        content:
-          "export const theme = {\\n  accent: '#5b6cff',\\n  surface: '#ffffff'\\n}\\n",
+        content: "export const theme = {\\n  accent: '#5b6cff',\\n  surface: '#ffffff'\\n}\\n",
         binary: false,
         size: 68
       } as T
@@ -825,7 +833,7 @@ export async function mockInvoke<T>(
         }
       ] as T
     case 'diff_workdir':
-      return diffFor(String(payload.file ?? ''), Boolean(payload.staged)) as T
+      return diffFor(String(payload.file ?? '')) as T
     case 'diff_commit':
       return diffFor(String(payload.file ?? '')) as T
     case 'diff_range':

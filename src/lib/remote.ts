@@ -68,8 +68,7 @@ export function useRemoteActions() {
         if (kind === 'fetch') {
           await ipc.fetch(repo.path, null, onProgress)
         } else if (kind === 'pull') {
-          const savedStrategy =
-            useApp.getState().repoStates[repo.path]?.pullStrategy ?? null
+          const savedStrategy = useApp.getState().repoStates[repo.path]?.pullStrategy ?? null
           const mode = effectivePullMode(requestedPullMode, savedStrategy)
           if (mode === 'auto') {
             await ipc.fetch(repo.path, remoteName, onProgress)
@@ -115,8 +114,7 @@ export function useRemoteActions() {
           return
         }
         if (kind !== 'fetch' && isHostKeyError(error)) {
-          const probeRemote =
-            targetRemote ?? status?.upstream?.split('/')[0] ?? preferredRemote
+          const probeRemote = targetRemote ?? status?.upstream?.split('/')[0] ?? preferredRemote
           if (probeRemote) {
             try {
               const probe = await ipc.sshProbeRemote(repo.path, probeRemote)

@@ -97,19 +97,11 @@ describe('per-repository UI state', () => {
     state.openRepoWorkspace(first)
     state.openRepoWorkspace(second)
     state.openRepoWorkspace(third)
-    expect(useApp.getState().workspaceTabs).toEqual([
-      '/tmp/repo-a',
-      '/tmp/repo-b',
-      '/tmp/repo-c'
-    ])
+    expect(useApp.getState().workspaceTabs).toEqual(['/tmp/repo-a', '/tmp/repo-b', '/tmp/repo-c'])
     expect(useApp.getState().activeRepoId).toBe('/tmp/repo-c')
 
     state.reorderRepoWorkspace(2, 0)
-    expect(useApp.getState().workspaceTabs).toEqual([
-      '/tmp/repo-c',
-      '/tmp/repo-a',
-      '/tmp/repo-b'
-    ])
+    expect(useApp.getState().workspaceTabs).toEqual(['/tmp/repo-c', '/tmp/repo-a', '/tmp/repo-b'])
 
     state.activateRepoWorkspace('/tmp/repo-b')
     expect(useApp.getState().activeRepoId).toBe('/tmp/repo-b')

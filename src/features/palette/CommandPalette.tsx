@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Archive,
   Activity,
@@ -66,7 +66,7 @@ export default function CommandPalette() {
   const [branchPrompt, setBranchPrompt] = useState(false)
   const [branchBusy, setBranchBusy] = useState(false)
 
-  const cycleTheme = async () => {
+  const cycleTheme = useCallback(async () => {
     if (!settings) return
     const order: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
     const next = order[(order.indexOf(settings.theme) + 1) % order.length]
@@ -77,7 +77,7 @@ export default function CommandPalette() {
     } catch (error) {
       errorToast(error)
     }
-  }
+  }, [errorToast, setSettings, settings, toast])
 
   const commands = useMemo<Command[]>(() => {
     const items: Command[] = [
@@ -307,7 +307,6 @@ export default function CommandPalette() {
     settings,
     setSettingsOpen,
     setView,
-    setRepo,
     setActivityOpen,
     setGithubOpen,
     setPatchOpen,
@@ -315,6 +314,8 @@ export default function CommandPalette() {
     setToolsOpen,
     setBisectOpen,
     setRepoManagerOpen,
+    cycleTheme,
+    openRepo,
     invalidate,
     toast,
     errorToast,

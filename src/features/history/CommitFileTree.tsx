@@ -50,10 +50,7 @@ function aggregate(directory: DirectoryNode) {
 }
 
 function allFiles(directory: DirectoryNode): FileChange[] {
-  return [
-    ...directory.files,
-    ...directory.directories.flatMap((item) => allFiles(item))
-  ]
+  return [...directory.files, ...directory.directories.flatMap((item) => allFiles(item))]
 }
 
 export default function CommitFileTree({

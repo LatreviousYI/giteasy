@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   AlertTriangle,
   CheckCircle2,
@@ -16,7 +10,7 @@ import {
 import { ipc } from '../../lib/ipc'
 import { useInvalidateRepo, useStatus, useWorkdirDiff } from '../../lib/queries'
 import { useApp } from '../../store/app'
-import { Empty, Spinner } from '../../components/Empty'
+import { Spinner } from '../../components/Empty'
 import { ConfirmDialog } from '../../components/Dialogs'
 import DiffViewer from '../diff/DiffViewer'
 import CommitComposer from './CommitComposer'
@@ -33,9 +27,10 @@ function composerStorageKey(repoId: string) {
 
 function readComposerPrefs(repoId: string) {
   try {
-    const saved = JSON.parse(
-      window.localStorage.getItem(composerStorageKey(repoId)) ?? '{}'
-    ) as { height?: number; collapsed?: boolean }
+    const saved = JSON.parse(window.localStorage.getItem(composerStorageKey(repoId)) ?? '{}') as {
+      height?: number
+      collapsed?: boolean
+    }
     return {
       height: Math.max(
         COMPOSER_MIN_HEIGHT,
@@ -77,21 +72,13 @@ export default function ChangesView() {
   const [composerCollapsed, setComposerCollapsed] = useState(
     () => readComposerPrefs(repo.path).collapsed
   )
-  const [composerHeight, setComposerHeight] = useState(
-    () => readComposerPrefs(repo.path).height
-  )
+  const [composerHeight, setComposerHeight] = useState(() => readComposerPrefs(repo.path).height)
   const composerRepoRef = useRef<string | null>(null)
 
-  const files = status?.files ?? []
+  const files = useMemo(() => status?.files ?? [], [status?.files])
   const conflicted = useMemo(() => files.filter((file) => file.conflicted), [files])
-  const unstaged = useMemo(
-    () => files.filter((file) => !file.conflicted && file.unstaged),
-    [files]
-  )
-  const staged = useMemo(
-    () => files.filter((file) => !file.conflicted && file.staged),
-    [files]
-  )
+  const unstaged = useMemo(() => files.filter((file) => !file.conflicted && file.unstaged), [files])
+  const staged = useMemo(() => files.filter((file) => !file.conflicted && file.staged), [files])
 
   useEffect(() => {
     if (!status) return
@@ -320,8 +307,7 @@ export default function ChangesView() {
           actionMode={canPartial ? (selectedStaged ? 'unstage' : 'stage') : undefined}
           onApply={
             canPartial
-              ? (selections) =>
-                  applySelection(selections, selectedStaged ? 'unstage' : 'stage')
+              ? (selections) => applySelection(selections, selectedStaged ? 'unstage' : 'stage')
               : undefined
           }
           applying={applying}
@@ -333,10 +319,7 @@ export default function ChangesView() {
         />
 
         {composerCollapsed ? (
-          <button
-            className="composer-collapsed"
-            onClick={() => setComposerCollapsed(false)}
-          >
+          <button className="composer-collapsed" onClick={() => setComposerCollapsed(false)}>
             <GripHorizontal size={14} />
             提交到 {repo.branch ?? 'HEAD'}
             <span>·</span>
@@ -345,10 +328,7 @@ export default function ChangesView() {
             <ChevronUp size={14} />
           </button>
         ) : (
-          <div
-            className="composer-shell"
-            style={{ height: composerHeight }}
-          >
+          <div className="composer-shell" style={{ height: composerHeight }}>
             <div
               className="composer-resizer"
               onPointerDown={startComposerResize}

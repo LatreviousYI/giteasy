@@ -76,9 +76,8 @@ async fn remote_url_blocking(path: String, remote: String) -> Result<String, App
 #[tauri::command]
 pub async fn ssh_probe_remote(path: String, remote: String) -> Result<SshHostProbe, AppError> {
     let url = remote_url_blocking(path, remote.clone()).await?;
-    let host = parse_ssh_host(&url).ok_or_else(|| {
-        AppError::user("该远程不是 SSH 地址，无需确认主机指纹")
-    })?;
+    let host = parse_ssh_host(&url)
+        .ok_or_else(|| AppError::user("该远程不是 SSH 地址，无需确认主机指纹"))?;
 
     let output = Command::new("ssh-keyscan")
         .args(["-T", "8", "-t", "rsa,ecdsa,ed25519", host.as_str()])
@@ -97,9 +96,11 @@ pub async fn ssh_probe_remote(path: String, remote: String) -> Result<SshHostPro
         .collect();
 
     if keys.is_empty() {
-        return Err(AppError::new("ssh", "E_SSH_SCAN", format!("无法获取 {host} 的主机密钥"))
-            .with_hint("请检查网络连接或主机名是否正确")
-            .with_detail(String::from_utf8_lossy(&output.stderr).to_string()));
+        return Err(
+            AppError::new("ssh", "E_SSH_SCAN", format!("无法获取 {host} 的主机密钥"))
+                .with_hint("请检查网络连接或主机名是否正确")
+                .with_detail(String::from_utf8_lossy(&output.stderr).to_string()),
+        );
     }
 
     let fingerprints = fingerprint(&keys).await.unwrap_or_default();

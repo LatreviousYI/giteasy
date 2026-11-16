@@ -63,12 +63,7 @@ export default function SubmoduleDialog({
           </button>
           <button
             className="btn btn-primary"
-            disabled={
-              busy ||
-              (editing
-                ? !newPath.trim()
-                : !url.trim() || !target.trim())
-            }
+            disabled={busy || (editing ? !newPath.trim() : !url.trim() || !target.trim())}
             onClick={submit}
           >
             {busy ? '处理中…' : editing ? '移动' : '添加'}

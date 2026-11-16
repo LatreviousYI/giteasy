@@ -77,7 +77,7 @@ export default function HistoryView() {
 
   const { data, isLoading, isFetching, refetch } = useLog(repo.path, query)
   const { data: stashes = [] } = useStashes(repo.path)
-  const commits = data?.commits ?? []
+  const commits = useMemo(() => data?.commits ?? [], [data?.commits])
   const graph = useMemo(() => buildGraph(commits), [commits])
   const rowByOid = useMemo(() => {
     const map = new Map<string, GraphRow>()
@@ -131,9 +131,7 @@ export default function HistoryView() {
     else selectCommit(entry.commit.oid)
     virtualizer.scrollToIndex(index, { align: 'auto' })
     window.requestAnimationFrame(() => {
-      commitListRef.current
-        ?.querySelector<HTMLElement>(`[data-list-index="${index}"]`)
-        ?.focus()
+      commitListRef.current?.querySelector<HTMLElement>(`[data-list-index="${index}"]`)?.focus()
     })
   }
 
@@ -178,11 +176,7 @@ export default function HistoryView() {
           >
             <GitCompareArrows size={13} />
           </button>
-          <button
-            className="icon-btn"
-            title="Reflog"
-            onClick={() => setReflogOpen(true)}
-          >
+          <button className="icon-btn" title="Reflog" onClick={() => setReflogOpen(true)}>
             <RotateCcw size={13} />
           </button>
           <button className="icon-btn" title="刷新" onClick={() => refetch()}>
@@ -259,9 +253,7 @@ export default function HistoryView() {
                         onKeyDown={(event) => {
                           if (event.key === 'ArrowDown') {
                             event.preventDefault()
-                            focusEntry(
-                              Math.min(listEntries.length - 1, virtualRow.index + 1)
-                            )
+                            focusEntry(Math.min(listEntries.length - 1, virtualRow.index + 1))
                           } else if (event.key === 'ArrowUp') {
                             event.preventDefault()
                             focusEntry(Math.max(0, virtualRow.index - 1))
@@ -295,9 +287,7 @@ export default function HistoryView() {
                       key={commit.oid}
                       data-list-index={virtualRow.index}
                       tabIndex={0}
-                      className={`commit-row ${
-                        selectedCommit === commit.oid ? 'active' : ''
-                      }`}
+                      className={`commit-row ${selectedCommit === commit.oid ? 'active' : ''}`}
                       style={{
                         position: 'absolute',
                         top: 0,
@@ -309,9 +299,7 @@ export default function HistoryView() {
                       onKeyDown={(event) => {
                         if (event.key === 'ArrowDown') {
                           event.preventDefault()
-                          focusEntry(
-                            Math.min(listEntries.length - 1, virtualRow.index + 1)
-                          )
+                          focusEntry(Math.min(listEntries.length - 1, virtualRow.index + 1))
                         } else if (event.key === 'ArrowUp') {
                           event.preventDefault()
                           focusEntry(Math.max(0, virtualRow.index - 1))

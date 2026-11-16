@@ -48,8 +48,11 @@ impl AppError {
 
 impl From<git2::Error> for AppError {
     fn from(err: git2::Error) -> Self {
-        AppError::new("git", "E_LIBGIT2", err.message().to_string())
-            .with_detail(format!("code={:?} class={:?}", err.code(), err.class()))
+        AppError::new("git", "E_LIBGIT2", err.message().to_string()).with_detail(format!(
+            "code={:?} class={:?}",
+            err.code(),
+            err.class()
+        ))
     }
 }
 

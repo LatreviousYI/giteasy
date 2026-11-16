@@ -31,9 +31,7 @@ const PatchDialog = lazy(() => import('./features/patch/PatchDialog'))
 const LfsPanel = lazy(() => import('./features/lfs/LfsPanel'))
 const ToolsPanel = lazy(() => import('./features/tools/ToolsPanel'))
 const BisectDialog = lazy(() => import('./features/bisect/BisectDialog'))
-const RepositoryManagerDialog = lazy(
-  () => import('./features/repo/RepositoryManagerDialog')
-)
+const RepositoryManagerDialog = lazy(() => import('./features/repo/RepositoryManagerDialog'))
 
 export default function App() {
   const repo = useApp((s) => s.repo)
@@ -75,10 +73,7 @@ export default function App() {
           useApp.getState().openRepoWorkspace(info)
           useApp
             .getState()
-            .setRepoViewState(
-              info.path,
-              workspace.views[repoId] ?? createRepoViewState()
-            )
+            .setRepoViewState(info.path, workspace.views[repoId] ?? createRepoViewState())
           opened.push(info.path)
         } catch (error) {
           firstError ??= error
@@ -151,7 +146,7 @@ export default function App() {
       '--font-mono',
       `"${settings.monoFont}", "JetBrains Mono", monospace`
     )
-  }, [settings?.fontSize, settings?.monoFont])
+  }, [settings])
 
   useEffect(() => {
     if (!isTauri) return
@@ -196,7 +191,7 @@ export default function App() {
       })
       .catch(() => undefined)
     return () => unlisten?.()
-  }, [])
+  }, [openRepo])
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -225,20 +220,21 @@ export default function App() {
   }, [setPaletteOpen, setSettingsOpen, setView])
 
   const autoFetch = settings?.autoFetchMinutes ?? 0
+  const repoPath = repo?.path
   useEffect(() => {
-    if (!repo || !autoFetch || autoFetch <= 0) return
+    if (!repoPath || !autoFetch || autoFetch <= 0) return
     const timer = window.setInterval(() => {
       ipc
-        .fetch(repo.path, null, () => undefined)
+        .fetch(repoPath, null, () => undefined)
         .then(() => {
           for (const key of ['status', 'log', 'branches']) {
-            queryClient.invalidateQueries({ queryKey: [key, repo.path] })
+            queryClient.invalidateQueries({ queryKey: [key, repoPath] })
           }
         })
         .catch(() => undefined)
     }, autoFetch * 60_000)
     return () => window.clearInterval(timer)
-  }, [repo?.path, autoFetch, queryClient])
+  }, [repoPath, autoFetch, queryClient])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

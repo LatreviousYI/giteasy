@@ -32,10 +32,7 @@ export function splitPath(path: string): { name: string; dir: string } {
   return { name: path.slice(idx + 1), dir: path.slice(0, idx) }
 }
 
-export const statusMeta: Record<
-  string,
-  { letter: string; label: string; className: string }
-> = {
+export const statusMeta: Record<string, { letter: string; label: string; className: string }> = {
   added: { letter: 'A', label: '新增', className: 'st-added' },
   modified: { letter: 'M', label: '修改', className: 'st-modified' },
   deleted: { letter: 'D', label: '删除', className: 'st-deleted' },

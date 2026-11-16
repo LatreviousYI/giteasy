@@ -75,20 +75,12 @@ export const ipc = {
     invoke<void>('repo_rename_recent', { path, name }),
 
   statusGet: (path: string) => invoke<StatusDto>('status_get', { path }),
-  logQuery: (path: string, query: LogQuery) =>
-    invoke<CommitPage>('log_query', { path, query }),
+  logQuery: (path: string, query: LogQuery) => invoke<CommitPage>('log_query', { path, query }),
   fileHistory: (path: string, file: string, limit?: number) =>
     invoke<CommitPage>('file_history', { path, file, limit }),
-  lineHistory: (
-    path: string,
-    file: string,
-    start: number,
-    end: number,
-    limit?: number
-  ) =>
+  lineHistory: (path: string, file: string, start: number, end: number, limit?: number) =>
     invoke<CommitPage>('line_history', { path, file, start, end, limit }),
-  commitDetail: (path: string, oid: string) =>
-    invoke<CommitDetail>('commit_detail', { path, oid }),
+  commitDetail: (path: string, oid: string) => invoke<CommitDetail>('commit_detail', { path, oid }),
   compareRefs: (path: string, left: string, right: string) =>
     invoke<CompareDto>('compare_refs', { path, left, right }),
   diffWorkdir: (
@@ -135,8 +127,7 @@ export const ipc = {
       ignoreWhitespace,
       contextLines
     }),
-  commitTree: (path: string, rev: string) =>
-    invoke<TreeEntryDto[]>('commit_tree', { path, rev }),
+  commitTree: (path: string, rev: string) => invoke<TreeEntryDto[]>('commit_tree', { path, rev }),
   fileAtRev: (path: string, rev: string, file: string) =>
     invoke<FileContentDto>('file_at_rev', { path, rev, file }),
   imageDiff: (
@@ -164,16 +155,14 @@ export const ipc = {
   tagsList: (path: string) => invoke<TagDto[]>('tags_list', { path }),
   remoteList: (path: string) => invoke<RemoteDto[]>('remote_list', { path }),
   stashList: (path: string) => invoke<StashDto[]>('stash_list', { path }),
-  stashDiff: (path: string, oid: string) =>
-    invoke<DiffDto[]>('stash_diff', { path, oid }),
+  stashDiff: (path: string, oid: string) => invoke<DiffDto[]>('stash_diff', { path, oid }),
   conflictList: (path: string) => invoke<ConflictFile[]>('conflict_list', { path }),
   submoduleList: (path: string) => invoke<SubmoduleDto[]>('submodule_list', { path }),
   worktreeList: (path: string) => invoke<WorktreeDto[]>('worktree_list', { path }),
 
   stagePaths: (path: string, files: string[], stage: boolean) =>
     invoke<void>('stage_paths', { path, files, stage }),
-  discardPaths: (path: string, files: string[]) =>
-    invoke<void>('discard_paths', { path, files }),
+  discardPaths: (path: string, files: string[]) => invoke<void>('discard_paths', { path, files }),
   applySelection: (
     path: string,
     file: string,
@@ -211,24 +200,18 @@ export const ipc = {
       gpgSign
     }),
 
-  branchCreate: (
-    path: string,
-    name: string,
-    checkout: boolean,
-    startPoint?: string | null
-  ) => invoke<RepoInfo>('branch_create', { path, name, checkout, startPoint }),
+  branchCreate: (path: string, name: string, checkout: boolean, startPoint?: string | null) =>
+    invoke<RepoInfo>('branch_create', { path, name, checkout, startPoint }),
   branchCheckout: (path: string, name: string) =>
     invoke<RepoInfo>('branch_checkout', { path, name }),
-  commitCheckout: (path: string, oid: string) =>
-    invoke<RepoInfo>('commit_checkout', { path, oid }),
+  commitCheckout: (path: string, oid: string) => invoke<RepoInfo>('commit_checkout', { path, oid }),
   branchDelete: (path: string, name: string, force: boolean) =>
     invoke<void>('branch_delete', { path, name, force }),
   branchRename: (path: string, oldName: string, newName: string) =>
     invoke<RepoInfo>('branch_rename', { path, oldName, newName }),
   branchSetUpstream: (path: string, name: string, upstream: string | null) =>
     invoke<void>('branch_set_upstream', { path, name, upstream }),
-  mergeBranch: (path: string, name: string) =>
-    invoke<void>('merge_branch', { path, name }),
+  mergeBranch: (path: string, name: string) => invoke<void>('merge_branch', { path, name }),
 
   tagCreate: (path: string, name: string, message?: string | null) =>
     invoke<void>('tag_create', { path, name, message }),
@@ -240,12 +223,10 @@ export const ipc = {
 
   reset: (path: string, oid: string, mode: 'soft' | 'mixed' | 'hard') =>
     invoke<void>('reset', { path, oid, mode }),
-  cherryPick: (path: string, oid: string) =>
-    invoke<void>('cherry_pick', { path, oid }),
+  cherryPick: (path: string, oid: string) => invoke<void>('cherry_pick', { path, oid }),
   revert: (path: string, oid: string) => invoke<void>('revert', { path, oid }),
 
-  rebaseTodo: (path: string, base: string) =>
-    invoke<RebaseCommit[]>('rebase_todo', { path, base }),
+  rebaseTodo: (path: string, base: string) => invoke<RebaseCommit[]>('rebase_todo', { path, base }),
   rebaseStart: (
     path: string,
     base: string,
@@ -269,13 +250,11 @@ export const ipc = {
   ) => invoke<void>('stash_save', { path, message, includeUntracked, paths }),
   stashApply: (path: string, index: number, pop: boolean) =>
     invoke<void>('stash_apply', { path, index, pop }),
-  stashDrop: (path: string, index: number) =>
-    invoke<void>('stash_drop', { path, index }),
+  stashDrop: (path: string, index: number) => invoke<void>('stash_drop', { path, index }),
 
   remoteAdd: (path: string, name: string, url: string) =>
     invoke<void>('remote_add', { path, name, url }),
-  remoteRemove: (path: string, name: string) =>
-    invoke<void>('remote_remove', { path, name }),
+  remoteRemove: (path: string, name: string) => invoke<void>('remote_remove', { path, name }),
   updateContext: () => invoke<UpdateContextDto>('update_context'),
   openUpdatePage: () => invoke<void>('open_update_page'),
   fetch: (path: string, remote: string | null, onProgress: ProgressHandler) =>
@@ -307,8 +286,7 @@ export const ipc = {
     }),
 
   opAbort: (path: string, op: string) => invoke<void>('op_abort', { path, op }),
-  opContinue: (path: string, op: string) =>
-    invoke<void>('op_continue', { path, op }),
+  opContinue: (path: string, op: string) => invoke<void>('op_continue', { path, op }),
   conflictResolve: (path: string, file: string, content: string) =>
     invoke<void>('conflict_resolve', { path, file, content }),
 
@@ -337,14 +315,11 @@ export const ipc = {
   worktreeRemove: (path: string, dir: string, force: boolean) =>
     invoke<void>('worktree_remove', { path, dir, force }),
   lfsStatus: (path: string) => invoke<LfsStatusDto>('lfs_status', { path }),
-  lfsUnlock: (path: string, id: string) =>
-    invoke<void>('lfs_unlock', { path, id }),
-  bisectStatus: (path: string) =>
-    invoke<BisectStatusDto>('bisect_status', { path }),
+  lfsUnlock: (path: string, id: string) => invoke<void>('lfs_unlock', { path, id }),
+  bisectStatus: (path: string) => invoke<BisectStatusDto>('bisect_status', { path }),
   bisectStart: (path: string, bad: string, good: string) =>
     invoke<void>('bisect_start', { path, bad, good }),
-  bisectMark: (path: string, mark: 'good' | 'bad') =>
-    invoke<void>('bisect_mark', { path, mark }),
+  bisectMark: (path: string, mark: 'good' | 'bad') => invoke<void>('bisect_mark', { path, mark }),
   bisectSkip: (path: string) => invoke<void>('bisect_skip', { path }),
   bisectReset: (path: string) => invoke<void>('bisect_reset', { path }),
   repoStats: (path: string) => invoke<RepoStatsDto>('repo_stats', { path }),
@@ -354,14 +329,8 @@ export const ipc = {
     command: string,
     kind: string,
     file?: string | null
-  ) =>
-    invoke<string>('run_custom_command', { path, name, command, kind, file }),
-  runExternalTool: (
-    path: string,
-    file: string,
-    tool: string,
-    kind: 'diff' | 'merge'
-  ) =>
+  ) => invoke<string>('run_custom_command', { path, name, command, kind, file }),
+  runExternalTool: (path: string, file: string, tool: string, kind: 'diff' | 'merge') =>
     invoke<void>('run_external_tool', { path, file, tool, kind }),
 
   openInEditor: (path: string, file?: string | null) =>
@@ -369,11 +338,9 @@ export const ipc = {
   openInTerminal: (path: string) => invoke<void>('open_in_terminal', { path }),
 
   settingsGet: () => invoke<Settings>('settings_get'),
-  settingsSet: (settings: Settings) =>
-    invoke<Settings>('settings_set', { settings }),
+  settingsSet: (settings: Settings) => invoke<Settings>('settings_set', { settings }),
   identityGet: () => invoke<Identity>('identity_get'),
-  identitySet: (name: string, email: string) =>
-    invoke<Identity>('identity_set', { name, email }),
+  identitySet: (name: string, email: string) => invoke<Identity>('identity_set', { name, email }),
 
   sshProbeRemote: (path: string, remote: string) =>
     invoke<SshHostProbe>('ssh_probe_remote', { path, remote }),
@@ -385,15 +352,13 @@ export const ipc = {
     invoke<ActivityEvent[]>('activity_list', { path, limit }),
 
   githubAccounts: () => invoke<GitHubAccount[]>('github_accounts'),
-  githubLoginToken: (token: string) =>
-    invoke<GitHubAccount>('github_login_token', { token }),
+  githubLoginToken: (token: string) => invoke<GitHubAccount>('github_login_token', { token }),
   githubLogout: (login: string) => invoke<void>('github_logout', { login }),
   githubDeviceStart: (clientId: string) =>
     invoke<GitHubDeviceStart>('github_device_start', { clientId }),
   githubDevicePoll: (clientId: string, deviceCode: string) =>
     invoke<GitHubAccount | null>('github_device_poll', { clientId, deviceCode }),
-  githubRepos: (login: string, page = 1) =>
-    invoke<GitHubRepo[]>('github_repos', { login, page }),
+  githubRepos: (login: string, page = 1) => invoke<GitHubRepo[]>('github_repos', { login, page }),
   githubNotifications: (login: string) =>
     invoke<GitHubNotification[]>('github_notifications', { login }),
   githubPullRequests: (path: string, login: string, stateFilter = 'open') =>
@@ -418,8 +383,7 @@ export const ipc = {
       body,
       draft
     }),
-  githubClone: (url: string, target: string) =>
-    invoke<void>('github_clone', { url, target })
+  githubClone: (url: string, target: string) => invoke<void>('github_clone', { url, target })
 }
 
 export type { FileStatus }

@@ -36,9 +36,7 @@ export default function ToastHost() {
               <button
                 className="btn btn-sm btn-ghost"
                 style={{ paddingLeft: 0, height: 20, marginTop: 4 }}
-                onClick={() =>
-                  setExpanded((prev) => ({ ...prev, [toast.id]: !prev[toast.id] }))
-                }
+                onClick={() => setExpanded((prev) => ({ ...prev, [toast.id]: !prev[toast.id] }))}
               >
                 {expanded[toast.id] ? '收起详情' : '查看详情'}
               </button>

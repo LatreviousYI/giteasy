@@ -107,23 +107,9 @@ export function useWorkdirDiff(
   contextLines = 3
 ) {
   return useQuery<DiffDto>({
-    queryKey: repoQueryKey(
-      'diff',
-      path,
-      'workdir',
-      file,
-      staged,
-      ignoreWhitespace,
-      contextLines
-    ),
+    queryKey: repoQueryKey('diff', path, 'workdir', file, staged, ignoreWhitespace, contextLines),
     queryFn: () =>
-      ipc.diffWorkdir(
-        path as string,
-        file as string,
-        staged,
-        ignoreWhitespace,
-        contextLines
-      ),
+      ipc.diffWorkdir(path as string, file as string, staged, ignoreWhitespace, contextLines),
     enabled: !!path && !!file,
     retry: false
   })
@@ -137,23 +123,9 @@ export function useCommitDiff(
   contextLines = 3
 ) {
   return useQuery<DiffDto>({
-    queryKey: repoQueryKey(
-      'diff',
-      path,
-      'commit',
-      oid,
-      file,
-      ignoreWhitespace,
-      contextLines
-    ),
+    queryKey: repoQueryKey('diff', path, 'commit', oid, file, ignoreWhitespace, contextLines),
     queryFn: () =>
-      ipc.diffCommit(
-        path as string,
-        oid as string,
-        file as string,
-        ignoreWhitespace,
-        contextLines
-      ),
+      ipc.diffCommit(path as string, oid as string, file as string, ignoreWhitespace, contextLines),
     enabled: !!path && !!oid && !!file,
     retry: false
   })

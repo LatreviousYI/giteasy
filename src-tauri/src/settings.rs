@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 pub const DEFAULT_THEME: &str = "system";
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RecentRepo {
     pub path: String,
@@ -20,16 +20,6 @@ pub struct CustomCommand {
     pub name: String,
     pub command: String,
     pub kind: String,
-}
-
-impl Default for RecentRepo {
-    fn default() -> Self {
-        Self {
-            path: String::new(),
-            name: String::new(),
-            last_opened: 0,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]

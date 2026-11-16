@@ -1,5 +1,6 @@
 import { open } from '@tauri-apps/plugin-dialog'
 import { useQueryClient } from '@tanstack/react-query'
+import { useCallback } from 'react'
 import { ipc } from './ipc'
 import { useApp } from '../store/app'
 
@@ -16,34 +17,40 @@ export function useOpenRepo() {
   const setRepo = useApp((s) => s.setRepo)
   const errorToast = useApp((s) => s.errorToast)
   const client = useQueryClient()
-  return async (path: string) => {
-    try {
-      const info = await ipc.repoOpen(path)
-      setRepo(info)
-      client.invalidateQueries({ queryKey: ['recent'] })
-      client.invalidateQueries({ queryKey: ['settings'] })
-      return info
-    } catch (error) {
-      errorToast(error)
-      return null
-    }
-  }
+  return useCallback(
+    async (path: string) => {
+      try {
+        const info = await ipc.repoOpen(path)
+        setRepo(info)
+        client.invalidateQueries({ queryKey: ['recent'] })
+        client.invalidateQueries({ queryKey: ['settings'] })
+        return info
+      } catch (error) {
+        errorToast(error)
+        return null
+      }
+    },
+    [client, errorToast, setRepo]
+  )
 }
 
 export function useInitRepo() {
   const setRepo = useApp((s) => s.setRepo)
   const errorToast = useApp((s) => s.errorToast)
   const client = useQueryClient()
-  return async (path: string) => {
-    try {
-      const info = await ipc.repoInit(path)
-      setRepo(info)
-      client.invalidateQueries({ queryKey: ['recent'] })
-      client.invalidateQueries({ queryKey: ['settings'] })
-      return info
-    } catch (error) {
-      errorToast(error)
-      return null
-    }
-  }
+  return useCallback(
+    async (path: string) => {
+      try {
+        const info = await ipc.repoInit(path)
+        setRepo(info)
+        client.invalidateQueries({ queryKey: ['recent'] })
+        client.invalidateQueries({ queryKey: ['settings'] })
+        return info
+      } catch (error) {
+        errorToast(error)
+        return null
+      }
+    },
+    [client, errorToast, setRepo]
+  )
 }

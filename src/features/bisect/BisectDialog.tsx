@@ -115,10 +115,7 @@ export default function BisectDialog() {
                 className="btn"
                 disabled={!bad.trim() || !good.trim()}
                 onClick={() =>
-                  run(
-                    () => ipc.bisectStart(repo.path, bad.trim(), good.trim()),
-                    'Bisect 已开始'
-                  )
+                  run(() => ipc.bisectStart(repo.path, bad.trim(), good.trim()), 'Bisect 已开始')
                 }
               >
                 开始

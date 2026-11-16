@@ -131,9 +131,7 @@ export default function SettingsDialog() {
             min={10}
             max={20}
             value={form.fontSize}
-            onChange={(event) =>
-              setForm({ ...form, fontSize: Number(event.target.value) || 13 })
-            }
+            onChange={(event) => setForm({ ...form, fontSize: Number(event.target.value) || 13 })}
           />
         </div>
         <div className="field">
@@ -239,9 +237,7 @@ export default function SettingsDialog() {
         </div>
       </div>
 
-      <div
-        style={{ height: 1, background: 'var(--border)', margin: '2px 0' }}
-      />
+      <div style={{ height: 1, background: 'var(--border)', margin: '2px 0' }} />
 
       <div>
         <div className="label" style={{ marginBottom: 8 }}>
@@ -282,9 +278,7 @@ export default function SettingsDialog() {
           <div className="label" style={{ marginBottom: 0 }}>
             SSH 公钥
           </div>
-          <span className="text-[10.5px] text-[var(--text-subtle)] truncate">
-            {sshKey?.path}
-          </span>
+          <span className="text-[10.5px] text-[var(--text-subtle)] truncate">{sshKey?.path}</span>
           <span style={{ flex: 1 }} />
           {sshKey?.exists && (
             <button className="btn btn-sm" onClick={copyPublicKey}>
@@ -304,7 +298,10 @@ export default function SettingsDialog() {
             未找到 ~/.ssh/id_*.pub，请先在终端执行 ssh-keygen 生成 SSH 密钥。
           </div>
         )}
-        <div className="text-[11px] text-[var(--text-subtle)] leading-relaxed" style={{ marginTop: 6 }}>
+        <div
+          className="text-[11px] text-[var(--text-subtle)] leading-relaxed"
+          style={{ marginTop: 6 }}
+        >
           将公钥添加到 Gitee / GitHub 等平台的 SSH 公钥设置中，即可通过 SSH 推送。
         </div>
       </div>

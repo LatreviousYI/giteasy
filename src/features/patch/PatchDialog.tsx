@@ -123,11 +123,7 @@ export default function PatchDialog() {
           <button className="btn" onClick={savePatch} disabled={!patch.trim()}>
             保存
           </button>
-          <button
-            className="btn"
-            onClick={() => applyPatch(true)}
-            disabled={!patch.trim() || busy}
-          >
+          <button className="btn" onClick={() => applyPatch(true)} disabled={!patch.trim() || busy}>
             <ShieldCheck size={13} />
             冲突校验
           </button>

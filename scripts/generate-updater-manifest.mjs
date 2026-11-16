@@ -19,9 +19,7 @@ if (!target || !asset || !signature || !output) {
 }
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..')
-const packageJson = JSON.parse(
-  await fs.readFile(path.join(root, 'package.json'), 'utf8')
-)
+const packageJson = JSON.parse(await fs.readFile(path.join(root, 'package.json'), 'utf8'))
 const signatureText = (await fs.readFile(signature, 'utf8')).trim()
 if (!signatureText) throw new Error(`empty updater signature: ${signature}`)
 

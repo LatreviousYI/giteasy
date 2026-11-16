@@ -59,12 +59,7 @@ describe('StashCreateDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: '创建储藏' }))
 
     await waitFor(() => {
-      expect(stashSave).toHaveBeenCalledWith(
-        '/tmp/repo',
-        null,
-        true,
-        ['new.txt']
-      )
+      expect(stashSave).toHaveBeenCalledWith('/tmp/repo', null, true, ['new.txt'])
     })
     expect(onChanged).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
@@ -93,8 +88,8 @@ describe('StashCreateDialog', () => {
 
     expect((screen.getByLabelText(/conflict.txt/) as HTMLInputElement).disabled).toBe(true)
     fireEvent.click(screen.getByRole('button', { name: '全不选' }))
-    expect(
-      (screen.getByRole('button', { name: '创建储藏' }) as HTMLButtonElement).disabled
-    ).toBe(true)
+    expect((screen.getByRole('button', { name: '创建储藏' }) as HTMLButtonElement).disabled).toBe(
+      true
+    )
   })
 })

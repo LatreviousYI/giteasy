@@ -1,10 +1,4 @@
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent
-} from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import {
   Check,
   ChevronDown,
@@ -116,20 +110,21 @@ export default function Sidebar() {
   const [picked, setPicked] = useState<string | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(() => readSidebarWidth(repo?.path ?? null))
   const widthRepoRef = useRef<string | null>(null)
+  const repoPath = repo?.path ?? null
 
   useEffect(() => {
-    if (!repo) {
+    if (!repoPath) {
       widthRepoRef.current = null
       return
     }
-    widthRepoRef.current = repo.path
-    setSidebarWidth(readSidebarWidth(repo.path))
-  }, [repo?.path])
+    widthRepoRef.current = repoPath
+    setSidebarWidth(readSidebarWidth(repoPath))
+  }, [repoPath])
 
   useEffect(() => {
-    if (!repo || widthRepoRef.current !== repo.path) return
-    window.localStorage.setItem(repoSidebarWidthKey(repo.path), String(sidebarWidth))
-  }, [repo?.path, sidebarWidth])
+    if (!repoPath || widthRepoRef.current !== repoPath) return
+    window.localStorage.setItem(repoSidebarWidthKey(repoPath), String(sidebarWidth))
+  }, [repoPath, sidebarWidth])
 
   const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
     event.preventDefault()
@@ -170,7 +165,10 @@ export default function Sidebar() {
     }
   }
 
-  const promptConfig: Record<PromptKind, { title: string; label: string; placeholder?: string; value?: string }> = {
+  const promptConfig: Record<
+    PromptKind,
+    { title: string; label: string; placeholder?: string; value?: string }
+  > = {
     branch: { title: '新建分支', label: '分支名称', placeholder: 'feature/my-change' },
     rename: {
       title: '重命名分支',
@@ -227,15 +225,8 @@ export default function Sidebar() {
   if (!repo) return null
 
   return (
-    <aside
-      className="sidebar"
-      style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}
-    >
-      <div
-        className="sidebar-resizer"
-        onPointerDown={startResize}
-        title="拖动调整侧边栏宽度"
-      />
+    <aside className="sidebar" style={{ width: sidebarWidth, flex: `0 0 ${sidebarWidth}px` }}>
+      <div className="sidebar-resizer" onPointerDown={startResize} title="拖动调整侧边栏宽度" />
       <div className="relative px-2 pt-2 pb-1">
         <button className="repo-switch w-full" onClick={() => setRepoMenu((open) => !open)}>
           <FolderGit2 size={15} className="text-[var(--accent)]" />
@@ -349,7 +340,10 @@ export default function Sidebar() {
         <button className={view === 'history' ? 'active' : ''} onClick={() => setView('history')}>
           历史
         </button>
-        <button className={view === 'conflicts' ? 'active' : ''} onClick={() => setView('conflicts')}>
+        <button
+          className={view === 'conflicts' ? 'active' : ''}
+          onClick={() => setView('conflicts')}
+        >
           冲突
           {conflicts.length > 0 && (
             <span className="text-[10px] text-[var(--danger)]">{conflicts.length}</span>
@@ -448,10 +442,7 @@ export default function Sidebar() {
             }, `已检出标签 ${tag.name}（分离头指针）`)
           }
           onPush={(tag) =>
-            run(
-              () => ipc.tagPush(repo.path, tag.name, 'origin'),
-              `已推送标签 ${tag.name}`
-            )
+            run(() => ipc.tagPush(repo.path, tag.name, 'origin'), `已推送标签 ${tag.name}`)
           }
           onDelete={(tag) =>
             setConfirm({
@@ -475,12 +466,7 @@ export default function Sidebar() {
           stashes={stashes}
           onCreate={() => setStashCreateOpen(true)}
           onPreview={setStashPreview}
-          onPop={(stash) =>
-            run(
-              () => ipc.stashApply(repo.path, stash.index, true),
-              '已应用储藏'
-            )
-          }
+          onPop={(stash) => run(() => ipc.stashApply(repo.path, stash.index, true), '已应用储藏')}
           onDelete={(stash) =>
             setConfirm({
               title: '删除储藏',
@@ -497,14 +483,9 @@ export default function Sidebar() {
 
         <SubmoduleSection
           submodules={submodules}
-          repoPath={repo.path}
-          onUpdate={() =>
-            run(() => ipc.submoduleUpdate(repo.path, true), '子模块已更新')
-          }
+          onUpdate={() => run(() => ipc.submoduleUpdate(repo.path, true), '子模块已更新')}
           onOpen={(submodule) =>
-            openRepo(
-              `${repo.path.replace(/\/$/, '')}/${submodule.path.replace(/^\/+/, '')}`
-            )
+            openRepo(`${repo.path.replace(/\/$/, '')}/${submodule.path.replace(/^\/+/, '')}`)
           }
           onAdd={() => {
             setEditingSubmodule(null)
@@ -629,10 +610,7 @@ export default function Sidebar() {
                 onClick={() => {
                   const branch = menu.branch
                   setMenu(null)
-                  run(
-                    () => ipc.branchSetUpstream(repo.path, branch.name, null),
-                    '已取消上游跟踪'
-                  )
+                  run(() => ipc.branchSetUpstream(repo.path, branch.name, null), '已取消上游跟踪')
                 }}
               >
                 取消上游跟踪
@@ -720,12 +698,8 @@ export default function Sidebar() {
       )}
 
       {addRemoteOpen && <RemotesDialog addOnly onClose={() => setAddRemoteOpen(false)} />}
-      {pushBranch && (
-        <PushBranchDialog branch={pushBranch} onClose={() => setPushBranch(null)} />
-      )}
-      {discoverRoot && (
-        <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />
-      )}
+      {pushBranch && <PushBranchDialog branch={pushBranch} onClose={() => setPushBranch(null)} />}
+      {discoverRoot && <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />}
       {tagDialogOpen && <TagDialog onClose={() => setTagDialogOpen(false)} />}
       {worktreeDialog && (
         <WorktreeDialog

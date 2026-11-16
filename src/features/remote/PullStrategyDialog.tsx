@@ -43,7 +43,7 @@ export default function PullStrategyDialog() {
     setStrategy('merge')
     setRemember(false)
     setBusy(false)
-  }, [prompt?.repoPath, prompt?.ahead, prompt?.behind])
+  }, [prompt])
 
   if (!prompt) return null
 
