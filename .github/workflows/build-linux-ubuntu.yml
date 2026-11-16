@@ -2,6 +2,11 @@ name: Build Ubuntu Linux
 
 on:
   workflow_call:
+    inputs:
+      version:
+        description: Version to embed in release artifacts
+        required: true
+        type: string
     secrets:
       TAURI_SIGNING_PRIVATE_KEY:
         required: true
@@ -34,6 +39,9 @@ jobs:
 
       - name: Install npm dependencies
         run: npm ci
+
+      - name: Apply release version
+        run: node scripts/apply-version.mjs "${{ inputs.version }}"
 
       - name: Frontend tests
         run: npm run test:frontend
