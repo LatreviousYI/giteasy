@@ -39,6 +39,11 @@ jobs:
         with:
           components: clippy, rustfmt
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
