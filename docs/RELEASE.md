@@ -4,7 +4,7 @@
 
 ## 发布平台状态
 
-- Linux x86_64：`.deb` 默认发布目标。
+- Linux x86_64：主要开发和发布平台；推荐 `.AppImage` 自动更新，`.deb` 用于系统集成。
 - macOS Apple Silicon：`.app` 与 `.dmg`。
 - Windows：尚未完成平台适配，不发布。
 
@@ -19,13 +19,25 @@
 
 不需要在功能 PR 中手工修改版本，也不需要推送标签。默认发布 patch：
 
+| PR 标题标记 | 发布类型 | 版本示例 |
+| --- | --- | --- |
+| 无标记 | patch | `v0.1.5 → v0.1.6` |
+| `[minor]` | minor | `v0.1.5 → v0.2.0` |
+| `[major]` | major | `v0.1.5 → v1.0.0` |
+
+工作流会检查 GitHub merge commit 的完整消息。使用 GitHub 的 merge/squash 方式时，PR 标题会进入 merge commit，因此标记应放在 PR 标题中。
+
+标记是普通子串匹配，出现在标题任意位置都会生效，并且不区分大小写。例如：
+
 ```text
-普通合并       -> patch
-PR 标题含 [minor] -> minor
-PR 标题含 [major] -> major
+Dev[minor] → v0.2.0
 ```
 
+如果只是普通功能或修复，PR 标题不要包含 `[minor]`、`#minor`、`[major]` 或 `#major`。
+
 同一提交重跑发布时会复用已经创建的标签，不会重复递增版本。
+
+发布后不要为了纠正版本类型而删除标签并降级版本。已经安装新版本的客户端不会将较低版本识别为更新。误发次版本后，后续普通发布应继续从当前版本递增，例如 `v0.2.0 → v0.2.1`。
 
 发布必须配置 `TAURI_SIGNING_PRIVATE_KEY` 与 `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`，具体流程见 [UPDATES.md](UPDATES.md)。
 

@@ -11,6 +11,7 @@
 - 只在测试、启动入口或已验证不可失败的场景使用 Rust `unwrap`/`expect`；生产命令路径必须返回 `AppError`。
 - 新逻辑必须有测试。修复 bug 时先补能复现问题的测试。
 - 每项功能、修复或交互调整都要更新 `docs/CHANGELOG.md`。
+- Linux 是主要开发和发布平台；新增能力优先保证 Ubuntu/Debian、X11/Wayland 和 AppImage 更新体验。
 
 ## 前端约定
 
@@ -82,7 +83,7 @@ E2E 会改写 `docs/visual-baselines/`。如果只是验证而非有意更新视
 
 ## 发布约定
 
-- 合并到 `master` 自动生成下一版本并发布。默认 patch；PR 标题含 `[minor]` 或 `[major]` 时提升对应版本。
+- 合并到 `master` 自动生成下一版本并发布。默认 patch；PR 标题中出现 `[minor]` 或 `[major]` 时提升对应版本，匹配不区分大小写。
 - 功能 PR 不手工修改版本文件，也不手工创建标签。
 - 发布版本在 CI 构建工作区注入，正式版本以 Git 标签和 GitHub Release 为准。
 - 不得提交 updater 私钥或密码。发布 Secret 只存在于 GitHub Actions Secrets。

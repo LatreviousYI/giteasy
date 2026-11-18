@@ -1,6 +1,6 @@
 # GitEasy
 
-GitEasy 是一个面向 Linux 和 macOS 的原生 Git GUI，目标是覆盖 Fork 的核心工作流，并提供 GitHub 集成。
+GitEasy 是一个 **Linux 优先** 的原生 Git GUI，同时支持 macOS Apple Silicon；目标是覆盖 Fork 的核心工作流，并提供 GitHub 集成。
 
 ## 技术栈
 
@@ -19,6 +19,13 @@ GitEasy 是一个面向 Linux 和 macOS 的原生 Git GUI，目标是覆盖 Fork
 - Patch、图片 diff、LFS、GPG、自定义命令和外部工具
 - Bisect、Repository Manager 和仓库统计
 - AppImage 与 macOS 客户端内更新
+
+## 平台方向
+
+- Linux 是主要开发和发布平台，优先保证 Ubuntu/Debian、X11/Wayland 和 AppImage 客户端内更新体验。
+- Linux 主要发布 `.AppImage` 与 `.deb`；AppImage 是自动更新推荐渠道。
+- macOS Apple Silicon 是次要支持平台，发布 `.dmg` 和 updater 包。
+- Windows 尚未完成平台适配，不提供正式安装包。
 
 ## 开发
 
@@ -65,6 +72,28 @@ Windows 目前尚未完成 Keyring、Shell、终端和文件打开适配，因�
 合并到 `master` 后，发布工作流会基于最新标签自动递增 patch 版本并创建 Release。默认例如 `v0.1.3 → v0.1.4`；PR 标题包含 `[minor]` 或 `[major]` 时分别提升次版本或主版本。各系统应下载的包见 [docs/DOWNLOADS.md](docs/DOWNLOADS.md)。
 
 客户端内更新的密钥配置、发布资产和平台行为见 [docs/UPDATES.md](docs/UPDATES.md)。
+
+## 版本发布规则
+
+GitEasy 使用语义化版本：
+
+| PR 标题标记 | 版本变化 | 示例              |
+| ----------- | -------- | ----------------- |
+| 无标记      | patch    | `v0.1.5 → v0.1.6` |
+| `[minor]`   | minor    | `v0.1.5 → v0.2.0` |
+| `[major]`   | major    | `v0.1.5 → v1.0.0` |
+
+标记出现在 PR 标题中的任意位置都会生效，并且不区分大小写。例如 `Dev[minor]` 会发布次版本 `v0.2.0`。普通功能和修复请不要添加 `[minor]` 或 `[major]`。
+
+版本由 CI 自动生成，不需要手工修改版本文件或创建标签。Release 发布后不建议删除标签并降级版本，因为已经安装新版本的客户端不会把较低版本识别为更新。
+
+完整发布流程见 [docs/RELEASE.md](docs/RELEASE.md)。
+
+## 同类工具参考
+
+[Fork](https://git-fork.com/) 是成熟的商业 Git 客户端，GitEasy 将 Fork 作为交互方式和核心 Git 工作流的参考之一。
+
+Fork 与 GitEasy 没有官方关联。Fork 支持的平台和授权方式以其官网为准；GitEasy 的开发重心仍然是 Linux。
 
 ## 凭据与隐私
 

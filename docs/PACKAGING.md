@@ -6,8 +6,8 @@
 
 | 平台 | 当前状态 | 安装包 |
 | --- | --- | --- |
-| Linux x86_64 | 支持 | `.deb`，可选 AppImage / RPM |
-| macOS Apple Silicon | 支持 | `.app`、`.dmg` |
+| Linux x86_64 | 主要平台，支持 | `.AppImage`（自动更新推荐）、`.deb`，可选 RPM |
+| macOS Apple Silicon | 次要支持平台 | `.app`、`.dmg` |
 | macOS Intel / Universal | 未配置 | 需要新增目标与 CI |
 | Windows x86_64 | 尚未发布 | 需先完成平台适配，不应发布安装包 |
 
