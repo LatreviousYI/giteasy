@@ -154,6 +154,7 @@ button {
   min-height: 46px;
   padding: 5px 12px 0;
   min-width: 0;
+  user-select: none;
 }
 
 .repo-tabs-scroll {

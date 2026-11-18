@@ -27,6 +27,7 @@ import type { PullMode, StatusDto } from '../lib/types'
 import { ConfirmDialog } from './Dialogs'
 import { pickDirectory, useOpenRepo } from '../lib/actions'
 import WindowControls from './WindowControls'
+import { useWindowDrag } from '../lib/useWindowDrag'
 
 const PULL_MODES: Array<{ mode: PullMode; title: string; hint: string }> = [
   {
@@ -62,6 +63,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   )
   const updateAvailable = useUpdates((state) => state.status === 'available')
   const availableVersion = useUpdates((state) => state.availableVersion)
+  const dragWindow = useWindowDrag(errorToast)
   const [busy, setBusy] = useState<string | null>(null)
   const [pushMenuOpen, setPushMenuOpen] = useState(false)
   const [pullMenuOpen, setPullMenuOpen] = useState(false)
@@ -124,7 +126,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
 
   return (
     <header className="topbar workspace-topbar">
-      <div className="topbar-tabs" data-tauri-drag-region>
+      <div className="topbar-tabs" onMouseDown={dragWindow}>
         <div className="brand">
           <span className="brand-mark">G</span>
           <span>GitEasy</span>
