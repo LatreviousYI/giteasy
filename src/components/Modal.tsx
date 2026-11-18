@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from 'react'
+import { useId, useRef, type ReactNode } from 'react'
 import { X } from 'lucide-react'
+import { useModalFocus } from './modalFocus'
 
 interface ModalProps {
   title: ReactNode
@@ -10,16 +11,9 @@ interface ModalProps {
 }
 
 export default function Modal({ title, onClose, children, footer, wide }: ModalProps) {
-  useEffect(() => {
-    const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.stopPropagation()
-        onClose()
-      }
-    }
-    window.addEventListener('keydown', handler, true)
-    return () => window.removeEventListener('keydown', handler, true)
-  }, [onClose])
+  const titleId = useId()
+  const modalRef = useRef<HTMLDivElement>(null)
+  useModalFocus(modalRef, titleId, onClose)
 
   return (
     <div
@@ -28,11 +22,20 @@ export default function Modal({ title, onClose, children, footer, wide }: ModalP
         if (event.target === event.currentTarget) onClose()
       }}
     >
-      <div className={`modal ${wide ? 'wide' : ''}`}>
+      <div
+        ref={modalRef}
+        className={`modal ${wide ? 'wide' : ''}`}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+      >
         <div className="modal-head">
-          <span>{title}</span>
+          <h2 id={titleId} className="modal-title">
+            {title}
+          </h2>
           <span className="spacer" />
-          <button className="icon-btn" onClick={onClose} title="关闭">
+          <button className="icon-btn" onClick={onClose} title="关闭" aria-label="关闭">
             <X size={15} />
           </button>
         </div>

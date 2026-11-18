@@ -77,11 +77,7 @@ export function resolveAllConflictBlocks(
 }
 
 /** 用指定策略替换单个冲突块，其余内容保持不变。 */
-export function resolveConflictBlock(
-  text: string,
-  index: number,
-  choice: ConflictChoice
-): string {
+export function resolveConflictBlock(text: string, index: number, choice: ConflictChoice): string {
   const lines = text.split('\n')
   const block = parseConflictBlocks(text).find((item) => item.index === index)
   if (!block) return text

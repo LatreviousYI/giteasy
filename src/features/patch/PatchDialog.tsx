@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { Clipboard, FileDown, FolderOpen, Play, ShieldCheck } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { copyTextWithToast } from '../../lib/clipboard'
 import { useInvalidateRepo } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
@@ -91,12 +92,7 @@ export default function PatchDialog() {
   }
 
   const copyPatch = async () => {
-    try {
-      await navigator.clipboard.writeText(patch)
-      toast('success', 'Patch 已复制')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(patch, 'Patch 已复制', toast)
   }
 
   return (
@@ -123,11 +119,7 @@ export default function PatchDialog() {
           <button className="btn" onClick={savePatch} disabled={!patch.trim()}>
             保存
           </button>
-          <button
-            className="btn"
-            onClick={() => applyPatch(true)}
-            disabled={!patch.trim() || busy}
-          >
+          <button className="btn" onClick={() => applyPatch(true)} disabled={!patch.trim() || busy}>
             <ShieldCheck size={13} />
             冲突校验
           </button>

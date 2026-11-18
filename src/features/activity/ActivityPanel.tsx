@@ -10,16 +10,12 @@ import {
   XCircle
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
+import { copyTextWithToast } from '../../lib/clipboard'
+import { formatClockTime } from '../../lib/format'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 import { Empty, Spinner } from '../../components/Empty'
 import type { ActivityEvent } from '../../lib/types'
-
-function formatTime(value: number) {
-  const date = new Date(value)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
-}
 
 export default function ActivityPanel() {
   const repo = useApp((s) => s.repo)
@@ -35,32 +31,23 @@ export default function ActivityPanel() {
     refetchInterval: 3000
   })
 
-  if (!repo) return null
   const events = useMemo(
     () =>
       (query.data ?? []).filter((event) => {
         if (status !== 'all' && event.status !== status) return false
-        const value = `${event.command} ${event.summary} ${event.output ?? ''} ${event.error ?? ''}`.toLowerCase()
+        const value =
+          `${event.command} ${event.summary} ${event.output ?? ''} ${event.error ?? ''}`.toLowerCase()
         return !keyword.trim() || value.includes(keyword.trim().toLowerCase())
       }),
     [query.data, keyword, status]
   )
+  if (!repo) return null
 
   const copyEvent = async (event: ActivityEvent) => {
-    const text = [
-      `$ ${event.command}`,
-      event.summary,
-      event.output ?? '',
-      event.error ?? ''
-    ]
+    const text = [`$ ${event.command}`, event.summary, event.output ?? '', event.error ?? '']
       .filter(Boolean)
       .join('\n')
-    try {
-      await navigator.clipboard.writeText(text)
-      toast('success', '操作记录已复制')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(text, '操作记录已复制', toast)
   }
 
   return (
@@ -70,9 +57,7 @@ export default function ActivityPanel() {
         <span className="flex items-center gap-2">
           <Activity size={15} />
           操作记录
-          <span className="text-[11px] font-normal text-[var(--text-subtle)]">
-            {repo.name}
-          </span>
+          <span className="text-[11px] font-normal text-[var(--text-subtle)]">{repo.name}</span>
         </span>
       }
       onClose={close}
@@ -135,7 +120,7 @@ export default function ActivityPanel() {
                       </span>
                       <span className="spacer" />
                       <span className="row-sub">{event.durationMs}ms</span>
-                      <span className="row-sub">{formatTime(event.finishedAt)}</span>
+                      <span className="row-sub">{formatClockTime(event.finishedAt)}</span>
                     </div>
                     <div className="text-[11px] text-[var(--text-muted)] mt-0.5">
                       {event.summary}

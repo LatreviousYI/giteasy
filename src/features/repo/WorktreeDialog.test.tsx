@@ -95,13 +95,7 @@ describe('WorktreeDialog', () => {
   })
 
   it('can attach an existing local branch', async () => {
-    render(
-      <WorktreeDialog
-        branches={branches}
-        onClose={vi.fn()}
-        onCreated={vi.fn()}
-      />
-    )
+    render(<WorktreeDialog branches={branches} onClose={vi.fn()} onCreated={vi.fn()} />)
 
     fireEvent.click(screen.getByLabelText('使用已有本地分支'))
     fireEvent.change(screen.getByRole('combobox'), {

@@ -65,11 +65,19 @@ export default function ImageDiffViewer({
         <div className="image-diff-side">
           <div className="image-diff-panel">
             <div className="image-diff-label">修改前</div>
-            {before ? <img src={before} alt="" /> : <div className="image-diff-empty">新增图片</div>}
+            {before ? (
+              <img src={before} alt="" />
+            ) : (
+              <div className="image-diff-empty">新增图片</div>
+            )}
           </div>
           <div className="image-diff-panel">
             <div className="image-diff-label">修改后</div>
-            {after ? <img src={after} alt="" /> : <div className="image-diff-empty">图片已删除</div>}
+            {after ? (
+              <img src={after} alt="" />
+            ) : (
+              <div className="image-diff-empty">图片已删除</div>
+            )}
           </div>
         </div>
       ) : mode === 'slider' ? (

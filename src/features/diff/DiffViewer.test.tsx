@@ -63,11 +63,7 @@ describe('DiffViewer', () => {
 
   it('always renders one unified diff without split controls', () => {
     const { container } = render(
-      <DiffViewer
-        diff={diff}
-        contextLines={3}
-        onContextLinesChange={vi.fn()}
-      />
+      <DiffViewer diff={diff} contextLines={3} onContextLinesChange={vi.fn()} />
     )
 
     expect(screen.queryByText('分栏')).toBeNull()

@@ -36,9 +36,8 @@ pub async fn run_custom_command(
     let expanded = expand(&command, &path, file.as_deref());
     if kind == "url" {
         open_path_default(&expanded).map_err(|error| {
-                AppError::new("io", "E_OPEN_URL", "无法打开自定义 URL")
-                    .with_detail(error.to_string())
-            })?;
+            AppError::new("io", "E_OPEN_URL", "无法打开自定义 URL").with_detail(error.to_string())
+        })?;
         return Ok(String::new());
     }
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
@@ -53,8 +52,12 @@ pub async fn run_custom_command(
         .output()
         .await
         .map_err(|error| {
-            AppError::new("io", "E_CUSTOM_COMMAND", format!("无法运行自定义命令：{name}"))
-                .with_detail(error.to_string())
+            AppError::new(
+                "io",
+                "E_CUSTOM_COMMAND",
+                format!("无法运行自定义命令：{name}"),
+            )
+            .with_detail(error.to_string())
         })?;
     let stdout = String::from_utf8_lossy(&output.stdout).to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -102,11 +105,7 @@ pub async fn run_external_tool(
     }
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     let target = std::path::Path::new(&path).join(&file);
-    let command = format!(
-        "{} {}",
-        tool,
-        shell_quote(&target.to_string_lossy())
-    );
+    let command = format!("{} {}", tool, shell_quote(&target.to_string_lossy()));
     let status = Command::new("bash")
         .args(["-lc", command.as_str()])
         .current_dir(&path)

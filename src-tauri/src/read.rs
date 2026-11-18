@@ -3,8 +3,7 @@ use crate::model::*;
 use crate::util;
 use base64::Engine as _;
 use git2::{
-    BlameOptions, Delta, Diff, DiffFindOptions, DiffOptions, Oid, Patch, Repository,
-    TreeWalkMode,
+    BlameOptions, Delta, Diff, DiffFindOptions, DiffOptions, Oid, Patch, Repository, TreeWalkMode,
 };
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -36,7 +35,10 @@ pub fn repo_info_inner(path: &str) -> Result<RepoInfo, AppError> {
         head.as_ref()
             .and_then(|h| h.shorthand().map(|s| s.to_string()))
     };
-    let head_oid = head.as_ref().and_then(|h| h.target()).map(|o| o.to_string());
+    let head_oid = head
+        .as_ref()
+        .and_then(|h| h.target())
+        .map(|o| o.to_string());
     let name = std::path::Path::new(path)
         .file_name()
         .map(|s| s.to_string_lossy().to_string())
@@ -89,11 +91,7 @@ pub(crate) fn repo_close_inner(state: &crate::AppState, path: &str) {
     let repo_id = util::canonical(path)
         .map(|value| value.to_string_lossy().to_string())
         .unwrap_or_else(|_| path.to_string());
-    state
-        .watchers
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .remove(&repo_id);
+    util::lock_or_recover(&state.watchers).remove(&repo_id);
     state.sessions.remove(&repo_id);
 }
 
@@ -105,8 +103,12 @@ pub async fn repo_init(
 ) -> Result<RepoInfo, AppError> {
     std::fs::create_dir_all(&path)?;
     let init_path = path.clone();
-    blocking_read(move || Repository::init(init_path).map(|_| ()).map_err(AppError::from))
-        .await?;
+    blocking_read(move || {
+        Repository::init(init_path)
+            .map(|_| ())
+            .map_err(AppError::from)
+    })
+    .await?;
     let canonical = util::canonical(&path)?;
     let canonical_str = canonical.to_string_lossy().to_string();
     let info = blocking_read(move || repo_info_inner(&canonical_str)).await?;
@@ -192,9 +194,13 @@ pub(crate) fn status_get_impl(path: String) -> Result<StatusDto, AppError> {
     let branch = if detached {
         None
     } else {
-        head.as_ref().and_then(|h| h.shorthand().map(|s| s.to_string()))
+        head.as_ref()
+            .and_then(|h| h.shorthand().map(|s| s.to_string()))
     };
-    let head_oid = head.as_ref().and_then(|h| h.target()).map(|o| o.to_string());
+    let head_oid = head
+        .as_ref()
+        .and_then(|h| h.target())
+        .map(|o| o.to_string());
     let mut upstream = None;
     let mut ahead = 0usize;
     let mut behind = 0usize;
@@ -449,10 +455,8 @@ pub async fn diff_workdir(
     ignore_whitespace: Option<bool>,
     context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
-    blocking_read(move || {
-        diff_workdir_impl(path, file, staged, ignore_whitespace, context_lines)
-    })
-    .await
+    blocking_read(move || diff_workdir_impl(path, file, staged, ignore_whitespace, context_lines))
+        .await
 }
 
 pub(crate) fn diff_workdir_impl(
@@ -487,10 +491,7 @@ pub async fn diff_commit(
     ignore_whitespace: Option<bool>,
     context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
-    blocking_read(move || {
-        diff_commit_impl(path, oid, file, ignore_whitespace, context_lines)
-    })
-    .await
+    blocking_read(move || diff_commit_impl(path, oid, file, ignore_whitespace, context_lines)).await
 }
 
 fn diff_commit_impl(
@@ -794,14 +795,7 @@ pub async fn diff_range(
     context_lines: Option<u32>,
 ) -> Result<DiffDto, AppError> {
     blocking_read(move || {
-        diff_range_impl(
-            path,
-            left,
-            right,
-            file,
-            ignore_whitespace,
-            context_lines,
-        )
+        diff_range_impl(path, left, right, file, ignore_whitespace, context_lines)
     })
     .await
 }
@@ -832,10 +826,7 @@ pub async fn commit_tree(path: String, rev: String) -> Result<Vec<TreeEntryDto>,
     blocking_read(move || commit_tree_impl(path, rev)).await
 }
 
-pub(crate) fn commit_tree_impl(
-    path: String,
-    rev: String,
-) -> Result<Vec<TreeEntryDto>, AppError> {
+pub(crate) fn commit_tree_impl(path: String, rev: String) -> Result<Vec<TreeEntryDto>, AppError> {
     let repo = util::open_repo(&path)?;
     let tree = repo
         .revparse_single(&rev)
@@ -937,9 +928,7 @@ pub(crate) fn image_diff_impl(
     let before_bytes = match source.as_str() {
         "workdir" => image_tree_bytes(&repo, "HEAD", &file)?,
         "commit" => {
-            let rev = left
-                .clone()
-                .ok_or_else(|| AppError::user("缺少提交版本"))?;
+            let rev = left.clone().ok_or_else(|| AppError::user("缺少提交版本"))?;
             let commit = repo
                 .revparse_single(&rev)?
                 .peel_to_commit()
@@ -996,11 +985,7 @@ pub(crate) fn image_diff_impl(
     })
 }
 
-fn image_tree_bytes(
-    repo: &Repository,
-    rev: &str,
-    file: &str,
-) -> Result<Option<Vec<u8>>, AppError> {
+fn image_tree_bytes(repo: &Repository, rev: &str, file: &str) -> Result<Option<Vec<u8>>, AppError> {
     let Ok(object) = repo.revparse_single(rev) else {
         return Ok(None);
     };
@@ -1026,7 +1011,10 @@ fn image_index_bytes(repo: &Repository, file: &str) -> Result<Option<Vec<u8>>, A
 }
 
 fn image_data_url(file: &str, bytes: &[u8]) -> Option<String> {
-    let extension = Path::new(file).extension()?.to_string_lossy().to_ascii_lowercase();
+    let extension = Path::new(file)
+        .extension()?
+        .to_string_lossy()
+        .to_ascii_lowercase();
     let mime = match extension.as_str() {
         "png" => "image/png",
         "jpg" | "jpeg" => "image/jpeg",
@@ -1104,7 +1092,8 @@ fn branches_list_impl(path: String) -> Result<Vec<BranchDto>, AppError> {
         if !is_remote {
             if let Ok(up) = branch.upstream() {
                 upstream = up.name().ok().flatten().map(|s| s.to_string());
-                if let (Some(local_oid), Some(up_oid)) = (branch.get().target(), up.get().target()) {
+                if let (Some(local_oid), Some(up_oid)) = (branch.get().target(), up.get().target())
+                {
                     if let Ok((a, b)) = repo.graph_ahead_behind(local_oid, up_oid) {
                         ahead = a;
                         behind = b;
@@ -1240,8 +1229,7 @@ fn stash_diff_impl(path: String, oid: String) -> Result<Vec<DiffDto>, AppError> 
     let old_tree = commit.parent(0)?.tree()?;
     let mut opts = DiffOptions::new();
     opts.context_lines(3);
-    let mut diff =
-        repo.diff_tree_to_tree(Some(&old_tree), Some(&new_tree), Some(&mut opts))?;
+    let mut diff = repo.diff_tree_to_tree(Some(&old_tree), Some(&new_tree), Some(&mut opts))?;
     let mut find = DiffFindOptions::new();
     find.renames(true);
     diff.find_similar(Some(&mut find))?;
@@ -1290,7 +1278,10 @@ fn blame_get_impl(
                 oid: oid.clone(),
                 author: author.clone(),
                 time,
-                content: lines.get(line_no.saturating_sub(1)).unwrap_or(&"").to_string(),
+                content: lines
+                    .get(line_no.saturating_sub(1))
+                    .unwrap_or(&"")
+                    .to_string(),
             });
             if out.len() >= 20000 {
                 return Ok(out);
@@ -1332,9 +1323,18 @@ fn conflict_list_impl(path: String) -> Result<Vec<ConflictFile>, AppError> {
         let theirs = read_stage(3);
         let base = read_stage(1);
         let result = util::workdir_content(&repo, file_path).unwrap_or_default();
-        let binary = ours.as_deref().map(|c| c.contains('\u{0}')).unwrap_or(false)
-            || theirs.as_deref().map(|c| c.contains('\u{0}')).unwrap_or(false)
-            || base.as_deref().map(|c| c.contains('\u{0}')).unwrap_or(false)
+        let binary = ours
+            .as_deref()
+            .map(|c| c.contains('\u{0}'))
+            .unwrap_or(false)
+            || theirs
+                .as_deref()
+                .map(|c| c.contains('\u{0}'))
+                .unwrap_or(false)
+            || base
+                .as_deref()
+                .map(|c| c.contains('\u{0}'))
+                .unwrap_or(false)
             || result.contains('\u{0}');
         out.push(ConflictFile {
             path: file_path.clone(),
@@ -1513,10 +1513,13 @@ pub async fn repo_stats(path: String) -> Result<RepoStatsDto, AppError> {
         .ok()
         .and_then(|value| value.parse().ok())
         .unwrap_or(0);
-    let branches = util::git(&path, &["for-each-ref", "--format=%(refname)", "refs/heads"])
-        .await
-        .map(|value| value.lines().count())
-        .unwrap_or(0);
+    let branches = util::git(
+        &path,
+        &["for-each-ref", "--format=%(refname)", "refs/heads"],
+    )
+    .await
+    .map(|value| value.lines().count())
+    .unwrap_or(0);
     let tags = util::git(&path, &["tag"])
         .await
         .map(|value| value.lines().count())
@@ -1538,10 +1541,13 @@ pub async fn repo_stats(path: String) -> Result<RepoStatsDto, AppError> {
             .unwrap_or(0);
         let name = parts.next().unwrap_or_default().trim().to_string();
         if !name.is_empty() {
-            contributors.push(ContributorStatDto { name, commits: count });
+            contributors.push(ContributorStatDto {
+                name,
+                commits: count,
+            });
         }
     }
-    contributors.sort_by(|a, b| b.commits.cmp(&a.commits));
+    contributors.sort_by_key(|contributor| std::cmp::Reverse(contributor.commits));
     let contributor_count = contributors.len();
     contributors.truncate(10);
     Ok(RepoStatsDto {

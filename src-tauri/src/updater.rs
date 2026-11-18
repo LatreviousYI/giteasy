@@ -13,18 +13,12 @@ pub struct UpdateContextDto {
     pub executable: String,
 }
 
-pub(crate) fn classify_install_kind(
-    executable: &str,
-    appimage: bool,
-    macos: bool,
-) -> &'static str {
+pub(crate) fn classify_install_kind(executable: &str, appimage: bool, macos: bool) -> &'static str {
     if appimage {
         "appimage"
     } else if macos {
         "macos"
-    } else if executable == "/usr/bin/giteasy"
-        || executable.starts_with("/usr/local/bin/")
-    {
+    } else if executable == "/usr/bin/giteasy" || executable.starts_with("/usr/local/bin/") {
         "deb"
     } else {
         "portable"

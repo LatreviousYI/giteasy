@@ -6,6 +6,13 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "lint": "eslint . --max-warnings 0",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "rust:fmt": "cargo fmt --manifest-path src-tauri/Cargo.toml",
+    "rust:fmt:check": "cargo fmt --manifest-path src-tauri/Cargo.toml -- --check",
+    "rust:clippy": "cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings",
     "build:app": "bash scripts/build.sh build",
     "build:macos-arm64": "bash scripts/build-macos-arm64.sh",
     "test:backend": "bash scripts/build.sh test",
@@ -30,6 +37,7 @@
     "zustand": "^5.0.2"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@tailwindcss/vite": "^4.0.0",
     "@tauri-apps/cli": "^2.1.0",
     "@testing-library/react": "^16.3.3",
@@ -38,10 +46,16 @@
     "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "@vitejs/plugin-react": "^4.3.4",
+    "eslint": "^9.39.5",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.4.26",
+    "globals": "^16.5.0",
     "jsdom": "^25.0.1",
+    "prettier": "^3.10.1",
     "selenium-webdriver": "^4.52.0",
     "tailwindcss": "^4.0.0",
     "typescript": "^5.7.2",
+    "typescript-eslint": "^8.72.2",
     "vite": "^5.4.11",
     "vitest": "^2.1.8"
   }

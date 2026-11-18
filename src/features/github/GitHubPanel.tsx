@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
@@ -11,7 +11,7 @@ import {
   Search
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
-import { useBranches } from '../../lib/queries'
+import { invalidateRepoQueries, useBranches } from '../../lib/queries'
 import { pickDirectory, useOpenRepo } from '../../lib/actions'
 import { useApp } from '../../store/app'
 import { relativeTime } from '../../lib/format'
@@ -53,13 +53,19 @@ export default function GitHubPanel() {
   const [search, setSearch] = useState('')
   const [assignee, setAssignee] = useState('')
   const [prOpen, setPrOpen] = useState(false)
-  const [prForm, setPrForm] = useState({ base: 'main', head: '', title: '', body: '', draft: false })
+  const [prForm, setPrForm] = useState({
+    base: 'main',
+    head: '',
+    title: '',
+    body: '',
+    draft: false
+  })
 
   const accountsQuery = useQuery({
     queryKey: ['githubAccounts'],
     queryFn: () => ipc.githubAccounts()
   })
-  const accounts = accountsQuery.data ?? []
+  const accounts = useMemo(() => accountsQuery.data ?? [], [accountsQuery.data])
 
   useEffect(() => {
     if (!selectedLogin && accounts[0]) setSelectedLogin(accounts[0].login)
@@ -72,22 +78,25 @@ export default function GitHubPanel() {
   useEffect(() => {
     if (!device) return
     let cancelled = false
-    const timer = window.setInterval(async () => {
-      try {
-        const account = await ipc.githubDevicePoll(clientId, device.deviceCode)
-        if (cancelled || !account) return
-        window.clearInterval(timer)
-        setDevice(null)
-        setSelectedLogin(account.login)
-        await queryClient.invalidateQueries({ queryKey: ['githubAccounts'] })
-        toast('success', `已登录 GitHub：${account.login}`)
-        setTab('repos')
-      } catch (error) {
-        window.clearInterval(timer)
-        setDevice(null)
-        errorToast(error)
-      }
-    }, Math.max(5, device.interval) * 1000)
+    const timer = window.setInterval(
+      async () => {
+        try {
+          const account = await ipc.githubDevicePoll(clientId, device.deviceCode)
+          if (cancelled || !account) return
+          window.clearInterval(timer)
+          setDevice(null)
+          setSelectedLogin(account.login)
+          await queryClient.invalidateQueries({ queryKey: ['githubAccounts'] })
+          toast('success', `已登录 GitHub：${account.login}`)
+          setTab('repos')
+        } catch (error) {
+          window.clearInterval(timer)
+          setDevice(null)
+          errorToast(error)
+        }
+      },
+      Math.max(5, device.interval) * 1000
+    )
     return () => {
       cancelled = true
       window.clearInterval(timer)
@@ -176,7 +185,7 @@ export default function GitHubPanel() {
       )
       toast('success', 'Pull Request 已创建')
       setPrOpen(false)
-      await queryClient.invalidateQueries({ queryKey: ['githubPulls', repo.path] })
+      invalidateRepoQueries(queryClient, repo.path, ['githubPulls'])
     } catch (error) {
       errorToast(error)
     }
@@ -188,9 +197,7 @@ export default function GitHubPanel() {
     return items.filter((item) => {
       if (
         keyword &&
-        !`${item.title} #${item.number} ${item.user.login}`
-          .toLowerCase()
-          .includes(keyword)
+        !`${item.title} #${item.number} ${item.user.login}`.toLowerCase().includes(keyword)
       ) {
         return false
       }
@@ -408,13 +415,11 @@ export default function GitHubPanel() {
                 loading={tab === 'pulls' ? pullsQuery.isLoading : issuesQuery.isLoading}
                 items={filterIssues(
                   tab === 'pulls'
-                    ? pullsQuery.data ?? []
+                    ? (pullsQuery.data ?? [])
                     : (issuesQuery.data ?? []).filter((item) => !item.pullRequest)
                 )}
                 kind={tab === 'pulls' ? 'pull' : 'issue'}
-                onRefresh={() =>
-                  tab === 'pulls' ? pullsQuery.refetch() : issuesQuery.refetch()
-                }
+                onRefresh={() => (tab === 'pulls' ? pullsQuery.refetch() : issuesQuery.refetch())}
               />
             </div>
           )}
@@ -426,18 +431,14 @@ export default function GitHubPanel() {
                 <input
                   className="input mono"
                   value={prForm.head}
-                  onChange={(event) =>
-                    setPrForm({ ...prForm, head: event.target.value })
-                  }
+                  onChange={(event) => setPrForm({ ...prForm, head: event.target.value })}
                   placeholder="源分支"
                   list="github-branches"
                 />
                 <input
                   className="input mono"
                   value={prForm.base}
-                  onChange={(event) =>
-                    setPrForm({ ...prForm, base: event.target.value })
-                  }
+                  onChange={(event) => setPrForm({ ...prForm, base: event.target.value })}
                   placeholder="目标分支"
                   list="github-branches"
                 />
@@ -458,9 +459,7 @@ export default function GitHubPanel() {
                 <input
                   type="checkbox"
                   checked={prForm.draft}
-                  onChange={(event) =>
-                    setPrForm({ ...prForm, draft: event.target.checked })
-                  }
+                  onChange={(event) => setPrForm({ ...prForm, draft: event.target.checked })}
                 />
                 Draft Pull Request
               </label>
@@ -515,7 +514,11 @@ function GitHubIssueList({
         items.map((item) =>
           'repository' in item ? (
             <div key={item.id} className="github-list-row">
-              {item.unread ? <Bell size={14} className="text-[var(--accent)]" /> : <Bell size={14} />}
+              {item.unread ? (
+                <Bell size={14} className="text-[var(--accent)]" />
+              ) : (
+                <Bell size={14} />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div className="github-list-title">{item.subject.title}</div>
                 <div className="github-list-sub">

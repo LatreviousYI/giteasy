@@ -23,13 +23,7 @@ export default function FileInspector() {
     ],
     queryFn: () =>
       inspector?.lineStart && inspector.lineEnd
-        ? ipc.lineHistory(
-            repo!.path,
-            inspector!.file,
-            inspector.lineStart,
-            inspector.lineEnd,
-            200
-          )
+        ? ipc.lineHistory(repo!.path, inspector!.file, inspector.lineStart, inspector.lineEnd, 200)
         : ipc.fileHistory(repo!.path, inspector!.file, 200),
     enabled: !!repo && !!inspector && inspector.mode === 'history'
   })

@@ -24,10 +24,7 @@ try {
   // Selenium/geckodriver will use its PATH lookup when no explicit binary exists.
 }
 
-const driver = await new Builder()
-  .forBrowser('firefox')
-  .setFirefoxOptions(options)
-  .build()
+const driver = await new Builder().forBrowser('firefox').setFirefoxOptions(options).build()
 
 async function shot(relativePath, width, height) {
   await driver.manage().window().setRect({ width, height, x: 0, y: 0 })
@@ -43,10 +40,7 @@ try {
   await driver.wait(until.elementLocated(By.css('.file-row')), 15_000)
   await driver.wait(until.elementLocated(By.css('.branch-tree-folder')), 10_000)
   await driver.findElement(By.css("[title='折叠分支目录 feature']")).click()
-  await driver.wait(
-    until.elementLocated(By.css("[title='展开分支目录 feature']")),
-    5_000
-  )
+  await driver.wait(until.elementLocated(By.css("[title='展开分支目录 feature']")), 5_000)
   await driver.findElement(By.css("[title='展开分支目录 feature']")).click()
 
   await shot('light/changes-1440.png', 1440, 900)
@@ -69,9 +63,7 @@ try {
     verticalScrollCheck.scrollHeight <= verticalScrollCheck.clientHeight ||
     verticalScrollCheck.scrollTop <= 0
   ) {
-    throw new Error(
-      `Diff body cannot scroll vertically: ${JSON.stringify(verticalScrollCheck)}`
-    )
+    throw new Error(`Diff body cannot scroll vertically: ${JSON.stringify(verticalScrollCheck)}`)
   }
   const diffRowFillCheck = await driver.executeScript(`
     const body = document.querySelector('.diff-body');
@@ -166,9 +158,7 @@ try {
       .dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
   `)
 
-  await driver.executeScript(
-    "document.querySelector(\"[title='Diff 显示选项']\").click()"
-  )
+  await driver.executeScript('document.querySelector("[title=\'Diff 显示选项\']").click()')
   const splitControlCount = await driver.executeScript(`
     return [...document.querySelectorAll('.diff-options-menu button')]
       .filter((button) => button.textContent.includes('分栏')).length +
@@ -177,9 +167,7 @@ try {
   if (splitControlCount > 0) {
     throw new Error(`Split diff controls still present: ${splitControlCount}`)
   }
-  await driver.executeScript(
-    "document.querySelector(\"[title='Diff 显示选项']\").click()"
-  )
+  await driver.executeScript('document.querySelector("[title=\'Diff 显示选项\']").click()')
 
   await driver.findElement(By.css("[title='专注详情']")).click()
   await shot('light/history-focus-1440.png', 1440, 900)

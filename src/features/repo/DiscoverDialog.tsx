@@ -6,13 +6,7 @@ import { useOpenRepo } from '../../lib/actions'
 import Modal from '../../components/Modal'
 import { Empty, Spinner } from '../../components/Empty'
 
-export default function DiscoverDialog({
-  root,
-  onClose
-}: {
-  root: string
-  onClose: () => void
-}) {
+export default function DiscoverDialog({ root, onClose }: { root: string; onClose: () => void }) {
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
   const openRepo = useOpenRepo()
@@ -80,7 +74,10 @@ export default function DiscoverDialog({
               <span className="truncate" style={{ flex: 1 }}>
                 {path.split('/').filter(Boolean).slice(-1)[0]}
               </span>
-              <span className="text-[10.5px] text-[var(--text-subtle)] truncate" style={{ maxWidth: 320 }}>
+              <span
+                className="text-[10.5px] text-[var(--text-subtle)] truncate"
+                style={{ maxWidth: 320 }}
+              >
                 {path}
               </span>
             </div>

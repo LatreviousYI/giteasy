@@ -28,14 +28,8 @@ export default function WorktreeDialog({
   const repo = useApp((state) => state.repo)
   const toast = useApp((state) => state.toast)
   const errorToast = useApp((state) => state.errorToast)
-  const localBranches = useMemo(
-    () => branches.filter((branch) => !branch.isRemote),
-    [branches]
-  )
-  const remoteBranches = useMemo(
-    () => branches.filter((branch) => branch.isRemote),
-    [branches]
-  )
+  const localBranches = useMemo(() => branches.filter((branch) => !branch.isRemote), [branches])
+  const remoteBranches = useMemo(() => branches.filter((branch) => branch.isRemote), [branches])
   const existingBranches = localBranches.filter((branch) => !branch.isHead)
   const suggestedName = initialBranch ? remoteLocalName(initialBranch) : 'worktree'
   const [mode, setMode] = useState<CreateMode>('new')
@@ -67,26 +61,11 @@ export default function WorktreeDialog({
     setBusy(true)
     try {
       if (mode === 'new') {
-        await ipc.worktreeAdd(
-          repo.path,
-          dir.trim(),
-          branchName.trim(),
-          true,
-          startPoint || null
-        )
+        await ipc.worktreeAdd(repo.path, dir.trim(), branchName.trim(), true, startPoint || null)
       } else {
-        await ipc.worktreeAdd(
-          repo.path,
-          dir.trim(),
-          existingBranch,
-          false,
-          null
-        )
+        await ipc.worktreeAdd(repo.path, dir.trim(), existingBranch, false, null)
       }
-      toast(
-        'success',
-        `已创建 Worktree ${mode === 'new' ? branchName.trim() : existingBranch}`
-      )
+      toast('success', `已创建 Worktree ${mode === 'new' ? branchName.trim() : existingBranch}`)
       onCreated()
       onClose()
     } catch (error) {
@@ -98,8 +77,7 @@ export default function WorktreeDialog({
 
   const canCreate =
     !!dir.trim() &&
-    ((mode === 'new' && !!branchName.trim()) ||
-      (mode === 'existing' && !!existingBranch))
+    ((mode === 'new' && !!branchName.trim()) || (mode === 'existing' && !!existingBranch))
 
   return (
     <Modal

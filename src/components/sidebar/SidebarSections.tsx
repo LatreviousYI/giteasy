@@ -75,9 +75,7 @@ export function buildBranchTree(entries: BranchTreeEntry[]): BranchTreeNode[] {
     if (current) current.branch = entry.branch
   }
 
-  const materialize = (
-    directories: Map<string, MutableBranchTreeNode>
-  ): BranchTreeNode[] =>
+  const materialize = (directories: Map<string, MutableBranchTreeNode>): BranchTreeNode[] =>
     [...directories.values()]
       .sort((left, right) => left.name.localeCompare(right.name))
       .map((node) => ({
@@ -135,9 +133,7 @@ function BranchTree({
         onDoubleClick={() => {
           if (kind === 'remote' || !branch.isHead) onCheckout(branch)
         }}
-        onContextMenu={
-          onContextMenu ? (event) => onContextMenu(event, branch) : undefined
-        }
+        onContextMenu={onContextMenu ? (event) => onContextMenu(event, branch) : undefined}
         title={`${branch.subject}\n${
           kind === 'remote' ? '双击检出并跟踪该远程分支' : '双击切换分支，右键查看更多操作'
         }`}
@@ -145,19 +141,14 @@ function BranchTree({
         {kind === 'remote' ? (
           <span className="text-subtle text-[10px]">◌</span>
         ) : (
-          <GitBranch
-            size={13}
-            className={branch.isHead ? 'text-[var(--accent)]' : 'text-subtle'}
-          />
+          <GitBranch size={13} className={branch.isHead ? 'text-[var(--accent)]' : 'text-subtle'} />
         )}
         <span className="truncate" style={{ flex: 1 }}>
           {name}
         </span>
         {branch.ahead > 0 && <span className="row-sub">↑{branch.ahead}</span>}
         {branch.behind > 0 && <span className="row-sub">↓{branch.behind}</span>}
-        {kind === 'local' && branch.isHead && (
-          <Check size={12} className="text-[var(--accent)]" />
-        )}
+        {kind === 'local' && branch.isHead && <Check size={12} className="text-[var(--accent)]" />}
         {renderActions?.(branch, name)}
       </div>
     )
@@ -402,13 +393,7 @@ interface TagSectionProps {
   onDelete: (tag: TagDto) => void
 }
 
-export function TagSection({
-  tags,
-  onCreate,
-  onCheckout,
-  onPush,
-  onDelete
-}: TagSectionProps) {
+export function TagSection({ tags, onCreate, onCheckout, onPush, onDelete }: TagSectionProps) {
   return (
     <div className="section">
       <div className="section-head">
@@ -427,9 +412,7 @@ export function TagSection({
       </div>
       <div className="section-body">
         {tags.length === 0 && (
-          <div className="px-2 py-1 text-[11px] text-[var(--text-subtle)]">
-            暂无标签
-          </div>
+          <div className="px-2 py-1 text-[11px] text-[var(--text-subtle)]">暂无标签</div>
         )}
         {tags.map((tag) => (
           <div key={tag.name} className="list-row" title={tag.message ?? tag.shortOid}>
@@ -487,13 +470,7 @@ interface StashSectionProps {
   onDelete: (stash: StashDto) => void
 }
 
-export function StashSection({
-  stashes,
-  onCreate,
-  onPreview,
-  onPop,
-  onDelete
-}: StashSectionProps) {
+export function StashSection({ stashes, onCreate, onPreview, onPop, onDelete }: StashSectionProps) {
   return (
     <div className="section">
       <div className="section-head">
@@ -512,9 +489,7 @@ export function StashSection({
       </div>
       <div className="section-body">
         {stashes.length === 0 && (
-          <div className="px-2 py-1 text-[11px] text-[var(--text-subtle)]">
-            暂无储藏
-          </div>
+          <div className="px-2 py-1 text-[11px] text-[var(--text-subtle)]">暂无储藏</div>
         )}
         {stashes.map((stash) => (
           <div
@@ -558,7 +533,6 @@ export function StashSection({
 
 interface SubmoduleSectionProps {
   submodules: SubmoduleDto[]
-  repoPath: string
   onUpdate: () => void
   onOpen: (submodule: SubmoduleDto) => void
   onAdd: () => void
@@ -568,7 +542,6 @@ interface SubmoduleSectionProps {
 
 export function SubmoduleSection({
   submodules,
-  repoPath,
   onUpdate,
   onOpen,
   onAdd,
@@ -611,8 +584,7 @@ export function SubmoduleSection({
             <span
               className="w-1.5 h-1.5 rounded-full"
               style={{
-                background:
-                  submodule.status === 'clean' ? 'var(--add-fg)' : 'var(--warn-fg)'
+                background: submodule.status === 'clean' ? 'var(--add-fg)' : 'var(--warn-fg)'
               }}
             />
             <span className="truncate" style={{ flex: 1 }}>
@@ -702,9 +674,7 @@ export function WorktreeSection({
             <span className="truncate" style={{ flex: 1 }}>
               {worktree.branch ?? splitPath(worktree.path).name}
             </span>
-            <span className="worktree-badge">
-              {worktree.path === repoPath ? '主' : '附加'}
-            </span>
+            <span className="worktree-badge">{worktree.path === repoPath ? '主' : '附加'}</span>
             {worktree.path !== repoPath && (
               <>
                 <button

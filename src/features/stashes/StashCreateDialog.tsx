@@ -44,22 +44,17 @@ export default function StashCreateDialog({
     })
   }
 
-  const allSelected =
-    selectable.length > 0 && selectable.every((file) => selected.has(file.path))
+  const allSelected = selectable.length > 0 && selectable.every((file) => selected.has(file.path))
   const selectedFiles = selectable.filter((file) => selected.has(file.path))
   const toggleAll = () => {
-    setSelected(
-      allSelected ? new Set() : new Set(selectable.map((file) => file.path))
-    )
+    setSelected(allSelected ? new Set() : new Set(selectable.map((file) => file.path)))
   }
 
   const create = async () => {
     if (!selectedFiles.length || busy) return
     setBusy(true)
     try {
-      const includeUntracked = selectedFiles.some(
-        (file) => file.worktree === 'untracked'
-      )
+      const includeUntracked = selectedFiles.some((file) => file.worktree === 'untracked')
       await ipc.stashSave(
         repoPath,
         message.trim() || null,
@@ -133,9 +128,7 @@ export default function StashCreateDialog({
       </div>
 
       <div className="stash-file-list">
-        {files.length === 0 && (
-          <div className="stash-file-empty">当前没有可储藏的改动。</div>
-        )}
+        {files.length === 0 && <div className="stash-file-empty">当前没有可储藏的改动。</div>}
         {files.map((file) => {
           const checked = selected.has(file.path)
           return (

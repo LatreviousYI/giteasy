@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { listen } from '@tauri-apps/api/event'
 import { getCurrentWebview } from '@tauri-apps/api/webview'
 import { useApp } from './store/app'
-import { useSettings, useStatus } from './lib/queries'
+import { invalidateRepoQueries, useSettings, useStatus } from './lib/queries'
 import { ipc } from './lib/ipc'
 import { useOpenRepo } from './lib/actions'
 import { useUpdates } from './store/updates'
@@ -31,9 +31,7 @@ const PatchDialog = lazy(() => import('./features/patch/PatchDialog'))
 const LfsPanel = lazy(() => import('./features/lfs/LfsPanel'))
 const ToolsPanel = lazy(() => import('./features/tools/ToolsPanel'))
 const BisectDialog = lazy(() => import('./features/bisect/BisectDialog'))
-const RepositoryManagerDialog = lazy(
-  () => import('./features/repo/RepositoryManagerDialog')
-)
+const RepositoryManagerDialog = lazy(() => import('./features/repo/RepositoryManagerDialog'))
 
 export default function App() {
   const repo = useApp((s) => s.repo)
@@ -75,10 +73,7 @@ export default function App() {
           useApp.getState().openRepoWorkspace(info)
           useApp
             .getState()
-            .setRepoViewState(
-              info.path,
-              workspace.views[repoId] ?? createRepoViewState()
-            )
+            .setRepoViewState(info.path, workspace.views[repoId] ?? createRepoViewState())
           opened.push(info.path)
         } catch (error) {
           firstError ??= error
@@ -151,7 +146,7 @@ export default function App() {
       '--font-mono',
       `"${settings.monoFont}", "JetBrains Mono", monospace`
     )
-  }, [settings?.fontSize, settings?.monoFont])
+  }, [settings])
 
   useEffect(() => {
     if (!isTauri) return
@@ -159,21 +154,7 @@ export default function App() {
     listen('repo://changed', (event) => {
       const payload = event.payload as { repoPath?: string }
       if (!repo?.path || payload.repoPath !== repo.path) return
-      for (const key of [
-        'status',
-        'log',
-        'branches',
-        'tags',
-        'remotes',
-        'stashes',
-        'conflicts',
-        'submodules',
-        'worktrees',
-        'commit',
-        'diff'
-      ]) {
-        queryClient.invalidateQueries({ queryKey: [key, repo.path] })
-      }
+      invalidateRepoQueries(queryClient, repo.path)
     })
       .then((fn) => {
         unlisten = fn
@@ -196,7 +177,7 @@ export default function App() {
       })
       .catch(() => undefined)
     return () => unlisten?.()
-  }, [])
+  }, [openRepo])
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
@@ -225,20 +206,19 @@ export default function App() {
   }, [setPaletteOpen, setSettingsOpen, setView])
 
   const autoFetch = settings?.autoFetchMinutes ?? 0
+  const repoPath = repo?.path
   useEffect(() => {
-    if (!repo || !autoFetch || autoFetch <= 0) return
+    if (!repoPath || !autoFetch || autoFetch <= 0) return
     const timer = window.setInterval(() => {
       ipc
-        .fetch(repo.path, null, () => undefined)
+        .fetch(repoPath, null, () => undefined)
         .then(() => {
-          for (const key of ['status', 'log', 'branches']) {
-            queryClient.invalidateQueries({ queryKey: [key, repo.path] })
-          }
+          invalidateRepoQueries(queryClient, repoPath, ['status', 'log', 'branches'])
         })
         .catch(() => undefined)
     }, autoFetch * 60_000)
     return () => window.clearInterval(timer)
-  }, [repo?.path, autoFetch, queryClient])
+  }, [repoPath, autoFetch, queryClient])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

@@ -22,10 +22,7 @@ export default function PushBranchDialog({
   const invalidate = useInvalidateRepo(repo?.path ?? null)
 
   const upstreamRemote = branch.upstream?.split('/')[0] ?? null
-  const [remoteName, setRemoteName] = useState(
-    upstreamRemote ??
-      ''
-  )
+  const [remoteName, setRemoteName] = useState(upstreamRemote ?? '')
   const [hydratedRemote, setHydratedRemote] = useState<string | null>(null)
   const [mode, setMode] = useState<'existing' | 'new'>('new')
   const [existingTarget, setExistingTarget] = useState('')
@@ -81,14 +78,8 @@ export default function PushBranchDialog({
     setBusy(true)
     setProgress(null)
     try {
-      await ipc.push(
-        repo.path,
-        remoteName,
-        branch.name,
-        target,
-        force,
-        setUpstream,
-        (event) => setProgress(event)
+      await ipc.push(repo.path, remoteName, branch.name, target, force, setUpstream, (event) =>
+        setProgress(event)
       )
       invalidate()
       toast('success', `已推送 ${branch.name} → ${remoteName}/${target}`)

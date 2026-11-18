@@ -64,8 +64,8 @@ fn compute_patch(
     let delta_index =
         delta_index.ok_or_else(|| AppError::not_found(format!("找不到文件差异：{file}")))?;
     let delta = diff.get_delta(delta_index).unwrap();
-    let new_file = stage_mode
-        && matches!(delta.status(), git2::Delta::Added | git2::Delta::Untracked);
+    let new_file =
+        stage_mode && matches!(delta.status(), git2::Delta::Added | git2::Delta::Untracked);
     let deletion = matches!(delta.status(), git2::Delta::Deleted);
     if !matches!(delta.status(), git2::Delta::Modified) && !new_file && !deletion {
         return Err(AppError::user(
@@ -203,12 +203,7 @@ pub async fn apply_selection_impl(
     let patch_file = file.to_string();
     let patch_mode = mode.to_string();
     let patch_text = tauri::async_runtime::spawn_blocking(move || {
-        compute_patch(
-            &patch_path,
-            &patch_file,
-            &patch_mode,
-            &selections,
-        )
+        compute_patch(&patch_path, &patch_file, &patch_mode, &selections)
     })
     .await
     .map_err(|error| {

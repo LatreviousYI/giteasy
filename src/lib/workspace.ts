@@ -8,9 +8,7 @@ export function loadPersistedWorkspace(): PersistedWorkspace | null {
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<PersistedWorkspace>
     if (!Array.isArray(parsed.tabs)) return null
-    const tabs = parsed.tabs.filter(
-      (repoId): repoId is string => typeof repoId === 'string'
-    )
+    const tabs = parsed.tabs.filter((repoId): repoId is string => typeof repoId === 'string')
     const views: Record<string, RepoViewState> = {}
     for (const repoId of tabs) {
       const saved = parsed.views?.[repoId]
@@ -20,8 +18,7 @@ export function loadPersistedWorkspace(): PersistedWorkspace | null {
         selectedFileStaged: Boolean(saved?.selectedFileStaged),
         selectedCommit: typeof saved?.selectedCommit === 'string' ? saved.selectedCommit : null,
         diffIgnoreWhitespace: Boolean(saved?.diffIgnoreWhitespace),
-        diffContextLines:
-          typeof saved?.diffContextLines === 'number' ? saved.diffContextLines : 3,
+        diffContextLines: typeof saved?.diffContextLines === 'number' ? saved.diffContextLines : 3,
         pullStrategy:
           saved?.pullStrategy === 'merge' || saved?.pullStrategy === 'rebase'
             ? saved.pullStrategy
@@ -36,8 +33,7 @@ export function loadPersistedWorkspace(): PersistedWorkspace | null {
     }
     return {
       tabs,
-      activeRepoId:
-        typeof parsed.activeRepoId === 'string' ? parsed.activeRepoId : null,
+      activeRepoId: typeof parsed.activeRepoId === 'string' ? parsed.activeRepoId : null,
       views
     }
   } catch {

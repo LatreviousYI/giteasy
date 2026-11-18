@@ -2,7 +2,67 @@
 
 > 规则：每完成一项功能、修复或交互调整，都必须在本文件追加一条对应记录（日期、变更内容、验证方式）。未记录的工作视为未完成。
 
+## 2026-11-18
+
+### 发布流水线加速
+
+- 将前端和后端测试从两个平台构建任务中移出，改为发布工作流中单独并行执行的验证任务。
+- 发布任务等待验证、Linux 构建和 macOS 构建全部成功后统一发布，保持质量门禁不变。
+- 为静态检查、Ubuntu 验证、Linux 构建和 macOS 构建接入 Rust 编译缓存，降低重复依赖编译时间。
+
 ## 2026-11-16
+
+### 窗口控制
+
+- 顶部栏新增最小化、最大化/还原和关闭按钮。
+- 主窗口改为无边框，并保留顶部拖拽区域。
+- 显式接入 Tauri 窗口控制和拖拽权限。
+- 修复点击品牌、标签文字等子元素时无法拖动窗口的问题；按钮、输入框和仓库标签仍保持可交互。
+
+### Sidebar 仓库菜单拆分
+
+- 将仓库切换菜单拆为纯展示组件 `SidebarRepoMenu`，查询、状态与 IPC 命令仍保留在 Sidebar。
+- 新增菜单动作回调测试，并保持最近仓库、打开、初始化、扫描、终端和关闭行为不变。
+- `Sidebar.tsx` 从 723 行降至 679 行，本轮只迁移一个独立展示边界。
+- 验证：`npm run test:frontend`（49 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
+### 对话框可访问性
+
+- `Modal` 增加 `role="dialog"`、`aria-modal`、可访问标题和关闭按钮名称。
+- 新增共享 `useModalFocus`：顶层对话框处理 Escape、Tab 焦点循环、初始焦点与关闭后焦点恢复。
+- `PromptDialog` 的 label 与输入框建立关联，命令面板复用同一焦点管理并补齐 dialog 语义。
+- 新增 Modal 语义、焦点锁定、焦点恢复和 Prompt label 组件测试。
+- 验证：`npm run test:frontend`（47 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
+### 前端稳定工具收敛
+
+- 新增统一的错误标准化、剪贴板 toast、活动时间和文件大小格式化工具。
+- Activity、历史、设置、Diff 与 Patch 的剪贴板操作改为复用 `copyTextWithToast`。
+- `invalidateRepoQueries` 统一覆盖全部仓库级查询域，watcher、自动 Fetch、GitHub PR 和业务 Mutation 共用同一刷新入口。
+- 新增错误标准化、剪贴板、格式化和查询 invalidation 测试。
+- 验证：`npm run test:frontend`（44 项）、ESLint、TypeScript 和 Prettier 检查通过。
+
+### 共享 Git 执行层
+
+- 新增统一 Git command builder，普通执行与流式执行共享固定环境变量和额外环境变量覆盖规则。
+- 新增 `GitInvocation` 统一处理启动、等待、认证/冲突等失败映射以及 Activity 成功/失败记录。
+- 普通 Git 执行和 Fetch/Pull/Push/Rebase 等流式操作不再各自维护命令环境与日志路径。
+- 新增命令环境、认证错误映射和 Activity 记录测试。
+- 验证：`npm run test:backend`（35 项）、Clippy 和 rustfmt 检查通过。
+
+### Mutex 毒化恢复
+
+- 新增统一的 `lock_or_recover` helper，在锁持有者 panic 后恢复内部状态，避免命令路径直接 panic。
+- 迁移 settings、watcher、Activity、GitHub、RepoSession 和 Git 流式输出缓冲的生产锁调用。
+- 新增 Mutex poisoning recovery 单元测试。
+- 验证：`npm run test:backend`（32 项）、Clippy 和 rustfmt 检查通过。
+
+### 静态质量门禁
+
+- 接入 ESLint、Prettier、rustfmt 和 Clippy，新增对应的 npm scripts。
+- 新增 `Static Checks` GitHub Actions 工作流，在 PR 和 `master` / `dev` 推送时执行前后端静态检查。
+- 统一 TypeScript 文件的无分号、单引号和 100 列格式基线。
+- 验证：`npm run lint`、`npm run format:check`、`npm run rust:fmt:check`、`npm run rust:clippy`。
 
 ### 自动发布流程
 

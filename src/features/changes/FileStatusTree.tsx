@@ -50,10 +50,7 @@ function buildTree(files: FileStatus[]): DirectoryNode {
 }
 
 function filesBelow(directory: DirectoryNode): string[] {
-  return [
-    ...directory.files.map((file) => file.path),
-    ...directory.directories.flatMap(filesBelow)
-  ]
+  return [...directory.files.map((file) => file.path), ...directory.directories.flatMap(filesBelow)]
 }
 
 interface FileStatusTreeProps {
@@ -231,7 +228,12 @@ export default function FileStatusTree({
         {actionLabel && (
           <button
             disabled={busy}
-            onClick={() => onStage(files.map((file) => file.path), !groupStaged)}
+            onClick={() =>
+              onStage(
+                files.map((file) => file.path),
+                !groupStaged
+              )
+            }
           >
             {actionLabel}
           </button>

@@ -23,14 +23,11 @@ async function replaceVersion(relativePath, count) {
   const target = path.join(root, relativePath)
   const source = await fs.readFile(target, 'utf8')
   let replaced = 0
-  const updated = source.replace(
-    /("version"\s*:\s*")[^"]+(")/g,
-    (match, prefix, suffix) => {
-      if (replaced >= count) return match
-      replaced += 1
-      return `${prefix}${version}${suffix}`
-    }
-  )
+  const updated = source.replace(/("version"\s*:\s*")[^"]+(")/g, (match, prefix, suffix) => {
+    if (replaced >= count) return match
+    replaced += 1
+    return `${prefix}${version}${suffix}`
+  })
   if (replaced !== count) {
     throw new Error(`expected ${count} versions in ${relativePath}, found ${replaced}`)
   }

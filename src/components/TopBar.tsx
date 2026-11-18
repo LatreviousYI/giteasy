@@ -26,6 +26,8 @@ import { useUpdates } from '../store/updates'
 import type { PullMode, StatusDto } from '../lib/types'
 import { ConfirmDialog } from './Dialogs'
 import { pickDirectory, useOpenRepo } from '../lib/actions'
+import WindowControls from './WindowControls'
+import { useWindowDrag } from '../lib/useWindowDrag'
 
 const PULL_MODES: Array<{ mode: PullMode; title: string; hint: string }> = [
   {
@@ -57,10 +59,11 @@ export default function TopBar({ status }: { status?: StatusDto }) {
   const openRepo = useOpenRepo()
   const { runRemote, remotes } = useRemoteActions()
   const savedPullStrategy = useApp((state) =>
-    state.repo ? state.repoStates[state.repo.path]?.pullStrategy ?? null : null
+    state.repo ? (state.repoStates[state.repo.path]?.pullStrategy ?? null) : null
   )
   const updateAvailable = useUpdates((state) => state.status === 'available')
   const availableVersion = useUpdates((state) => state.availableVersion)
+  const dragWindow = useWindowDrag(errorToast)
   const [busy, setBusy] = useState<string | null>(null)
   const [pushMenuOpen, setPushMenuOpen] = useState(false)
   const [pullMenuOpen, setPullMenuOpen] = useState(false)
@@ -123,7 +126,7 @@ export default function TopBar({ status }: { status?: StatusDto }) {
 
   return (
     <header className="topbar workspace-topbar">
-      <div className="topbar-tabs">
+      <div className="topbar-tabs" onMouseDown={dragWindow}>
         <div className="brand">
           <span className="brand-mark">G</span>
           <span>GitEasy</span>
@@ -186,43 +189,23 @@ export default function TopBar({ status }: { status?: StatusDto }) {
         </button>
         <div className="topbar-global-actions">
           {repo && (
-            <button
-              className="icon-btn"
-              title="操作记录"
-              onClick={() => setActivityOpen(true)}
-            >
+            <button className="icon-btn" title="操作记录" onClick={() => setActivityOpen(true)}>
               <Activity size={16} />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="工具与自定义命令"
-            onClick={() => setToolsOpen(true)}
-          >
+          <button className="icon-btn" title="工具与自定义命令" onClick={() => setToolsOpen(true)}>
             <Wrench size={16} />
           </button>
           {repo && (
-            <button
-              className="icon-btn"
-              title="Git LFS"
-              onClick={() => setLfsOpen(true)}
-            >
+            <button className="icon-btn" title="Git LFS" onClick={() => setLfsOpen(true)}>
               <HardDrive size={16} />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="GitHub"
-            onClick={() => setGithubOpen(true)}
-          >
+          <button className="icon-btn" title="GitHub" onClick={() => setGithubOpen(true)}>
             <Github size={16} />
           </button>
           {repo && (
-            <button
-              className="icon-btn"
-              title="Patch 工具"
-              onClick={() => setPatchOpen(true)}
-            >
+            <button className="icon-btn" title="Patch 工具" onClick={() => setPatchOpen(true)}>
               <FileDown size={16} />
             </button>
           )}
@@ -243,14 +226,11 @@ export default function TopBar({ status }: { status?: StatusDto }) {
               <span className="update-dot" />
             </button>
           )}
-          <button
-            className="icon-btn"
-            title="设置"
-            onClick={() => setSettingsOpen(true)}
-          >
+          <button className="icon-btn" title="设置" onClick={() => setSettingsOpen(true)}>
             <Settings size={16} />
           </button>
         </div>
+        <WindowControls />
       </div>
 
       <div className="topbar-toolbar">
@@ -355,13 +335,9 @@ export default function TopBar({ status }: { status?: StatusDto }) {
                       <button
                         key={option.mode}
                         className="pull-menu-item"
-                        onClick={() =>
-                          handleRemote('pull', false, undefined, option.mode)
-                        }
+                        onClick={() => handleRemote('pull', false, undefined, option.mode)}
                       >
-                        <span className="pull-menu-check">
-                          {remembered && <Check size={12} />}
-                        </span>
+                        <span className="pull-menu-check">{remembered && <Check size={12} />}</span>
                         <span className="pull-menu-copy">
                           <strong>{option.title}</strong>
                           <span>{option.hint}</span>

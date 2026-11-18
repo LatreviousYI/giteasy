@@ -1,11 +1,6 @@
 import { create } from 'zustand'
-import type {
-  AppError,
-  ProgressEvent,
-  PullStrategy,
-  RepoInfo,
-  Settings
-} from '../lib/types'
+import { normalizeError } from '../lib/errors'
+import type { ProgressEvent, PullStrategy, RepoInfo, Settings } from '../lib/types'
 import {
   createRepoViewState,
   snapshotRepoViewState,
@@ -112,10 +107,7 @@ interface AppStore {
   dismissToast: (id: string) => void
 }
 
-function activeRepoPatch(
-  state: AppStore,
-  patch: Partial<RepoViewState>
-): Partial<AppStore> {
+function activeRepoPatch(state: AppStore, patch: Partial<RepoViewState>): Partial<AppStore> {
   if (!state.repo) return patch
   const current = state.repoStates[state.repo.path] ?? createRepoViewState()
   return {
@@ -125,20 +117,6 @@ function activeRepoPatch(
       [state.repo.path]: { ...current, ...patch }
     }
   }
-}
-
-function normalizeError(error: unknown): AppError {
-  if (error && typeof error === 'object' && 'message' in error) {
-    const candidate = error as Partial<AppError>
-    return {
-      kind: candidate.kind ?? 'unknown',
-      code: candidate.code ?? 'E_UNKNOWN',
-      message: String(candidate.message ?? '未知错误'),
-      hint: candidate.hint,
-      detail: candidate.detail
-    }
-  }
-  return { kind: 'unknown', code: 'E_UNKNOWN', message: String(error) }
 }
 
 export const useApp = create<AppStore>((set, get) => ({
@@ -209,8 +187,7 @@ export const useApp = create<AppStore>((set, get) => ({
         return { workspaceTabs, repos, repoStates }
       }
 
-      const nextRepoId =
-        workspaceTabs[Math.max(0, closingIndex - 1)] ?? workspaceTabs[0] ?? null
+      const nextRepoId = workspaceTabs[Math.max(0, closingIndex - 1)] ?? workspaceTabs[0] ?? null
       if (!nextRepoId) {
         return {
           repo: null,
@@ -286,12 +263,9 @@ export const useApp = create<AppStore>((set, get) => ({
   selectedFile: null,
   selectedFileStaged: false,
   selectFile: (file, staged = false) =>
-    set((state) =>
-      activeRepoPatch(state, { selectedFile: file, selectedFileStaged: staged })
-    ),
+    set((state) => activeRepoPatch(state, { selectedFile: file, selectedFileStaged: staged })),
   selectedCommit: null,
-  selectCommit: (oid) =>
-    set((state) => activeRepoPatch(state, { selectedCommit: oid })),
+  selectCommit: (oid) => set((state) => activeRepoPatch(state, { selectedCommit: oid })),
   diffIgnoreWhitespace: false,
   setDiffIgnoreWhitespace: (diffIgnoreWhitespace) =>
     set((state) => activeRepoPatch(state, { diffIgnoreWhitespace })),
@@ -335,8 +309,7 @@ export const useApp = create<AppStore>((set, get) => ({
         }
       })
     ),
-  closeInspector: () =>
-    set((state) => activeRepoPatch(state, { inspector: null })),
+  closeInspector: () => set((state) => activeRepoPatch(state, { inspector: null })),
   sshPrompt: null,
   setSshPrompt: (sshPrompt) => set({ sshPrompt }),
   toasts: [],

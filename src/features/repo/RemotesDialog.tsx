@@ -89,7 +89,10 @@ export default function RemotesDialog({
                     <span className="mono text-[12px]" style={{ width: 88, flex: '0 0 88px' }}>
                       {remote.name}
                     </span>
-                    <span className="truncate text-[11.5px] text-[var(--text-muted)]" style={{ flex: 1 }}>
+                    <span
+                      className="truncate text-[11.5px] text-[var(--text-muted)]"
+                      style={{ flex: 1 }}
+                    >
                       {remote.url}
                     </span>
                     <button
@@ -152,7 +155,8 @@ export default function RemotesDialog({
         busy={busy}
         message={
           <span>
-            确定删除远程 <span className="mono">{removeTarget}</span> 吗？此操作只影响本地配置，不会删除远程服务器上的仓库。
+            确定删除远程 <span className="mono">{removeTarget}</span>{' '}
+            吗？此操作只影响本地配置，不会删除远程服务器上的仓库。
           </span>
         }
         onCancel={() => setRemoveTarget(null)}

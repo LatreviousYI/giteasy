@@ -2,12 +2,9 @@ use crate::error::AppError;
 use crate::model::ProgressEvent;
 use crate::util;
 use std::path::Path;
-use std::process::Stdio;
 use std::sync::{Arc, Mutex};
-use std::time::Instant;
 use tauri::{ipc::Channel, State};
 use tokio::io::{AsyncRead, AsyncReadExt};
-use tokio::process::Command;
 
 fn parse_progress(line: &str) -> ProgressEvent {
     let lower = line.to_lowercase();
@@ -75,14 +72,15 @@ async fn pump<R: AsyncRead + Unpin>(
             if text.is_empty() {
                 continue;
             }
-            collected.lock().unwrap().push_str(&text);
-            collected.lock().unwrap().push('\n');
+            let mut buffer = util::lock_or_recover(&collected);
+            buffer.push_str(&text);
+            buffer.push('\n');
             let _ = on_event.send(parse_progress(&text));
         }
     }
     let text = pending.trim().to_string();
     if !text.is_empty() {
-        collected.lock().unwrap().push_str(&text);
+        util::lock_or_recover(&collected).push_str(&text);
         let _ = on_event.send(parse_progress(&text));
     }
 }
@@ -101,9 +99,7 @@ pub(crate) async fn run_stream_env(
     envs: &[(&str, String)],
     on_event: &Channel<ProgressEvent>,
 ) -> Result<(), AppError> {
-    let command = crate::activity::command_text("git", args);
-    let started_at = crate::activity::now_millis();
-    let timer = Instant::now();
+    let invocation = util::GitInvocation::new(args);
     let _ = on_event.send(ProgressEvent {
         phase: "start".to_string(),
         percent: None,
@@ -112,72 +108,40 @@ pub(crate) async fn run_stream_env(
         error: None,
     });
 
-    let mut cmd = Command::new("git");
-    cmd.current_dir(path)
-        .args(args)
-        .env("GIT_TERMINAL_PROMPT", "0")
-        .env("LC_ALL", "C")
-        .env("GIT_EDITOR", "true")
-        .env("GIT_MERGE_AUTOEDIT", "no")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped());
-    for (key, value) in envs {
-        cmd.env(key, value);
-    }
-    let mut child = match cmd.spawn() {
-        Ok(child) => child,
-        Err(error) => {
-            let error = AppError::from(error);
-            crate::activity::record_error(
-                path,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let mut cmd = util::git_command(path, args, false, envs);
+    let mut child = cmd
+        .spawn()
+        .map_err(|error| invocation.spawn_error(path, error))?;
 
     let out_buf = Arc::new(Mutex::new(String::new()));
     let err_buf = Arc::new(Mutex::new(String::new()));
     let mut handles = Vec::new();
     if let Some(stdout) = child.stdout.take() {
-        handles.push(tokio::spawn(pump(stdout, on_event.clone(), out_buf.clone())));
+        handles.push(tokio::spawn(pump(
+            stdout,
+            on_event.clone(),
+            out_buf.clone(),
+        )));
     }
     if let Some(stderr) = child.stderr.take() {
-        handles.push(tokio::spawn(pump(stderr, on_event.clone(), err_buf.clone())));
+        handles.push(tokio::spawn(pump(
+            stderr,
+            on_event.clone(),
+            err_buf.clone(),
+        )));
     }
-    let status = match child.wait().await {
-        Ok(status) => status,
-        Err(error) => {
-            let error = AppError::from(error);
-            crate::activity::record_error(
-                path,
-                &command,
-                started_at,
-                timer.elapsed().as_millis() as u64,
-                &error,
-            );
-            return Err(error);
-        }
-    };
+    let status = child
+        .wait()
+        .await
+        .map_err(|error| invocation.io_error(path, error))?;
     for handle in handles {
         let _ = handle.await;
     }
 
-    let stdout_text = out_buf.lock().unwrap().clone();
-    let stderr_text = err_buf.lock().unwrap().clone();
+    let stdout_text = util::lock_or_recover(&out_buf).clone();
+    let stderr_text = util::lock_or_recover(&err_buf).clone();
     if !status.success() {
-        let err = util::map_git_failure(stderr_text, stdout_text);
-        crate::activity::record_error(
-            path,
-            &command,
-            started_at,
-            timer.elapsed().as_millis() as u64,
-            &err,
-        );
+        let err = invocation.failure(path, stderr_text, stdout_text);
         let _ = on_event.send(ProgressEvent {
             phase: "error".to_string(),
             percent: None,
@@ -187,14 +151,7 @@ pub(crate) async fn run_stream_env(
         });
         return Err(err);
     }
-    crate::activity::record_success(
-        path,
-        &command,
-        started_at,
-        timer.elapsed().as_millis() as u64,
-        &stdout_text,
-        &stderr_text,
-    );
+    invocation.success(path, &stdout_text, &stderr_text);
     let _ = on_event.send(ProgressEvent {
         phase: "done".to_string(),
         percent: Some(100.0),
@@ -270,12 +227,9 @@ pub async fn discard_paths(
             )
             .await;
             if restored.is_err() {
-                let _ = util::git_output(
-                    &path,
-                    &["restore", "--staged", "--", file.as_str()],
-                    None,
-                )
-                .await;
+                let _ =
+                    util::git_output(&path, &["restore", "--staged", "--", file.as_str()], None)
+                        .await;
                 if full.is_file() {
                     let _ = std::fs::remove_file(full);
                 }
@@ -297,14 +251,7 @@ pub async fn commit_create(
     stage_all: bool,
     gpg_sign: bool,
 ) -> Result<crate::model::CommitResult, AppError> {
-    let gpg_key = gpg_sign.then(|| {
-        state
-            .settings
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .gpg_key
-            .clone()
-    });
+    let gpg_key = gpg_sign.then(|| util::lock_or_recover(&state.settings).gpg_key.clone());
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     commit_create_impl(path, message, amend, signoff, stage_all, gpg_key).await
 }
@@ -412,7 +359,11 @@ pub(crate) async fn branch_checkout_impl(
     } else if name.contains('/') {
         let remotes = util::git(&path, &["remote"]).await.unwrap_or_default();
         let local = local_branch_name(&remotes, &name);
-        util::git(&path, &["switch", "-c", local.as_str(), "--track", name.as_str()]).await?;
+        util::git(
+            &path,
+            &["switch", "-c", local.as_str(), "--track", name.as_str()],
+        )
+        .await?;
     } else {
         util::git(&path, &["switch", name.as_str()]).await?;
     }
@@ -703,7 +654,11 @@ pub async fn remote_remove(
     Ok(())
 }
 
-async fn run_stream_owned(path: &str, args: Vec<String>, on_event: &Channel<ProgressEvent>) -> Result<(), AppError> {
+async fn run_stream_owned(
+    path: &str,
+    args: Vec<String>,
+    on_event: &Channel<ProgressEvent>,
+) -> Result<(), AppError> {
     let refs: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     run_stream(path, &refs, on_event).await
 }
@@ -716,7 +671,11 @@ pub async fn fetch(
     on_event: Channel<ProgressEvent>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    let mut args = vec!["fetch".to_string(), "--prune".to_string(), "--progress".to_string()];
+    let mut args = vec![
+        "fetch".to_string(),
+        "--prune".to_string(),
+        "--progress".to_string(),
+    ];
     match remote.filter(|r| !r.trim().is_empty()) {
         Some(remote) => args.push(remote),
         None => args.push("--all".to_string()),
@@ -765,6 +724,7 @@ pub(crate) fn pull_args(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn push(
     state: State<'_, crate::AppState>,
     path: String,
@@ -898,11 +858,7 @@ pub async fn submodule_remove(
     target: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(
-        &path,
-        &["submodule", "deinit", "-f", "--", target.as_str()],
-    )
-    .await?;
+    util::git(&path, &["submodule", "deinit", "-f", "--", target.as_str()]).await?;
     util::git(&path, &["rm", "-f", "--", target.as_str()]).await?;
     Ok(())
 }
@@ -915,11 +871,7 @@ pub async fn submodule_move(
     new_path: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(
-        &path,
-        &["mv", old_path.as_str(), new_path.as_str()],
-    )
-    .await?;
+    util::git(&path, &["mv", old_path.as_str(), new_path.as_str()]).await?;
     util::git(&path, &["submodule", "sync", "--recursive"]).await?;
     Ok(())
 }
@@ -934,8 +886,14 @@ pub async fn worktree_add(
     start_point: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    worktree_add_impl(&path, &dir, branch.as_deref(), new_branch, start_point.as_deref())
-        .await
+    worktree_add_impl(
+        &path,
+        &dir,
+        branch.as_deref(),
+        new_branch,
+        start_point.as_deref(),
+    )
+    .await
 }
 
 pub(crate) fn worktree_add_args(
@@ -1042,20 +1000,14 @@ pub async fn bisect_mark(
 }
 
 #[tauri::command]
-pub async fn bisect_skip(
-    state: State<'_, crate::AppState>,
-    path: String,
-) -> Result<(), AppError> {
+pub async fn bisect_skip(state: State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(&path, &["bisect", "skip"]).await?;
     Ok(())
 }
 
 #[tauri::command]
-pub async fn bisect_reset(
-    state: State<'_, crate::AppState>,
-    path: String,
-) -> Result<(), AppError> {
+pub async fn bisect_reset(state: State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
     util::git(&path, &["bisect", "reset"]).await?;
     Ok(())
@@ -1067,7 +1019,9 @@ pub fn open_in_editor(
     path: String,
     file: Option<String>,
 ) -> Result<(), AppError> {
-    let editor = state.settings.lock().unwrap().external_editor.clone();
+    let editor = util::lock_or_recover(&state.settings)
+        .external_editor
+        .clone();
     let target = file
         .map(|f| Path::new(&path).join(f).to_string_lossy().to_string())
         .unwrap_or_else(|| path.clone());
@@ -1080,11 +1034,11 @@ pub fn open_in_editor(
             .arg(&target)
             .spawn()
     };
-    spawned
-        .map(|_| ())
-        .map_err(|e| AppError::new("io", "E_OPEN", "无法打开编辑器")
+    spawned.map(|_| ()).map_err(|e| {
+        AppError::new("io", "E_OPEN", "无法打开编辑器")
             .with_hint("请在设置中配置外部编辑器命令")
-            .with_detail(e.to_string()))
+            .with_detail(e.to_string())
+    })
 }
 
 #[tauri::command]
@@ -1092,7 +1046,7 @@ pub fn open_in_terminal(
     state: tauri::State<'_, crate::AppState>,
     path: String,
 ) -> Result<(), AppError> {
-    let configured = state.settings.lock().unwrap().terminal.clone();
+    let configured = util::lock_or_recover(&state.settings).terminal.clone();
     let terminal = if !configured.trim().is_empty() {
         configured
     } else {
@@ -1115,8 +1069,8 @@ pub fn open_in_terminal(
             .spawn()
     };
     spawned.map(|_| ()).map_err(|e| {
-            AppError::new("io", "E_TERMINAL", "无法启动终端")
-                .with_hint("请在设置中配置终端命令")
-                .with_detail(e.to_string())
-        })
+        AppError::new("io", "E_TERMINAL", "无法启动终端")
+            .with_hint("请在设置中配置终端命令")
+            .with_detail(e.to_string())
+    })
 }

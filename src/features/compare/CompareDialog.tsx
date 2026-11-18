@@ -42,18 +42,14 @@ export default function CompareDialog({
 
   const compareQuery = useQuery({
     queryKey: ['compare', repo?.path, submitted?.left, submitted?.right],
-    queryFn: () =>
-      ipc.compareRefs(
-        repo!.path,
-        submitted!.left,
-        submitted!.right
-      ),
+    queryFn: () => ipc.compareRefs(repo!.path, submitted!.left, submitted!.right),
     enabled: !!repo && !!submitted
   })
 
+  const comparedFiles = compareQuery.data?.files
   useEffect(() => {
-    setSelectedFile(compareQuery.data?.files[0]?.path ?? null)
-  }, [compareQuery.data?.leftOid, compareQuery.data?.rightOid])
+    setSelectedFile(comparedFiles?.[0]?.path ?? null)
+  }, [comparedFiles])
 
   const diffQuery = useQuery({
     queryKey: [

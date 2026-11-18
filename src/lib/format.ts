@@ -18,6 +18,19 @@ export function formatDate(seconds: number): string {
   )}:${pad(d.getMinutes())}`
 }
 
+export function formatClockTime(timestampMs: number): string {
+  if (!timestampMs) return ''
+  const date = new Date(timestampMs)
+  const pad = (value: number) => String(value).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
+}
+
+export function formatFileSize(size: number): string {
+  if (size < 1024) return `${size} B`
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
+  return `${(size / 1024 / 1024).toFixed(1)} MB`
+}
+
 export function initials(name: string): string {
   const trimmed = (name || '?').trim()
   if (!trimmed) return '?'
@@ -32,10 +45,7 @@ export function splitPath(path: string): { name: string; dir: string } {
   return { name: path.slice(idx + 1), dir: path.slice(0, idx) }
 }
 
-export const statusMeta: Record<
-  string,
-  { letter: string; label: string; className: string }
-> = {
+export const statusMeta: Record<string, { letter: string; label: string; className: string }> = {
   added: { letter: 'A', label: '新增', className: 'st-added' },
   modified: { letter: 'M', label: '修改', className: 'st-modified' },
   deleted: { letter: 'D', label: '删除', className: 'st-deleted' },

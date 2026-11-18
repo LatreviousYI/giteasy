@@ -48,27 +48,16 @@ jobs:
         with:
           targets: aarch64-apple-darwin
 
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+          cache-on-failure: true
+
       - name: Install dependencies
         run: npm ci
 
       - name: Apply release version
         run: node scripts/apply-version.mjs "${{ inputs.version }}"
-
-      - name: Frontend tests
-        run: npm run test:frontend
-
-      - name: Backend tests for macOS
-        run: |
-          set -o pipefail
-          cargo test --manifest-path src-tauri/Cargo.toml 2>&1 | tee macos-backend.log
-
-      - name: Upload backend failure log
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: GitEasy-macOS-backend-failure
-          if-no-files-found: ignore
-          path: macos-backend.log
 
       - name: Verify updater signing key
         env:

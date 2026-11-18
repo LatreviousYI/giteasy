@@ -71,11 +71,7 @@ export default function Welcome() {
           ) : (
             <div className="recent-grid">
               {recent.map((item) => (
-                <button
-                  key={item.path}
-                  className="recent-card"
-                  onClick={() => openRepo(item.path)}
-                >
+                <button key={item.path} className="recent-card" onClick={() => openRepo(item.path)}>
                   <div className="name">
                     <FolderGit2 size={14} className="text-[var(--accent)]" />
                     <span className="truncate">{item.name}</span>

@@ -201,12 +201,11 @@ export default function ToolsPanel() {
               </button>
             </div>
           ))}
-          {settings.externalDiffTools.length === 0 &&
-            settings.externalMergeTools.length === 0 && (
-              <div className="text-[11.5px] text-[var(--text-subtle)]">
-                在设置中心添加外部 Diff 或 Merge 工具。
-              </div>
-            )}
+          {settings.externalDiffTools.length === 0 && settings.externalMergeTools.length === 0 && (
+            <div className="text-[11.5px] text-[var(--text-subtle)]">
+              在设置中心添加外部 Diff 或 Merge 工具。
+            </div>
+          )}
         </>
       )}
 

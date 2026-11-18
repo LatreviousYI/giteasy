@@ -1,7 +1,44 @@
 import { useCallback } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { ipc } from './ipc'
 import type { DiffDto, LogQuery } from './types'
+
+export const REPO_QUERY_DOMAINS = [
+  'status',
+  'log',
+  'branches',
+  'tags',
+  'remotes',
+  'stashes',
+  'conflicts',
+  'submodules',
+  'worktrees',
+  'commit',
+  'diff',
+  'repoStats',
+  'blame',
+  'compare',
+  'imageDiff',
+  'commitTree',
+  'fileAtRev',
+  'reflog',
+  'bisectStatus',
+  'lfsStatus',
+  'activity',
+  'githubPulls',
+  'githubIssues'
+] as const
+
+export function invalidateRepoQueries(
+  client: QueryClient,
+  path: string | null,
+  domains: readonly string[] = REPO_QUERY_DOMAINS
+) {
+  if (!path) return
+  for (const domain of domains) {
+    client.invalidateQueries({ queryKey: [domain, path] })
+  }
+}
 
 function repoQueryKey(domain: string, repoId: string | null, ...params: unknown[]) {
   return [domain, repoId, ...params] as const
@@ -107,23 +144,9 @@ export function useWorkdirDiff(
   contextLines = 3
 ) {
   return useQuery<DiffDto>({
-    queryKey: repoQueryKey(
-      'diff',
-      path,
-      'workdir',
-      file,
-      staged,
-      ignoreWhitespace,
-      contextLines
-    ),
+    queryKey: repoQueryKey('diff', path, 'workdir', file, staged, ignoreWhitespace, contextLines),
     queryFn: () =>
-      ipc.diffWorkdir(
-        path as string,
-        file as string,
-        staged,
-        ignoreWhitespace,
-        contextLines
-      ),
+      ipc.diffWorkdir(path as string, file as string, staged, ignoreWhitespace, contextLines),
     enabled: !!path && !!file,
     retry: false
   })
@@ -137,23 +160,9 @@ export function useCommitDiff(
   contextLines = 3
 ) {
   return useQuery<DiffDto>({
-    queryKey: repoQueryKey(
-      'diff',
-      path,
-      'commit',
-      oid,
-      file,
-      ignoreWhitespace,
-      contextLines
-    ),
+    queryKey: repoQueryKey('diff', path, 'commit', oid, file, ignoreWhitespace, contextLines),
     queryFn: () =>
-      ipc.diffCommit(
-        path as string,
-        oid as string,
-        file as string,
-        ignoreWhitespace,
-        contextLines
-      ),
+      ipc.diffCommit(path as string, oid as string, file as string, ignoreWhitespace, contextLines),
     enabled: !!path && !!oid && !!file,
     retry: false
   })
@@ -162,21 +171,6 @@ export function useCommitDiff(
 export function useInvalidateRepo(path: string | null) {
   const client = useQueryClient()
   return useCallback(() => {
-    if (!path) return
-    for (const key of [
-      'status',
-      'log',
-      'branches',
-      'tags',
-      'remotes',
-      'stashes',
-      'conflicts',
-      'submodules',
-      'worktrees',
-      'commit',
-      'diff'
-    ]) {
-      client.invalidateQueries({ queryKey: [key, path] })
-    }
+    invalidateRepoQueries(client, path)
   }, [client, path])
 }

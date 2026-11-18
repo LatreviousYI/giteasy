@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useId, useState, type ReactNode } from 'react'
 import Modal from './Modal'
 
 interface ConfirmDialogProps {
@@ -72,6 +72,7 @@ export function PromptDialog({
   onCancel
 }: PromptDialogProps) {
   const [value, setValue] = useState(defaultValue)
+  const inputId = useId()
 
   useEffect(() => {
     if (open) setValue(defaultValue)
@@ -100,8 +101,11 @@ export function PromptDialog({
       }
     >
       <div className="field">
-        <label className="label">{label}</label>
+        <label className="label" htmlFor={inputId}>
+          {label}
+        </label>
         <input
+          id={inputId}
           className="input"
           autoFocus
           value={value}

@@ -1,11 +1,5 @@
 import { useEffect } from 'react'
-import {
-  AlertCircle,
-  CheckCircle2,
-  Download,
-  Loader2,
-  RefreshCw
-} from 'lucide-react'
+import { AlertCircle, CheckCircle2, Download, Loader2, RefreshCw } from 'lucide-react'
 import { useUpdates } from '../../store/updates'
 
 function installKindLabel(kind: string | undefined) {
@@ -41,10 +35,7 @@ export default function UpdateSection() {
     totalBytes && totalBytes > 0
       ? Math.min(100, Math.round((downloadedBytes / totalBytes) * 100))
       : null
-  const busy =
-    status === 'checking' ||
-    status === 'downloading' ||
-    status === 'installing'
+  const busy = status === 'checking' || status === 'downloading' || status === 'installing'
 
   return (
     <div className="update-section">
@@ -52,16 +43,11 @@ export default function UpdateSection() {
         <div>
           <div className="label">关于与更新</div>
           <div className="update-version">
-            当前版本 {context?.currentVersion ?? '…'} ·{' '}
-            {installKindLabel(context?.installKind)}
+            当前版本 {context?.currentVersion ?? '…'} · {installKindLabel(context?.installKind)}
           </div>
         </div>
         <span className="spacer" />
-        <button
-          className="btn btn-sm"
-          onClick={() => void check(true)}
-          disabled={busy}
-        >
+        <button className="btn btn-sm" onClick={() => void check(true)} disabled={busy}>
           <RefreshCw size={12} className={status === 'checking' ? 'animate-spin' : ''} />
           检查更新
         </button>
@@ -83,18 +69,12 @@ export default function UpdateSection() {
           {notes && <div className="update-notes">{notes}</div>}
           <div className="update-actions">
             {context?.canInstallInPlace ? (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => void install()}
-              >
+              <button className="btn btn-primary btn-sm" onClick={() => void install()}>
                 <Download size={12} />
                 下载并安装
               </button>
             ) : (
-              <button
-                className="btn btn-primary btn-sm"
-                onClick={() => void openDownloadPage()}
-              >
+              <button className="btn btn-primary btn-sm" onClick={() => void openDownloadPage()}>
                 <Download size={12} />
                 前往下载
               </button>

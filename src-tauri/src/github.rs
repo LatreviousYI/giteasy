@@ -140,10 +140,7 @@ impl GitHubService {
     }
 
     pub fn accounts(&self) -> Vec<GitHubAccount> {
-        self.accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .clone()
+        crate::util::lock_or_recover(&self.accounts).clone()
     }
 
     async fn login_with_token(&self, token: String) -> Result<GitHubAccount, AppError> {
@@ -156,7 +153,7 @@ impl GitHubService {
             .await
             .map_err(network_error)?
             .error_for_status()
-            .map_err(|error| github_http_error(error))?
+            .map_err(github_http_error)?
             .json()
             .await
             .map_err(network_error)?;
@@ -169,14 +166,8 @@ impl GitHubService {
         entry
             .set_password(&token)
             .map_err(|error| credential_error(error.to_string()))?;
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .insert(account.login.clone(), token);
-        let mut accounts = self
-            .accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        crate::util::lock_or_recover(&self.tokens).insert(account.login.clone(), token);
+        let mut accounts = crate::util::lock_or_recover(&self.accounts);
         accounts.retain(|item| item.login != account.login);
         accounts.insert(0, account.clone());
         save_accounts(&accounts)?;
@@ -187,39 +178,25 @@ impl GitHubService {
         if let Ok(entry) = keyring_entry(login) {
             let _ = entry.delete_credential();
         }
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .remove(login);
-        let mut accounts = self
-            .accounts
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        crate::util::lock_or_recover(&self.tokens).remove(login);
+        let mut accounts = crate::util::lock_or_recover(&self.accounts);
         accounts.retain(|account| account.login != login);
         save_accounts(&accounts)
     }
 
     fn token_for(&self, login: &str) -> Result<String, AppError> {
-        if let Some(token) = self
-            .tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
+        if let Some(token) = crate::util::lock_or_recover(&self.tokens)
             .get(login)
             .cloned()
         {
             return Ok(token);
         }
-        let token = keyring_entry(login)?
-            .get_password()
-            .map_err(|error| {
-                AppError::new("auth", "E_GITHUB_AUTH", "GitHub 登录已失效")
-                    .with_hint("请重新登录 GitHub 账户")
-                    .with_detail(error.to_string())
-            })?;
-        self.tokens
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .insert(login.to_string(), token.clone());
+        let token = keyring_entry(login)?.get_password().map_err(|error| {
+            AppError::new("auth", "E_GITHUB_AUTH", "GitHub 登录已失效")
+                .with_hint("请重新登录 GitHub 账户")
+                .with_detail(error.to_string())
+        })?;
+        crate::util::lock_or_recover(&self.tokens).insert(login.to_string(), token.clone());
         Ok(token)
     }
 
@@ -231,12 +208,7 @@ impl GitHubService {
     ) -> Result<T, AppError> {
         let token = self.token_for(login)?;
         let key = format!("{login}:{cache_key}");
-        let cached = self
-            .cache
-            .lock()
-            .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .get(&key)
-            .cloned();
+        let cached = crate::util::lock_or_recover(&self.cache).get(&key).cloned();
         let mut request = self
             .client
             .get(url)
@@ -265,9 +237,7 @@ impl GitHubService {
                 });
             }
         }
-        let response = response
-            .error_for_status()
-            .map_err(github_http_error)?;
+        let response = response.error_for_status().map_err(github_http_error)?;
         let etag = response
             .headers()
             .get("etag")
@@ -276,16 +246,13 @@ impl GitHubService {
             .to_string();
         let body: Value = response.json().await.map_err(network_error)?;
         if !etag.is_empty() {
-            self.cache
-                .lock()
-                .unwrap_or_else(|poisoned| poisoned.into_inner())
-                .insert(
-                    key,
-                    CachedResponse {
-                        etag,
-                        body: body.clone(),
-                    },
-                );
+            crate::util::lock_or_recover(&self.cache).insert(
+                key,
+                CachedResponse {
+                    etag,
+                    body: body.clone(),
+                },
+            );
         }
         serde_json::from_value(body).map_err(|error| {
             AppError::new("github", "E_GITHUB_DECODE", "GitHub 返回数据解析失败")
@@ -293,6 +260,7 @@ impl GitHubService {
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn create_pull_request(
         &self,
         login: &str,
@@ -338,7 +306,10 @@ pub async fn github_login_token(
     if token.trim().is_empty() {
         return Err(AppError::user("GitHub Token 不能为空"));
     }
-    state.github.login_with_token(token.trim().to_string()).await
+    state
+        .github
+        .login_with_token(token.trim().to_string())
+        .await
 }
 
 #[tauri::command]
@@ -397,10 +368,7 @@ pub async fn github_device_poll(
         .form(&[
             ("client_id", client_id.as_str()),
             ("device_code", device_code.as_str()),
-            (
-                "grant_type",
-                "urn:ietf:params:oauth:grant-type:device_code",
-            ),
+            ("grant_type", "urn:ietf:params:oauth:grant-type:device_code"),
         ])
         .send()
         .await
@@ -484,9 +452,7 @@ pub async fn github_pull_requests(
         .cached_get(
             &login,
             &format!("pulls:{slug}:{state_filter}"),
-            &format!(
-                "{API_ROOT}/repos/{slug}/pulls?state={state_filter}&per_page=50"
-            ),
+            &format!("{API_ROOT}/repos/{slug}/pulls?state={state_filter}&per_page=50"),
         )
         .await
 }
@@ -505,14 +471,13 @@ pub async fn github_issues(
         .cached_get(
             &login,
             &format!("issues:{slug}:{state_filter}"),
-            &format!(
-                "{API_ROOT}/repos/{slug}/issues?state={state_filter}&per_page=50"
-            ),
+            &format!("{API_ROOT}/repos/{slug}/issues?state={state_filter}&per_page=50"),
         )
         .await
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn github_create_pull(
     state: tauri::State<'_, crate::AppState>,
     path: String,
@@ -583,14 +548,12 @@ fn github_slug(repo_path: &str) -> Result<String, AppError> {
                 .find_map(|name| repo.find_remote(name).ok()?.url().map(str::to_string))
         })
         .ok_or_else(|| AppError::not_found("当前仓库没有可识别的 GitHub 远程"))?;
-    parse_github_slug(&url)
-        .ok_or_else(|| AppError::user(format!("远程不是 GitHub 地址：{url}")))
+    parse_github_slug(&url).ok_or_else(|| AppError::user(format!("远程不是 GitHub 地址：{url}")))
 }
 
 fn keyring_entry(login: &str) -> Result<keyring::Entry, AppError> {
     keyring::Entry::new(KEYRING_SERVICE, login).map_err(|error| {
-        AppError::new("keyring", "E_KEYRING", "无法访问系统凭据库")
-            .with_detail(error.to_string())
+        AppError::new("keyring", "E_KEYRING", "无法访问系统凭据库").with_detail(error.to_string())
     })
 }
 
@@ -636,8 +599,12 @@ fn github_http_error(error: reqwest::Error) -> AppError {
             .with_hint("请稍后重试，或检查 Token 权限与速率限制")
             .with_detail(error.to_string());
     }
-    AppError::new("github", "E_GITHUB_API", format!("GitHub API 错误（{status}）"))
-        .with_detail(error.to_string())
+    AppError::new(
+        "github",
+        "E_GITHUB_API",
+        format!("GitHub API 错误（{status}）"),
+    )
+    .with_detail(error.to_string())
 }
 
 fn credential_error(detail: String) -> AppError {

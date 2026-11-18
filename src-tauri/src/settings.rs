@@ -6,7 +6,7 @@ use std::path::PathBuf;
 
 pub const DEFAULT_THEME: &str = "system";
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase", default)]
 pub struct RecentRepo {
     pub path: String,
@@ -20,16 +20,6 @@ pub struct CustomCommand {
     pub name: String,
     pub command: String,
     pub kind: String,
-}
-
-impl Default for RecentRepo {
-    fn default() -> Self {
-        Self {
-            path: String::new(),
-            name: String::new(),
-            last_opened: 0,
-        }
-    }
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -95,7 +85,7 @@ pub fn save(settings: &Settings) -> Result<(), AppError> {
 }
 
 pub fn remember(state: &crate::AppState, info: &RepoInfo) {
-    let mut guard = state.settings.lock().unwrap();
+    let mut guard = crate::util::lock_or_recover(&state.settings);
     guard.recent.retain(|r| r.path != info.path);
     guard.recent.insert(
         0,
@@ -120,7 +110,7 @@ pub fn now_seconds() -> i64 {
 
 #[tauri::command]
 pub fn settings_get(state: tauri::State<'_, crate::AppState>) -> Settings {
-    state.settings.lock().unwrap().clone()
+    crate::util::lock_or_recover(&state.settings).clone()
 }
 
 #[tauri::command]
@@ -128,7 +118,7 @@ pub fn settings_set(
     state: tauri::State<'_, crate::AppState>,
     settings: Settings,
 ) -> Result<Settings, AppError> {
-    let mut guard = state.settings.lock().unwrap();
+    let mut guard = crate::util::lock_or_recover(&state.settings);
     let mut next = settings;
     next.recent = guard.recent.clone();
     save(&next)?;
@@ -138,12 +128,12 @@ pub fn settings_set(
 
 #[tauri::command]
 pub fn repo_recent(state: tauri::State<'_, crate::AppState>) -> Vec<RecentRepo> {
-    state.settings.lock().unwrap().recent.clone()
+    crate::util::lock_or_recover(&state.settings).recent.clone()
 }
 
 #[tauri::command]
 pub fn repo_forget(state: tauri::State<'_, crate::AppState>, path: String) -> Result<(), AppError> {
-    let mut guard = state.settings.lock().unwrap();
+    let mut guard = crate::util::lock_or_recover(&state.settings);
     guard.recent.retain(|r| r.path != path);
     let snapshot = guard.clone();
     drop(guard);
@@ -156,7 +146,7 @@ pub fn repo_rename_recent(
     path: String,
     name: String,
 ) -> Result<(), AppError> {
-    let mut guard = state.settings.lock().unwrap();
+    let mut guard = crate::util::lock_or_recover(&state.settings);
     if let Some(repo) = guard.recent.iter_mut().find(|repo| repo.path == path) {
         repo.name = name;
     }

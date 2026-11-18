@@ -241,8 +241,7 @@ mod tests {
         assert!(staged.files.iter().all(|file| file.staged));
 
         let staged_diff =
-            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), true, None, None)
-                .unwrap();
+            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), true, None, None).unwrap();
         assert!(!staged_diff.hunks.is_empty());
 
         let result = write::commit_create_impl(
@@ -281,15 +280,13 @@ mod tests {
         let after_branch = read::status_get_impl(path.clone()).unwrap();
         assert_eq!(after_branch.branch.as_deref(), Some("feature/test"));
 
-        let main_info =
-            write::branch_checkout_impl(path.clone(), "main".to_string()).await.unwrap();
+        let main_info = write::branch_checkout_impl(path.clone(), "main".to_string())
+            .await
+            .unwrap();
         assert_eq!(main_info.branch.as_deref(), Some("main"));
-        let feature_info = write::branch_checkout_impl(
-            path.clone(),
-            "feature/test".to_string(),
-        )
-        .await
-        .unwrap();
+        let feature_info = write::branch_checkout_impl(path.clone(), "feature/test".to_string())
+            .await
+            .unwrap();
         assert_eq!(feature_info.branch.as_deref(), Some("feature/test"));
 
         let tree = read::commit_tree_impl(path.clone(), "HEAD".to_string()).unwrap();
@@ -300,15 +297,9 @@ mod tests {
         assert!(!content.binary);
         assert!(content.content.unwrap().contains("line two changed"));
 
-        let line_page = read::line_history(
-            path.clone(),
-            "hello.txt".to_string(),
-            1,
-            2,
-            Some(20),
-        )
-        .await
-        .unwrap();
+        let line_page = read::line_history(path.clone(), "hello.txt".to_string(), 1, 2, Some(20))
+            .await
+            .unwrap();
         assert!(!line_page.commits.is_empty());
         assert!(line_page
             .commits
@@ -324,8 +315,11 @@ mod tests {
         let path = dir.to_string_lossy().to_string();
         std::fs::write(dir.join("hello.txt"), "line one\nline two\nline three\n").unwrap();
         git(&dir, &["commit", "-q", "-am", "second commit"]);
-        std::fs::write(dir.join("hello.txt"), "line one\nline two\nline three\nline four\n")
-            .unwrap();
+        std::fs::write(
+            dir.join("hello.txt"),
+            "line one\nline two\nline three\nline four\n",
+        )
+        .unwrap();
         git(&dir, &["commit", "-q", "-am", "third commit"]);
 
         let base = std::process::Command::new("git")
@@ -388,11 +382,11 @@ mod tests {
         let args = write::stash_args(Some("wip: selected files"), true, &paths);
         assert!(args.iter().any(|arg| arg == "-u"));
         assert!(args.iter().any(|arg| arg == "-m"));
-        assert_eq!(args.last().map(String::as_str), Some("notes with space.txt"));
         assert_eq!(
-            args.get(args.len() - 3).map(String::as_str),
-            Some("--")
+            args.last().map(String::as_str),
+            Some("notes with space.txt")
         );
+        assert_eq!(args.get(args.len() - 3).map(String::as_str), Some("--"));
 
         let all = write::stash_args(None, false, &[]);
         assert!(!all.iter().any(|arg| arg == "--"));
@@ -531,9 +525,8 @@ mod tests {
         let path = dir.to_string_lossy().to_string();
         std::fs::write(dir.join("new.txt"), "alpha\nbeta\ngamma\n").unwrap();
 
-        let diff =
-            read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None, None)
-                .unwrap();
+        let diff = read::diff_workdir_impl(path.clone(), "new.txt".to_string(), false, None, None)
+            .unwrap();
         assert_eq!(diff.status, "added");
         assert_eq!(diff.hunks.len(), 1);
 
@@ -700,14 +693,9 @@ mod tests {
     async fn compare_refs_reports_branch_and_worktree_changes() {
         let dir = fixture();
         let path = dir.to_string_lossy().to_string();
-        write::branch_create_impl(
-            path.clone(),
-            "feature/compare".to_string(),
-            true,
-            None,
-        )
-        .await
-        .unwrap();
+        write::branch_create_impl(path.clone(), "feature/compare".to_string(), true, None)
+            .await
+            .unwrap();
         std::fs::write(dir.join("hello.txt"), "line one\nfeature line\n").unwrap();
         write::commit_create_impl(
             path.clone(),
@@ -723,9 +711,12 @@ mod tests {
             .await
             .unwrap();
 
-        let branch_compare =
-            read::compare_refs_impl(path.clone(), "main".to_string(), "feature/compare".to_string())
-                .unwrap();
+        let branch_compare = read::compare_refs_impl(
+            path.clone(),
+            "main".to_string(),
+            "feature/compare".to_string(),
+        )
+        .unwrap();
         assert_eq!(branch_compare.files.len(), 1);
         assert_eq!(branch_compare.files[0].path, "hello.txt");
         assert!(branch_compare.files[0].additions >= 1);
@@ -777,9 +768,15 @@ mod tests {
         let svg = "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"10\" height=\"10\"><rect width=\"10\" height=\"10\" fill=\"#5b6cff\"/></svg>";
         std::fs::write(dir.join("preview.svg"), svg).unwrap();
 
-        let diff =
-            read::image_diff_impl(path, "preview.svg".to_string(), "workdir".to_string(), None, None, None)
-                .unwrap();
+        let diff = read::image_diff_impl(
+            path,
+            "preview.svg".to_string(),
+            "workdir".to_string(),
+            None,
+            None,
+            None,
+        )
+        .unwrap();
         assert!(diff.before.is_none());
         assert!(diff
             .after
@@ -797,7 +794,11 @@ mod tests {
             "appimage"
         );
         assert_eq!(
-            updater::classify_install_kind("/Applications/GitEasy.app/Contents/MacOS/giteasy", false, true),
+            updater::classify_install_kind(
+                "/Applications/GitEasy.app/Contents/MacOS/giteasy",
+                false,
+                true
+            ),
             "macos"
         );
         assert_eq!(

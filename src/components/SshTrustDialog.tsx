@@ -82,7 +82,8 @@ export default function SshTrustDialog() {
       </details>
 
       <div className="text-[11px] leading-relaxed text-[var(--text-subtle)]">
-        确认后会将该主机的密钥追加到 <span className="mono">~/.ssh/known_hosts</span>，随后自动重试刚才的操作。
+        确认后会将该主机的密钥追加到 <span className="mono">~/.ssh/known_hosts</span>
+        ，随后自动重试刚才的操作。
       </div>
     </Modal>
   )

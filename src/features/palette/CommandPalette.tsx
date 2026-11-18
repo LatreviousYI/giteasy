@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from 'react'
 import {
   Archive,
   Activity,
@@ -27,6 +27,7 @@ import { useRemoteActions } from '../../lib/remote'
 import { useOpenRepo, pickDirectory } from '../../lib/actions'
 import { useApp } from '../../store/app'
 import { PromptDialog } from '../../components/Dialogs'
+import { useModalFocus } from '../../components/modalFocus'
 
 interface Command {
   id: string
@@ -57,6 +58,8 @@ export default function CommandPalette() {
   const setSettingsOpen = useApp((s) => s.setSettingsOpen)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
+  const titleId = useId()
+  const paletteRef = useRef<HTMLDivElement>(null)
   const openRepo = useOpenRepo()
   const invalidate = useInvalidateRepo(repo?.path ?? null)
   const { runRemote } = useRemoteActions()
@@ -65,8 +68,9 @@ export default function CommandPalette() {
   const [index, setIndex] = useState(0)
   const [branchPrompt, setBranchPrompt] = useState(false)
   const [branchBusy, setBranchBusy] = useState(false)
+  useModalFocus(paletteRef, titleId, close)
 
-  const cycleTheme = async () => {
+  const cycleTheme = useCallback(async () => {
     if (!settings) return
     const order: Array<'light' | 'dark' | 'system'> = ['light', 'dark', 'system']
     const next = order[(order.indexOf(settings.theme) + 1) % order.length]
@@ -77,7 +81,7 @@ export default function CommandPalette() {
     } catch (error) {
       errorToast(error)
     }
-  }
+  }, [errorToast, setSettings, settings, toast])
 
   const commands = useMemo<Command[]>(() => {
     const items: Command[] = [
@@ -307,7 +311,6 @@ export default function CommandPalette() {
     settings,
     setSettingsOpen,
     setView,
-    setRepo,
     setActivityOpen,
     setGithubOpen,
     setPatchOpen,
@@ -315,6 +318,8 @@ export default function CommandPalette() {
     setToolsOpen,
     setBisectOpen,
     setRepoManagerOpen,
+    cycleTheme,
+    openRepo,
     invalidate,
     toast,
     errorToast,
@@ -369,7 +374,17 @@ export default function CommandPalette() {
           if (event.target === event.currentTarget) close()
         }}
       >
-        <div className="palette">
+        <div
+          ref={paletteRef}
+          className="palette"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby={titleId}
+          tabIndex={-1}
+        >
+          <h2 id={titleId} className="sr-only">
+            命令面板
+          </h2>
           <div className="palette-input">
             <Search size={16} className="text-subtle" />
             <input
@@ -378,7 +393,6 @@ export default function CommandPalette() {
               placeholder="输入命令…"
               onChange={(event) => setQuery(event.target.value)}
               onKeyDown={(event) => {
-                if (event.key === 'Escape') close()
                 if (event.key === 'ArrowDown') {
                   event.preventDefault()
                   setIndex((value) => Math.min(value + 1, Math.max(filtered.length - 1, 0)))

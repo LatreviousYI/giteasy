@@ -10,6 +10,7 @@ import {
   UserRound
 } from 'lucide-react'
 import type { DiffDto, DiffLine, Selection } from '../../lib/types'
+import { copyTextWithToast } from '../../lib/clipboard'
 import { statusMeta } from '../../lib/format'
 import { Empty, Spinner } from '../../components/Empty'
 import { useApp } from '../../store/app'
@@ -59,10 +60,7 @@ export function diffSegments(oldValue: string, newValue: string) {
       right.push({ text: after[j], changed: false })
       i += 1
       j += 1
-    } else if (
-      j >= after.length ||
-      (i < before.length && matrix[i + 1][j] >= matrix[i][j + 1])
-    ) {
+    } else if (j >= after.length || (i < before.length && matrix[i + 1][j] >= matrix[i][j + 1])) {
       left.push({ text: before[i], changed: true })
       i += 1
     } else {
@@ -95,10 +93,7 @@ function buildInlineHighlights(lines: DiffLine[]) {
     for (let index = 0; index < pairs; index += 1) {
       const deletedIndex = deleted[index]
       const addedIndex = added[index]
-      const segments = diffSegments(
-        lines[deletedIndex].content,
-        lines[addedIndex].content
-      )
+      const segments = diffSegments(lines[deletedIndex].content, lines[addedIndex].content)
       highlights.set(deletedIndex, segments.before)
       highlights.set(addedIndex, segments.after)
     }
@@ -158,12 +153,7 @@ export default function DiffViewer({
 
   const copyPath = async () => {
     if (!diff) return
-    try {
-      await navigator.clipboard.writeText(diff.path)
-      toast('success', '路径已复制')
-    } catch {
-      toast('warn', '无法访问剪贴板')
-    }
+    await copyTextWithToast(diff.path, '路径已复制', toast)
   }
 
   useEffect(() => {
@@ -227,9 +217,7 @@ export default function DiffViewer({
     }
     updateContentWidth()
     const observer =
-      typeof ResizeObserver === 'undefined'
-        ? null
-        : new ResizeObserver(updateContentWidth)
+      typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updateContentWidth)
     observer?.observe(body)
     window.addEventListener('resize', updateContentWidth)
     return () => {
@@ -295,10 +283,7 @@ export default function DiffViewer({
   const actionLabel = actionMode === 'stage' ? '暂存' : '取消暂存'
   const jumpHunk = (delta: number) => {
     if (!diff || visibleHunks.length === 0) return
-    const next = Math.max(
-      0,
-      Math.min(visibleHunks.length - 1, activeHunk + delta)
-    )
+    const next = Math.max(0, Math.min(visibleHunks.length - 1, activeHunk + delta))
     setActiveHunk(next)
     hunkRefs.current[next]?.scrollIntoView({ block: 'start' })
   }
@@ -318,11 +303,15 @@ export default function DiffViewer({
     <div className="diff-pane">
       <div className="diff-head">
         <span className={`file-letter ${meta.className}`}>{meta.letter}</span>
-        <span className="diff-file" title={diff.oldPath ? `${diff.oldPath} → ${diff.path}` : diff.path}>
+        <span
+          className="diff-file"
+          title={diff.oldPath ? `${diff.oldPath} → ${diff.path}` : diff.path}
+        >
           {diff.oldPath ? `${diff.oldPath} → ${diff.path}` : diff.path}
         </span>
         <span className="diff-stat">
-          <span className="plus">+{diff.additions}</span> <span className="minus">-{diff.deletions}</span>
+          <span className="plus">+{diff.additions}</span>{' '}
+          <span className="minus">-{diff.deletions}</span>
         </span>
         <span className="spacer" style={{ flex: 1 }} />
         {visibleHunks.length > 0 && (
@@ -368,9 +357,7 @@ export default function DiffViewer({
                       <select
                         className="select"
                         value={contextLines ?? 3}
-                        onChange={(event) =>
-                          onContextLinesChange(Number(event.target.value))
-                        }
+                        onChange={(event) => onContextLinesChange(Number(event.target.value))}
                       >
                         {[1, 3, 5, 8, 12].map((value) => (
                           <option key={value} value={value}>
@@ -486,14 +473,16 @@ export default function DiffViewer({
               {selectedRange && (
                 <button
                   className="btn btn-sm"
-                  onClick={() =>
-                    openInspector(diff.path, 'history', selectedRange)
-                  }
+                  onClick={() => openInspector(diff.path, 'history', selectedRange)}
                 >
                   选中行历史
                 </button>
               )}
-              <button className="btn btn-sm btn-primary" onClick={applySelected} disabled={applying}>
+              <button
+                className="btn btn-sm btn-primary"
+                onClick={applySelected}
+                disabled={applying}
+              >
                 {applying ? '处理中…' : `${actionLabel}选中行`}
               </button>
               <button className="btn btn-sm" onClick={() => setSelected({})} disabled={applying}>
@@ -504,9 +493,7 @@ export default function DiffViewer({
         )}
 
         {diff.binary ? (
-          imageSource &&
-          /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(diff.path) &&
-          repo ? (
+          imageSource && /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(diff.path) && repo ? (
             <ImageDiffViewer
               repoPath={repo.path}
               file={diff.path}
@@ -531,8 +518,7 @@ export default function DiffViewer({
             {!showFullDiff && totalDiffLines > MAX_RENDERED_DIFF_LINES && (
               <div className="hunk-head">
                 <span>
-                  大型差异已截断，当前显示前 {MAX_RENDERED_DIFF_LINES} 行，
-                  共 {totalDiffLines} 行。
+                  大型差异已截断，当前显示前 {MAX_RENDERED_DIFF_LINES} 行， 共 {totalDiffLines} 行。
                 </span>
                 <span style={{ flex: 1 }} />
                 <button className="btn btn-sm" onClick={() => setShowFullDiff(true)}>
@@ -575,9 +561,7 @@ export default function DiffViewer({
                     <span className="sign">
                       {line.kind === 'add' ? '+' : line.kind === 'del' ? '-' : ' '}
                     </span>
-                    <span className="code">
-                      {renderCode(hunkIndex, line.content, lineIndex)}
-                    </span>
+                    <span className="code">{renderCode(hunkIndex, line.content, lineIndex)}</span>
                   </div>
                 ))}
               </div>
