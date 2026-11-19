@@ -6,3 +6,4 @@ src-tauri/gen/
 .superpowers/
 *.log
 .DS_Store
+/.openidea/
