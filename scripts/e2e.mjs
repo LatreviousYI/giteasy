@@ -224,13 +224,90 @@ try {
 
   await driver.findElement(By.xpath("//button[contains(., '冲突')]")).click()
   await driver.wait(until.elementLocated(By.css('.conflict-pane')), 10_000)
+  await driver.wait(until.elementLocated(By.css('.conflict-code-grid')), 10_000)
+  const initialConflictProgress = await driver
+    .findElement(By.css('.conflict-block-progress'))
+    .getText()
+  if (!initialConflictProgress.replace(/\s/g, '').includes('第1/3块')) {
+    throw new Error(`Unexpected initial conflict progress: ${initialConflictProgress}`)
+  }
+  const activeConflictLines = async () =>
+    driver.executeScript(`
+      return [...document.querySelectorAll('.conflict-code-pane')].map((pane) => {
+        const container = pane.querySelector('.conflict-code-lines');
+        const active = pane.querySelector('[data-conflict-highlight="true"]');
+        if (!container || !active) return { text: '', visible: false };
+        const containerRect = container.getBoundingClientRect();
+        const activeRect = active.getBoundingClientRect();
+        return {
+          text: active.textContent || '',
+          visible: activeRect.top >= containerRect.top - 1 &&
+            activeRect.bottom <= containerRect.bottom + 1
+        };
+      });
+    `)
+  const initialActiveLines = await activeConflictLines()
+  if (
+    initialActiveLines.length !== 2 ||
+    !initialActiveLines[0].text.includes('theirs first') ||
+    !initialActiveLines[1].text.includes('ours first') ||
+    initialActiveLines.some((item) => !item.visible)
+  ) {
+    throw new Error(
+      `Initial conflict block is not correctly focused: ${JSON.stringify(initialActiveLines)}`
+    )
+  }
   await shot('light/conflicts-1280.png', 1280, 800)
 
   await driver.executeScript("document.documentElement.dataset.theme='dark'")
   await shot('dark/conflicts-1280.png', 1280, 800)
 
+  await driver.findElement(By.css("[title='下一块']")).click()
+  const nextConflictProgress = await driver
+    .findElement(By.css('.conflict-block-progress'))
+    .getText()
+  if (!nextConflictProgress.replace(/\s/g, '').includes('第2/3块')) {
+    throw new Error(`Conflict navigation did not advance: ${nextConflictProgress}`)
+  }
+  const secondActiveLines = await activeConflictLines()
+  if (
+    !secondActiveLines[0].text.includes('theirs second') ||
+    !secondActiveLines[1].text.includes('ours second') ||
+    secondActiveLines.some((item) => !item.visible)
+  ) {
+    throw new Error(
+      `Second conflict block is not correctly focused: ${JSON.stringify(secondActiveLines)}`
+    )
+  }
+  await driver.findElement(By.css("[title='下一块']")).click()
+  const thirdActiveLines = await activeConflictLines()
+  if (
+    !thirdActiveLines[0].text.includes('theirs third') ||
+    !thirdActiveLines[1].text.includes('ours third') ||
+    thirdActiveLines.some((item) => !item.visible)
+  ) {
+    throw new Error(
+      `Third conflict block is not correctly focused: ${JSON.stringify(thirdActiveLines)}`
+    )
+  }
+  await driver.findElement(By.css("[title='上一块']")).click()
+  await driver.findElement(By.xpath("//button[normalize-space(.)='采用对方']")).click()
+  const afterResolveMarkers = await driver.executeScript(`
+    return (document.querySelector('.conflict-result-textarea').value.match(/^<<<<<<</gm) || []).length
+  `)
+  if (afterResolveMarkers !== 2) {
+    throw new Error(`Expected two remaining conflict blocks, received ${afterResolveMarkers}`)
+  }
+  await driver.findElement(By.css("[title='撤销上一步']")).click()
+  const afterUndoMarkers = await driver.executeScript(`
+    return (document.querySelector('.conflict-result-textarea').value.match(/^<<<<<<</gm) || []).length
+  `)
+  if (afterUndoMarkers !== 3) {
+    throw new Error(`Conflict undo did not restore all blocks: ${afterUndoMarkers}`)
+  }
+
   const initialVersionsHeight = await driver.executeScript(`
-    const pane = document.querySelector('.conflict-versions');
+    const pane = document.querySelector('.conflict-merge-top');
     const splitter = document.querySelector('.conflict-splitter');
     const rect = splitter.getBoundingClientRect();
     const startY = rect.top + rect.height / 2;
@@ -258,7 +335,7 @@ try {
   `)
   await driver.sleep(100)
   const resizedVersionsHeight = await driver.executeScript(
-    "return document.querySelector('.conflict-versions').getBoundingClientRect().height"
+    "return document.querySelector('.conflict-merge-top').getBoundingClientRect().height"
   )
   if (resizedVersionsHeight < initialVersionsHeight + 50) {
     throw new Error(

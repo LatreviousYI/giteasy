@@ -1,5 +1,5 @@
-export const CONFLICT_PANE_STORAGE_KEY = 'giteasy.conflictVersionsPercent'
-export const DEFAULT_CONFLICT_VERSIONS_PERCENT = 30
+export const CONFLICT_PANE_STORAGE_KEY = 'giteasy.conflictMergeEditorPercent'
+export const DEFAULT_CONFLICT_VERSIONS_PERCENT = 48
 export const MIN_CONFLICT_VERSIONS_PERCENT = 18
 export const MAX_CONFLICT_VERSIONS_PERCENT = 72
 

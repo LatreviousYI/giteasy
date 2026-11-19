@@ -1,72 +1,60 @@
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { AlertTriangle, CheckCircle2, ExternalLink, FileWarning, GitMerge } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertTriangle, CheckCircle2, FileWarning, GitMerge } from 'lucide-react'
+import { Empty, Spinner } from '../../components/Empty'
 import { ipc } from '../../lib/ipc'
+import { parseConflictBlocks } from '../../lib/conflict'
 import { useConflicts, useInvalidateRepo, useStatus } from '../../lib/queries'
 import { useApp } from '../../store/app'
-import { Empty, Spinner } from '../../components/Empty'
-import {
-  parseConflictBlocks,
-  resolveAllConflictBlocks,
-  resolveConflictBlock,
-  type ConflictChoice
-} from '../../lib/conflict'
-import ConflictPaneSplitter from './ConflictPaneSplitter'
-import {
-  CONFLICT_PANE_STORAGE_KEY,
-  clampConflictVersionsPercent,
-  readConflictVersionsPercent,
-  resizeConflictVersionsPercent
-} from './conflictPaneSize'
+import ConflictMergeEditor from './ConflictMergeEditor'
+import { unresolvedConflictCount } from './conflictSessions'
+import { useConflictSessions } from './useConflictSessions'
 
 export default function ConflictsView() {
-  const repo = useApp((s) => s.repo)!
-  const toast = useApp((s) => s.toast)
-  const errorToast = useApp((s) => s.errorToast)
+  const repo = useApp((state) => state.repo)!
+  const toast = useApp((state) => state.toast)
+  const errorToast = useApp((state) => state.errorToast)
   const invalidate = useInvalidateRepo(repo.path)
   const { data: conflicts = [], isLoading } = useConflicts(repo.path)
   const { data: status } = useStatus(repo.path)
+  const {
+    sessions,
+    navigate,
+    applyChoice,
+    applyAll,
+    beginEdit,
+    updateContent,
+    endEdit,
+    undo,
+    remove
+  } = useConflictSessions(conflicts)
 
   const [selected, setSelected] = useState<string | null>(null)
-  const [content, setContent] = useState('')
-  const [showBase, setShowBase] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [versionsPercent, setVersionsPercent] = useState(() =>
-    readConflictVersionsPercent(window.localStorage.getItem(CONFLICT_PANE_STORAGE_KEY))
-  )
-  const conflictBodyRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    window.localStorage.setItem(CONFLICT_PANE_STORAGE_KEY, String(versionsPercent))
-  }, [versionsPercent])
 
   useEffect(() => {
     if (conflicts.length === 0) {
       setSelected(null)
       return
     }
-    if (!selected || !conflicts.some((item) => item.path === selected)) {
+    if (!selected || !conflicts.some((file) => file.path === selected)) {
       setSelected(conflicts[0].path)
     }
   }, [conflicts, selected])
 
-  useEffect(() => {
-    const file = conflicts.find((item) => item.path === selected)
-    if (file) setContent(file.result)
-    // 仅在切换文件或冲突列表首次加载时重置编辑器
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selected, conflicts.length])
+  const current = conflicts.find((file) => file.path === selected) ?? null
+  const session = current ? (sessions[current.path] ?? null) : null
 
-  const current = useMemo(
-    () => conflicts.find((item) => item.path === selected) ?? null,
-    [conflicts, selected]
-  )
+  const selectFile = (path: string) => {
+    if (selected && selected !== path) endEdit(selected)
+    setSelected(path)
+  }
 
-  const run = async (action: () => Promise<unknown>, message: string) => {
+  const run = async (action: () => Promise<unknown>, success: string) => {
     setBusy(true)
     try {
       await action()
       invalidate()
-      toast('success', message)
+      toast('success', success)
     } catch (error) {
       errorToast(error)
     } finally {
@@ -74,24 +62,22 @@ export default function ConflictsView() {
     }
   }
 
-  const resolve = async () => {
-    if (!current) return
-    await run(() => ipc.conflictResolve(repo.path, current.path, content), '已标记为已解决')
+  const resolveCurrent = async () => {
+    if (!current || !session) return
+    if (!current.binary && unresolvedConflictCount(session.content) > 0) return
+    setBusy(true)
+    try {
+      await ipc.conflictResolve(repo.path, current.path, session.content)
+      remove(current.path)
+      invalidate()
+      toast('success', '已标记为已解决')
+    } catch (error) {
+      errorToast(error)
+    } finally {
+      setBusy(false)
+    }
   }
 
-  const continueOperation = async () => {
-    if (!status || status.state === 'clean') return
-    await run(() => ipc.opContinue(repo.path, status.state), '操作已继续')
-  }
-
-  const abortOperation = async () => {
-    if (!status || status.state === 'clean') return
-    await run(() => ipc.opAbort(repo.path, status.state), '已中止操作')
-  }
-
-  const useOurs = () => current?.ours !== null && setContent(current?.ours ?? '')
-  const useTheirs = () => current?.theirs !== null && setContent(current?.theirs ?? '')
-  const useBoth = () => setContent(`${current?.ours ?? ''}${current?.theirs ?? ''}`)
   const openExternal = async () => {
     if (!current) return
     try {
@@ -99,39 +85,6 @@ export default function ConflictsView() {
     } catch (error) {
       errorToast(error)
     }
-  }
-
-  const blocks = useMemo(() => parseConflictBlocks(content), [content])
-
-  const adoptBlock = (index: number, choice: ConflictChoice) => {
-    setContent((prev) => resolveConflictBlock(prev, index, choice))
-  }
-
-  const adoptAll = (choice: ConflictChoice) => {
-    setContent((prev) => resolveAllConflictBlocks(prev, choice).text)
-  }
-
-  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const body = conflictBodyRef.current
-    if (!body) return
-    event.preventDefault()
-    const startY = event.clientY
-    const startPercent = versionsPercent
-    const height = body.getBoundingClientRect().height
-    const onMove = (moveEvent: PointerEvent) => {
-      const next = resizeConflictVersionsPercent(startPercent, moveEvent.clientY - startY, height)
-      setVersionsPercent(clampConflictVersionsPercent(next))
-    }
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove)
-      window.removeEventListener('pointerup', onUp)
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-    }
-    document.body.style.cursor = 'row-resize'
-    document.body.style.userSelect = 'none'
-    window.addEventListener('pointermove', onMove)
-    window.addEventListener('pointerup', onUp)
   }
 
   return (
@@ -157,20 +110,32 @@ export default function ConflictsView() {
               <div className="empty-sub">当前仓库没有待解决的冲突文件。</div>
             </div>
           ) : (
-            conflicts.map((file) => (
-              <div
-                key={file.path}
-                className={`file-row ${selected === file.path ? 'active' : ''}`}
-                onClick={() => setSelected(file.path)}
-              >
-                <span className="file-letter st-conflicted">!</span>
-                <div className="file-row-main">
-                  <div className="file-label">
-                    <span className="file-name">{file.path}</span>
+            conflicts.map((file) => {
+              const fileSession = sessions[file.path]
+              const total = fileSession?.blocks.length ?? parseConflictBlocks(file.result).length
+              const remaining = fileSession
+                ? unresolvedConflictCount(fileSession.content)
+                : parseConflictBlocks(file.result).length
+              return (
+                <div
+                  key={file.path}
+                  className={`file-row ${selected === file.path ? 'active' : ''}`}
+                  onClick={() => selectFile(file.path)}
+                >
+                  <span className="file-letter st-conflicted">!</span>
+                  <div className="file-row-main">
+                    <div className="file-label">
+                      <span className="file-name">{file.path}</span>
+                    </div>
                   </div>
+                  {total > 0 && (
+                    <span className="conflict-file-progress">
+                      {total - remaining}/{total}
+                    </span>
+                  )}
                 </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </section>
@@ -182,10 +147,18 @@ export default function ConflictsView() {
             <span style={{ flex: 1 }}>
               正在 <b>{status.state}</b>。解决全部冲突并标记后，可继续完成操作。
             </span>
-            <button className="btn btn-sm" onClick={continueOperation} disabled={busy}>
+            <button
+              className="btn btn-sm"
+              onClick={() => void run(() => ipc.opContinue(repo.path, status.state), '操作已继续')}
+              disabled={busy}
+            >
               继续
             </button>
-            <button className="btn btn-sm btn-danger" onClick={abortOperation} disabled={busy}>
+            <button
+              className="btn btn-sm btn-danger"
+              onClick={() => void run(() => ipc.opAbort(repo.path, status.state), '已中止操作')}
+              disabled={busy}
+            >
               中止
             </button>
           </div>
@@ -201,161 +174,25 @@ export default function ConflictsView() {
                 : '当合并、变基或拣选产生冲突时，这里会列出需要处理的文件。'
             }
           />
-        ) : (
-          <div
-            ref={conflictBodyRef}
-            className="conflict-body"
-            style={{ gridTemplateRows: `${versionsPercent}% 7px minmax(0, 1fr)` }}
-          >
-            <div className="conflict-versions">
-              <div className="conflict-side">
-                <div className="conflict-col-head">
-                  我的版本（ours）
-                  <span style={{ flex: 1 }} />
-                  <button className="btn btn-sm" onClick={useOurs} disabled={!current.ours}>
-                    采用
-                  </button>
-                </div>
-                <pre className="conflict-code">{current.ours ?? '（该文件没有 ours 版本）'}</pre>
-              </div>
-
-              {showBase && (
-                <div className="conflict-side">
-                  <div className="conflict-col-head">共同祖先（base）</div>
-                  <pre className="conflict-code">{current.base ?? '（该文件没有 base 版本）'}</pre>
-                </div>
-              )}
-
-              <div className="conflict-side conflict-side-last">
-                <div className="conflict-col-head">
-                  对方版本（theirs）
-                  <span style={{ flex: 1 }} />
-                  <button className="btn btn-sm" onClick={useTheirs} disabled={!current.theirs}>
-                    采用
-                  </button>
-                </div>
-                <pre className="conflict-code">
-                  {current.theirs ?? '（该文件没有 theirs 版本）'}
-                </pre>
-              </div>
-            </div>
-
-            <ConflictPaneSplitter
-              percent={versionsPercent}
-              onChange={setVersionsPercent}
-              onPointerDown={startResize}
-            />
-
-            <div className="conflict-result">
-              <div className="conflict-col-head">
-                合并结果（可编辑）
-                <span style={{ flex: 1 }} />
-                <button
-                  className={`btn btn-sm ${showBase ? 'btn-primary' : ''}`}
-                  onClick={() => setShowBase((value) => !value)}
-                  title="显示/隐藏共同祖先版本"
-                  disabled={busy}
-                >
-                  base 对照
-                </button>
-                <button className="btn btn-sm" onClick={openExternal} disabled={busy}>
-                  <ExternalLink size={12} />
-                  外部工具
-                </button>
-                <button className="btn btn-sm" onClick={useBoth} disabled={busy}>
-                  两者保留
-                </button>
-                <button
-                  className="btn btn-sm btn-primary"
-                  onClick={resolve}
-                  disabled={busy}
-                  title="写入文件并暂存"
-                >
-                  保存并标记已解决
-                </button>
-              </div>
-              {current.binary ? (
-                <div className="binary-note">二进制冲突，请使用外部工具处理后标记为已解决。</div>
-              ) : (
-                <>
-                  {blocks.length > 0 && (
-                    <div className="conflict-blocks">
-                      <div className="flex items-center gap-2">
-                        <span>
-                          冲突块 <b>{blocks.length}</b>
-                        </span>
-                        <span style={{ flex: 1 }} />
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => adoptAll('ours')}
-                          disabled={busy}
-                        >
-                          全部采用我的
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => adoptAll('theirs')}
-                          disabled={busy}
-                        >
-                          全部采用对方
-                        </button>
-                        <button
-                          className="btn btn-sm"
-                          onClick={() => adoptAll('both')}
-                          disabled={busy}
-                        >
-                          全部保留两者
-                        </button>
-                      </div>
-                      {blocks.map((block) => (
-                        <div className="conflict-block" key={block.index}>
-                          <div className="conflict-block-head">
-                            <span>第 {block.index + 1} 块</span>
-                            <span style={{ flex: 1 }} />
-                            <button
-                              className="btn btn-sm"
-                              onClick={() => adoptBlock(block.index, 'ours')}
-                              disabled={busy}
-                            >
-                              采用我的
-                            </button>
-                            <button
-                              className="btn btn-sm"
-                              onClick={() => adoptBlock(block.index, 'theirs')}
-                              disabled={busy}
-                            >
-                              采用对方
-                            </button>
-                            <button
-                              className="btn btn-sm"
-                              onClick={() => adoptBlock(block.index, 'both')}
-                              disabled={busy}
-                            >
-                              两者保留
-                            </button>
-                          </div>
-                          <div className="conflict-block-preview">
-                            <pre className="conflict-block-side add-text">
-                              {block.ours || '（空）'}
-                            </pre>
-                            <pre className="conflict-block-side del-text">
-                              {block.theirs || '（空）'}
-                            </pre>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <textarea
-                    className="conflict-editor"
-                    value={content}
-                    onChange={(event) => setContent(event.target.value)}
-                    spellCheck={false}
-                  />
-                </>
-              )}
-            </div>
+        ) : !session ? (
+          <div className="flex flex-1 items-center justify-center">
+            <Spinner />
           </div>
+        ) : (
+          <ConflictMergeEditor
+            file={current}
+            session={session}
+            busy={busy}
+            onNavigate={(direction) => navigate(current.path, direction)}
+            onApplyChoice={(choice) => applyChoice(current.path, choice)}
+            onApplyAll={(choice) => applyAll(current.path, choice)}
+            onBeginEdit={() => beginEdit(current.path)}
+            onUpdateContent={(content) => updateContent(current.path, content)}
+            onEndEdit={() => endEdit(current.path)}
+            onUndo={() => undo(current.path)}
+            onOpenExternal={() => void openExternal()}
+            onResolve={() => void resolveCurrent()}
+          />
         )}
       </div>
     </div>
