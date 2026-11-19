@@ -252,6 +252,7 @@ interface RemoteSectionProps {
   onToggle: (name: string) => void
   onPick: (value: string, branch: BranchDto) => void
   onCheckout: (branch: BranchDto) => void
+  onContextMenu: (event: MouseEvent<HTMLDivElement>, branch: BranchDto, remote: RemoteDto) => void
   onWorktree: (branch: BranchDto) => void
   onDeleteRemote: (remote: RemoteDto) => void
   onDeleteBranch: (remote: RemoteDto, branch: BranchDto, shortName: string) => void
@@ -266,6 +267,7 @@ export function RemoteSection({
   onToggle,
   onPick,
   onCheckout,
+  onContextMenu,
   onWorktree,
   onDeleteRemote,
   onDeleteBranch
@@ -340,6 +342,7 @@ export function RemoteSection({
                   picked={picked}
                   onPick={onPick}
                   onCheckout={onCheckout}
+                  onContextMenu={(event, branch) => onContextMenu(event, branch, remote)}
                   renderActions={(branch, shortName) => (
                     <div className="row-actions">
                       <button

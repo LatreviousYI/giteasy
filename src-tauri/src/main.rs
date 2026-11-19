@@ -520,6 +520,99 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn branch_delete_can_remove_local_and_remote_branch() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let bare = PathBuf::from(format!("{}-remote.git", dir.display()));
+        let bare_arg = bare.to_string_lossy().to_string();
+
+        git(&dir, &["init", "--bare", bare_arg.as_str()]);
+        git(&dir, &["remote", "add", "origin", bare_arg.as_str()]);
+        git(&dir, &["push", "-u", "origin", "main"]);
+        git(&dir, &["branch", "feature/delete-me"]);
+        git(&dir, &["push", "-u", "origin", "feature/delete-me"]);
+
+        write::branch_delete_impl(
+            path,
+            "feature/delete-me".to_string(),
+            true,
+            Some("origin".to_string()),
+            Some("feature/delete-me".to_string()),
+        )
+        .await
+        .unwrap();
+
+        let local_exists = Command::new("git")
+            .current_dir(&dir)
+            .args([
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/heads/feature/delete-me",
+            ])
+            .status()
+            .unwrap()
+            .success();
+        let remote_exists = Command::new("git")
+            .current_dir(&bare)
+            .args([
+                "show-ref",
+                "--verify",
+                "--quiet",
+                "refs/heads/feature/delete-me",
+            ])
+            .status()
+            .unwrap()
+            .success();
+
+        assert!(!local_exists);
+        assert!(!remote_exists);
+        let _ = std::fs::remove_dir_all(dir);
+        let _ = std::fs::remove_dir_all(bare);
+    }
+
+    #[tokio::test]
+    async fn branch_delete_reports_partial_remote_failure() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["branch", "feature/partial-delete"]);
+
+        let error = write::branch_delete_impl(
+            path,
+            "feature/partial-delete".to_string(),
+            true,
+            Some("missing-remote".to_string()),
+            Some("feature/partial-delete".to_string()),
+        )
+        .await
+        .unwrap_err();
+
+        assert!(error
+            .message
+            .contains("本地分支 feature/partial-delete 已删除"));
+        assert!(error
+            .message
+            .contains("远程分支 missing-remote/feature/partial-delete"));
+        assert!(error.hint.unwrap_or_default().contains("未删除"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires explicit real repository, remote and disposable branch"]
+    async fn branch_delete_manual_real_remote() {
+        let path = std::env::var("GIT_EASY_REAL_REPO")
+            .expect("GIT_EASY_REAL_REPO must point to a disposable real repository");
+        let remote = std::env::var("GIT_EASY_REAL_REMOTE")
+            .expect("GIT_EASY_REAL_REMOTE must name the real remote");
+        let branch = std::env::var("GIT_EASY_REAL_BRANCH")
+            .expect("GIT_EASY_REAL_BRANCH must name a disposable remote branch");
+
+        write::branch_delete_impl(path, branch.clone(), true, Some(remote), Some(branch))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
     async fn partial_staging_new_file_takes_selected_lines() {
         let dir = fixture();
         let path = dir.to_string_lossy().to_string();

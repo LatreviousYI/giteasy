@@ -15,12 +15,14 @@ import {
 } from '../lib/queries'
 import { ipc } from '../lib/ipc'
 import { pickDirectory, useInitRepo, useOpenRepo } from '../lib/actions'
+import { useRemoteActions } from '../lib/remote'
+import { resolveTrackedRemote } from '../lib/branch'
 import { ConfirmDialog, PromptDialog } from '../components/Dialogs'
 import RemotesDialog from '../features/repo/RemotesDialog'
 import DiscoverDialog from '../features/repo/DiscoverDialog'
 import PushBranchDialog from '../features/remote/PushBranchDialog'
 import TagDialog from '../features/tags/TagDialog'
-import type { BranchDto, StashDto, SubmoduleDto } from '../lib/types'
+import type { BranchDto, RemoteDto, StashDto, SubmoduleDto } from '../lib/types'
 import {
   BranchSection,
   RemoteSection,
@@ -36,6 +38,9 @@ import { repoSidebarWidthKey } from '../lib/workspace'
 import WorktreeDialog from '../features/repo/WorktreeDialog'
 import SubmoduleDialog from '../features/repo/SubmoduleDialog'
 import SidebarRepoMenu from './sidebar/SidebarRepoMenu'
+import BranchContextMenu, { type BranchMenuState } from './sidebar/BranchContextMenu'
+import RemoteBranchCreateDialog from '../features/branches/RemoteBranchCreateDialog'
+import DeleteLocalBranchDialog from '../features/branches/DeleteLocalBranchDialog'
 
 type PromptKind = 'branch' | 'rename' | 'upstream'
 
@@ -44,10 +49,9 @@ interface PromptState {
   branch?: BranchDto
 }
 
-interface BranchMenu {
-  x: number
-  y: number
+interface RemoteBranchCreateState {
   branch: BranchDto
+  remote: RemoteDto
 }
 
 function readSidebarWidth(repoId: string | null) {
@@ -81,11 +85,14 @@ export default function Sidebar() {
   const { data: recent = [] } = useRecentRepos()
   const openRepo = useOpenRepo()
   const initRepo = useInitRepo()
+  const { runBranchPull } = useRemoteActions()
 
   const [repoMenu, setRepoMenu] = useState(false)
   const [prompt, setPrompt] = useState<PromptState | null>(null)
   const [confirm, setConfirm] = useState<SidebarConfirmState | null>(null)
-  const [menu, setMenu] = useState<BranchMenu | null>(null)
+  const [menu, setMenu] = useState<BranchMenuState | null>(null)
+  const [remoteBranchCreate, setRemoteBranchCreate] = useState<RemoteBranchCreateState | null>(null)
+  const [deleteBranch, setDeleteBranch] = useState<BranchDto | null>(null)
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [stashCreateOpen, setStashCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -139,6 +146,7 @@ export default function Sidebar() {
 
   const locals = useMemo(() => branches.filter((b) => !b.isRemote), [branches])
   const remoteBranches = useMemo(() => branches.filter((b) => b.isRemote), [branches])
+  const remoteNames = useMemo(() => remotesData.map((remote) => remote.name), [remotesData])
 
   const focusBranchHistory = (value: string, branch: BranchDto) => {
     setPicked(value)
@@ -196,6 +204,65 @@ export default function Sidebar() {
     } catch (error) {
       errorToast(error)
     } finally {
+      setBusy(false)
+    }
+  }
+
+  const createRemoteBranch = async (name: string, checkout: boolean) => {
+    if (!path || !remoteBranchCreate) return
+    setBusy(true)
+    try {
+      const existing = locals.find((branch) => branch.name === name)
+      if (existing) {
+        if (!checkout) {
+          toast('info', `本地分支 ${name} 已存在，未创建`)
+        } else {
+          const info = await ipc.branchCheckout(path, name)
+          setRepo(info)
+          toast('success', `分支 ${name} 已存在，已切换`)
+        }
+      } else {
+        const info = await ipc.branchCreate(path, name, checkout, remoteBranchCreate.branch.name)
+        if (checkout) setRepo(info)
+        toast('success', checkout ? `已创建并切换到 ${name}` : `已创建分支 ${name}`)
+      }
+      invalidate()
+      setRemoteBranchCreate(null)
+    } catch (error) {
+      errorToast(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const deleteLocalBranch = async (deleteRemote: boolean) => {
+    if (!path || !deleteBranch) return
+    const tracked = resolveTrackedRemote(deleteBranch.upstream, remoteNames)
+    if (deleteRemote && !tracked) {
+      errorToast({
+        kind: 'user',
+        code: 'E_NO_UPSTREAM',
+        message: '该分支没有可删除的远程追踪分支'
+      })
+      return
+    }
+    const remoteName = deleteRemote && tracked ? tracked.remote : null
+    const remoteBranch = deleteRemote && tracked ? tracked.branch : null
+
+    setBusy(true)
+    try {
+      await ipc.branchDelete(path, deleteBranch.name, true, remoteName, remoteBranch)
+      toast(
+        'success',
+        deleteRemote
+          ? `已删除本地分支 ${deleteBranch.name} 和远程分支 ${tracked?.remote}/${tracked?.branch}`
+          : `已删除分支 ${deleteBranch.name}`
+      )
+      setDeleteBranch(null)
+    } catch (error) {
+      errorToast(error)
+    } finally {
+      invalidate()
       setBusy(false)
     }
   }
@@ -324,6 +391,7 @@ export default function Sidebar() {
             setMenu({
               x: Math.min(event.clientX, window.innerWidth - 200),
               y: Math.min(event.clientY, window.innerHeight - 320),
+              scope: 'local',
               branch
             })
           }}
@@ -348,6 +416,16 @@ export default function Sidebar() {
               setRepo(info)
             }, `已检出 ${branch.name}`)
           }
+          onContextMenu={(event, branch, remote) => {
+            event.preventDefault()
+            setMenu({
+              x: Math.min(event.clientX, window.innerWidth - 200),
+              y: Math.min(event.clientY, window.innerHeight - 150),
+              scope: 'remote',
+              branch,
+              remote
+            })
+          }}
           onWorktree={(branch) => setWorktreeDialog({ initialBranch: branch })}
           onDeleteRemote={(remote) =>
             setConfirm({
@@ -496,119 +574,29 @@ export default function Sidebar() {
       </div>
 
       {menu && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            onMouseDown={() => setMenu(null)}
-            onContextMenu={(event) => {
-              event.preventDefault()
-              setMenu(null)
-            }}
-          />
-          <div
-            className="fixed z-50 min-w-[190px] rounded-[10px] p-1.5"
-            style={{
-              left: menu.x,
-              top: menu.y,
-              background: 'var(--surface)',
-              border: '1px solid var(--border)',
-              boxShadow: 'var(--shadow-pop)'
-            }}
-          >
-            {!menu.branch.isHead && (
-              <button
-                className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-                onClick={() => {
-                  const branch = menu.branch
-                  setMenu(null)
-                  run(async () => {
-                    const info = await ipc.branchCheckout(repo.path, branch.name)
-                    setRepo(info)
-                  }, `已切换到 ${branch.name}`)
-                }}
-              >
-                检出分支
-              </button>
-            )}
-            <button
-              className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-              onClick={() => {
-                const branch = menu.branch
-                setMenu(null)
-                run(() => ipc.mergeBranch(repo.path, branch.name), `已合并 ${branch.name}`)
-              }}
-            >
-              合并到当前分支
-            </button>
-            <button
-              className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-              onClick={() => {
-                const branch = menu.branch
-                setMenu(null)
-                setPushBranch(branch)
-              }}
-            >
-              Push 到远程…
-            </button>
-            <button
-              className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-              onClick={() => {
-                const branch = menu.branch
-                setMenu(null)
-                setPrompt({ kind: 'upstream', branch })
-              }}
-            >
-              设置上游…
-            </button>
-            {menu.branch.upstream && (
-              <button
-                className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-                onClick={() => {
-                  const branch = menu.branch
-                  setMenu(null)
-                  run(() => ipc.branchSetUpstream(repo.path, branch.name, null), '已取消上游跟踪')
-                }}
-              >
-                取消上游跟踪
-              </button>
-            )}
-            <button
-              className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px]"
-              onClick={() => {
-                const branch = menu.branch
-                setMenu(null)
-                setPrompt({ kind: 'rename', branch })
-              }}
-            >
-              重命名…
-            </button>
-            <div className="my-1 h-px" style={{ background: 'var(--border)' }} />
-            <button
-              className="w-full text-left px-2.5 py-2 rounded-md hover:bg-[var(--surface-hover)] text-[12px] danger-text"
-              onClick={() => {
-                const branch = menu.branch
-                setMenu(null)
-                setConfirm({
-                  title: '删除分支',
-                  message: (
-                    <span>
-                      将强制删除分支 <span className="mono">{branch.name}</span>
-                      。若该分支尚未合并，其提交可能失去引用。
-                    </span>
-                  ),
-                  confirmLabel: '删除分支',
-                  danger: true,
-                  action: async () => {
-                    await ipc.branchDelete(repo.path, branch.name, true)
-                    toast('success', `已删除分支 ${branch.name}`)
-                  }
-                })
-              }}
-            >
-              删除分支
-            </button>
-          </div>
-        </>
+        <BranchContextMenu
+          menu={menu}
+          remoteNames={remoteNames}
+          onDismiss={() => setMenu(null)}
+          onCreateFromRemote={(branch, remote) => setRemoteBranchCreate({ branch, remote })}
+          onCheckout={(branch) =>
+            run(async () => {
+              const info = await ipc.branchCheckout(repo.path, branch.name)
+              setRepo(info)
+            }, `已切换到 ${branch.name}`)
+          }
+          onPull={(branch, tracked) => void runBranchPull(branch, tracked)}
+          onMerge={(branch) =>
+            run(() => ipc.mergeBranch(repo.path, branch.name), `已合并 ${branch.name}`)
+          }
+          onPush={setPushBranch}
+          onSetUpstream={(branch) => setPrompt({ kind: 'upstream', branch })}
+          onCancelUpstream={(branch) =>
+            run(() => ipc.branchSetUpstream(repo.path, branch.name, null), '已取消上游跟踪')
+          }
+          onRename={(branch) => setPrompt({ kind: 'rename', branch })}
+          onDelete={setDeleteBranch}
+        />
       )}
 
       <PromptDialog
@@ -655,6 +643,25 @@ export default function Sidebar() {
 
       {addRemoteOpen && <RemotesDialog addOnly onClose={() => setAddRemoteOpen(false)} />}
       {pushBranch && <PushBranchDialog branch={pushBranch} onClose={() => setPushBranch(null)} />}
+      {remoteBranchCreate && (
+        <RemoteBranchCreateDialog
+          branch={remoteBranchCreate.branch}
+          remote={remoteBranchCreate.remote}
+          existingLocalNames={locals.map((branch) => branch.name)}
+          busy={busy}
+          onCancel={() => setRemoteBranchCreate(null)}
+          onSubmit={(name, checkout) => void createRemoteBranch(name, checkout)}
+        />
+      )}
+      {deleteBranch && (
+        <DeleteLocalBranchDialog
+          branch={deleteBranch}
+          tracked={resolveTrackedRemote(deleteBranch.upstream, remoteNames)}
+          busy={busy}
+          onCancel={() => setDeleteBranch(null)}
+          onConfirm={(deleteRemote) => void deleteLocalBranch(deleteRemote)}
+        />
+      )}
       {discoverRoot && <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />}
       {tagDialogOpen && <TagDialog onClose={() => setTagDialogOpen(false)} />}
       {worktreeDialog && (

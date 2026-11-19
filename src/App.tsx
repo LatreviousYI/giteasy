@@ -9,6 +9,7 @@ import { useOpenRepo } from './lib/actions'
 import { useUpdates } from './store/updates'
 import { loadPersistedWorkspace, savePersistedWorkspace } from './lib/workspace'
 import { createRepoViewState } from './store/repoState'
+import { useAutoFetch } from './lib/useAutoFetch'
 import TopBar from './components/TopBar'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
@@ -206,19 +207,7 @@ export default function App() {
   }, [setPaletteOpen, setSettingsOpen, setView])
 
   const autoFetch = settings?.autoFetchMinutes ?? 0
-  const repoPath = repo?.path
-  useEffect(() => {
-    if (!repoPath || !autoFetch || autoFetch <= 0) return
-    const timer = window.setInterval(() => {
-      ipc
-        .fetch(repoPath, null, () => undefined)
-        .then(() => {
-          invalidateRepoQueries(queryClient, repoPath, ['status', 'log', 'branches'])
-        })
-        .catch(() => undefined)
-    }, autoFetch * 60_000)
-    return () => window.clearInterval(timer)
-  }, [repoPath, autoFetch, queryClient])
+  useAutoFetch(repo?.path ?? null, autoFetch, queryClient)
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

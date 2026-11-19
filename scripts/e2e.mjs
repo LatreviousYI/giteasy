@@ -43,6 +43,55 @@ try {
   await driver.wait(until.elementLocated(By.css("[title='展开分支目录 feature']")), 5_000)
   await driver.findElement(By.css("[title='展开分支目录 feature']")).click()
 
+  await driver.executeScript(`
+    const row = [...document.querySelectorAll('.list-row.branch-tree-leaf')]
+      .find((item) => item.textContent.includes('◌') && item.textContent.includes('main'));
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 360,
+      clientY: 280,
+      button: 2
+    }));
+  `)
+  await driver.wait(until.elementLocated(By.xpath("//button[contains(., '创建本地分支')]")), 5_000)
+  await driver.findElement(By.xpath("//button[contains(., '创建本地分支')]")).click()
+  await driver.wait(until.elementLocated(By.css('.modal')), 5_000)
+  const remoteCreateDefaults = await driver.executeScript(`
+    const modal = document.querySelector('.modal');
+    return {
+      name: modal.querySelector('input.input').value,
+      checkout: modal.querySelector('input[type=checkbox]').checked
+    };
+  `)
+  if (remoteCreateDefaults.name !== 'main' || remoteCreateDefaults.checkout !== true) {
+    throw new Error(`Unexpected remote create defaults: ${JSON.stringify(remoteCreateDefaults)}`)
+  }
+  await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  await driver.executeScript(`
+    const row = [...document.querySelectorAll('.list-row.branch-tree-leaf')]
+      .find((item) => !item.textContent.includes('◌') && item.textContent.includes('ui'));
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 360,
+      clientY: 280,
+      button: 2
+    }));
+  `)
+  const disabledPull = await driver.wait(
+    until.elementLocated(By.xpath("//button[contains(., '无追踪上游')]")),
+    5_000
+  )
+  if (await disabledPull.isEnabled()) {
+    throw new Error('Pull without upstream should be disabled')
+  }
+  await driver.executeScript(`
+    document.querySelector('.fixed.inset-0.z-40')
+      .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  `)
+
   await shot('light/changes-1440.png', 1440, 900)
   const verticalScrollCheck = await driver.executeScript(`
     const body = document.querySelector('.diff-body');
@@ -179,6 +228,43 @@ try {
 
   await driver.executeScript("document.documentElement.dataset.theme='dark'")
   await shot('dark/conflicts-1280.png', 1280, 800)
+
+  const initialVersionsHeight = await driver.executeScript(`
+    const pane = document.querySelector('.conflict-versions');
+    const splitter = document.querySelector('.conflict-splitter');
+    const rect = splitter.getBoundingClientRect();
+    const startY = rect.top + rect.height / 2;
+    splitter.dispatchEvent(new PointerEvent('pointerdown', {
+      bubbles: true,
+      clientY: startY,
+      pointerId: 2,
+      pointerType: 'mouse',
+      buttons: 1
+    }));
+    window.dispatchEvent(new PointerEvent('pointermove', {
+      bubbles: true,
+      clientY: startY + 80,
+      pointerId: 2,
+      pointerType: 'mouse',
+      buttons: 1
+    }));
+    window.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      clientY: startY + 80,
+      pointerId: 2,
+      pointerType: 'mouse'
+    }));
+    return pane.getBoundingClientRect().height;
+  `)
+  await driver.sleep(100)
+  const resizedVersionsHeight = await driver.executeScript(
+    "return document.querySelector('.conflict-versions').getBoundingClientRect().height"
+  )
+  if (resizedVersionsHeight < initialVersionsHeight + 50) {
+    throw new Error(
+      `Conflict versions pane did not resize: ${initialVersionsHeight} -> ${resizedVersionsHeight}`
+    )
+  }
 
   await driver.findElement(By.css("[title='GitHub']")).click()
   await driver.wait(until.elementLocated(By.css('.github-layout')), 10_000)
