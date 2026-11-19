@@ -9,6 +9,7 @@ mod read;
 mod rebase;
 mod session;
 mod settings;
+mod shutdown;
 mod ssh;
 mod tools;
 mod updater;
@@ -18,6 +19,7 @@ mod write;
 
 use notify::RecommendedWatcher;
 use std::collections::HashMap;
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
 pub struct AppState {
@@ -25,6 +27,7 @@ pub struct AppState {
     pub watchers: Mutex<HashMap<String, RecommendedWatcher>>,
     pub sessions: session::RepoRegistry,
     pub github: github::GitHubService,
+    pub shutting_down: AtomicBool,
 }
 
 fn main() {
@@ -38,8 +41,11 @@ fn main() {
             watchers: Mutex::new(HashMap::new()),
             sessions: session::RepoRegistry::default(),
             github: github::GitHubService::new(),
+            shutting_down: AtomicBool::new(false),
         })
+        .on_window_event(shutdown::on_window_event)
         .invoke_handler(tauri::generate_handler![
+            shutdown::app_exit,
             read::repo_open,
             read::repo_close,
             read::repo_init,

@@ -65,6 +65,7 @@ function channel(handler: ProgressHandler): Channel<ProgressEvent> {
 }
 
 export const ipc = {
+  appExit: () => invoke<void>('app_exit'),
   repoOpen: (path: string) => invoke<RepoInfo>('repo_open', { path }),
   repoClose: (path: string) => invoke<void>('repo_close', { path }),
   repoInit: (path: string) => invoke<RepoInfo>('repo_init', { path }),

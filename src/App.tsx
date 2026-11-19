@@ -10,6 +10,7 @@ import { useUpdates } from './store/updates'
 import { loadPersistedWorkspace, savePersistedWorkspace } from './lib/workspace'
 import { createRepoViewState } from './store/repoState'
 import { useAutoFetch } from './lib/useAutoFetch'
+import { useCloseRequest } from './lib/useCloseRequest'
 import TopBar from './components/TopBar'
 import Sidebar from './components/Sidebar'
 import StatusBar from './components/StatusBar'
@@ -19,6 +20,7 @@ import ChangesView from './features/changes/ChangesView'
 import HistoryView from './features/history/HistoryView'
 import ConflictsView from './features/conflicts/ConflictsView'
 import PullStrategyDialog from './features/remote/PullStrategyDialog'
+import { ConfirmDialog } from './components/Dialogs'
 
 const isTauri = typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window
 
@@ -53,6 +55,7 @@ export default function App() {
   const setView = useApp((s) => s.setView)
   const queryClient = useQueryClient()
   const openRepo = useOpenRepo()
+  const closeRequest = useCloseRequest()
 
   const settingsQuery = useSettings()
   const { data: status } = useStatus(repo?.path ?? null)
@@ -235,6 +238,21 @@ export default function App() {
       </div>
       <StatusBar status={status} />
       <ToastHost />
+      <ConfirmDialog
+        open={closeRequest.operations !== null}
+        title="Git 操作正在执行"
+        message={
+          <span>
+            检测到 <b>{closeRequest.operations ?? 0}</b> 个正在执行的 Git
+            操作。关闭会中断这些操作，已完成的修改仍会保留。
+          </span>
+        }
+        confirmLabel="关闭并中断操作"
+        danger
+        busy={closeRequest.closing}
+        onConfirm={() => void closeRequest.confirm()}
+        onCancel={closeRequest.cancel}
+      />
       <Suspense fallback={null}>
         {settingsOpen && <SettingsDialog />}
         {activityOpen && repo && <ActivityPanel />}

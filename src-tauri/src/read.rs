@@ -1566,6 +1566,7 @@ mod tests {
     use crate::session::RepoRegistry;
     use crate::{settings::Settings, AppState};
     use notify::recommended_watcher;
+    use std::sync::atomic::AtomicBool;
     use std::sync::Mutex;
 
     #[test]
@@ -1575,6 +1576,7 @@ mod tests {
             watchers: Mutex::new(Default::default()),
             sessions: RepoRegistry::default(),
             github: crate::github::GitHubService::new(),
+            shutting_down: AtomicBool::new(false),
         };
         let repo_id = "/tmp/giteasy-close-test";
         state.sessions.ensure(repo_id);
