@@ -138,4 +138,37 @@ describe('branch tree', () => {
       expect.objectContaining({ name: 'origin' })
     )
   })
+
+  it('passes the full nested remote branch name to delete', () => {
+    const onDeleteBranch = vi.fn()
+    const remoteBranch: BranchDto = {
+      ...branch('origin/feature/login'),
+      isRemote: true,
+      isHead: false
+    }
+
+    render(
+      <RemoteSection
+        remotes={[{ name: 'origin', url: 'git@example.com:demo/repo.git' }]}
+        branches={[remoteBranch]}
+        picked={null}
+        collapsed={{}}
+        onAdd={vi.fn()}
+        onToggle={vi.fn()}
+        onPick={vi.fn()}
+        onCheckout={vi.fn()}
+        onContextMenu={vi.fn()}
+        onWorktree={vi.fn()}
+        onDeleteRemote={vi.fn()}
+        onDeleteBranch={onDeleteBranch}
+      />
+    )
+
+    fireEvent.click(screen.getByTitle('删除远程分支'))
+    expect(onDeleteBranch).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'origin' }),
+      remoteBranch,
+      'feature/login'
+    )
+  })
 })

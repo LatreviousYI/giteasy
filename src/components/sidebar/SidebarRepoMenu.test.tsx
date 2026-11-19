@@ -19,6 +19,7 @@ describe('SidebarRepoMenu', () => {
         onOpenDirectory={vi.fn()}
         onInitializeRepository={vi.fn()}
         onDiscoverRepositories={vi.fn()}
+        onManageRemotes={vi.fn()}
         onOpenTerminal={vi.fn()}
         onCloseRepository={vi.fn()}
       />
@@ -32,6 +33,7 @@ describe('SidebarRepoMenu', () => {
 
   it('routes repository commands through the supplied actions', () => {
     const onOpenDirectory = vi.fn()
+    const onManageRemotes = vi.fn()
     render(
       <SidebarRepoMenu
         repoPath="/tmp/current"
@@ -41,6 +43,7 @@ describe('SidebarRepoMenu', () => {
         onOpenDirectory={onOpenDirectory}
         onInitializeRepository={vi.fn()}
         onDiscoverRepositories={vi.fn()}
+        onManageRemotes={onManageRemotes}
         onOpenTerminal={vi.fn()}
         onCloseRepository={vi.fn()}
       />
@@ -49,5 +52,8 @@ describe('SidebarRepoMenu', () => {
     fireEvent.click(screen.getByRole('button', { name: '打开其他仓库…' }))
 
     expect(onOpenDirectory).toHaveBeenCalledOnce()
+
+    fireEvent.click(screen.getByRole('button', { name: '管理远程…' }))
+    expect(onManageRemotes).toHaveBeenCalledOnce()
   })
 })

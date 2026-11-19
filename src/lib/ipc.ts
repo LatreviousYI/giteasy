@@ -260,6 +260,8 @@ export const ipc = {
 
   remoteAdd: (path: string, name: string, url: string) =>
     invoke<void>('remote_add', { path, name, url }),
+  remoteUpdate: (path: string, oldName: string, newName: string, url: string) =>
+    invoke<void>('remote_update', { path, oldName, newName, url }),
   remoteRemove: (path: string, name: string) => invoke<void>('remote_remove', { path, name }),
   updateContext: () => invoke<UpdateContextDto>('update_context'),
   openUpdatePage: () => invoke<void>('open_update_page'),

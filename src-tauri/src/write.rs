@@ -540,11 +540,15 @@ pub async fn remote_branch_delete(
     branch: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(
-        &path,
-        &["push", remote.as_str(), "--delete", branch.as_str()],
-    )
-    .await?;
+    remote_branch_delete_impl(&path, &remote, &branch).await
+}
+
+pub(crate) async fn remote_branch_delete_impl(
+    path: &str,
+    remote: &str,
+    branch: &str,
+) -> Result<(), AppError> {
+    util::git(path, &["push", remote, "--delete", branch]).await?;
     Ok(())
 }
 
@@ -676,7 +680,71 @@ pub async fn remote_add(
     url: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(&path, &["remote", "add", name.as_str(), url.as_str()]).await?;
+    remote_add_impl(&path, &name, &url).await
+}
+
+pub(crate) async fn remote_add_impl(path: &str, name: &str, url: &str) -> Result<(), AppError> {
+    let name = name.trim();
+    let url = url.trim();
+    if name.is_empty() {
+        return Err(AppError::user("remote 名称不能为空"));
+    }
+    if url.is_empty() {
+        return Err(AppError::user("remote URL 不能为空"));
+    }
+    util::git(path, &["remote", "add", name, url]).await?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn remote_update(
+    state: State<'_, crate::AppState>,
+    path: String,
+    old_name: String,
+    new_name: String,
+    url: String,
+) -> Result<(), AppError> {
+    let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    remote_update_impl(&path, &old_name, &new_name, &url).await
+}
+
+pub(crate) async fn remote_update_impl(
+    path: &str,
+    old_name: &str,
+    new_name: &str,
+    url: &str,
+) -> Result<(), AppError> {
+    let old_name = old_name.trim();
+    let new_name = new_name.trim();
+    let url = url.trim();
+    if old_name.is_empty() {
+        return Err(AppError::user("原 remote 名称不能为空"));
+    }
+    if new_name.is_empty() {
+        return Err(AppError::user("新的 remote 名称不能为空"));
+    }
+    if url.is_empty() {
+        return Err(AppError::user("remote URL 不能为空"));
+    }
+
+    let name_changed = old_name != new_name;
+    if name_changed {
+        util::git(path, &["remote", "rename", old_name, new_name]).await?;
+    }
+
+    let current = util::git_trimmed(path, &["remote", "get-url", new_name]).await?;
+    if current != url {
+        if let Err(mut error) = util::git(path, &["remote", "set-url", new_name, url]).await {
+            if name_changed {
+                error.message = format!(
+                    "remote {old_name} 已改名为 {new_name}，但 URL 修改失败：{}",
+                    error.message
+                );
+                error.hint = Some("remote 名称已修改，但 URL 未修改".to_string());
+            }
+            return Err(error);
+        }
+    }
     Ok(())
 }
 
@@ -687,7 +755,15 @@ pub async fn remote_remove(
     name: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(&path, &["remote", "remove", name.as_str()]).await?;
+    remote_remove_impl(&path, &name).await
+}
+
+pub(crate) async fn remote_remove_impl(path: &str, name: &str) -> Result<(), AppError> {
+    let name = name.trim();
+    if name.is_empty() {
+        return Err(AppError::user("remote 名称不能为空"));
+    }
+    util::git(path, &["remote", "remove", name]).await?;
     Ok(())
 }
 

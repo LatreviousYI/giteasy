@@ -28,7 +28,7 @@
 - `btn`、`input` 等 CSS class 可以重复使用；不要仅因出现次数多就创建无行为组件。只有需要统一行为、可访问性或复杂变体时才创建组件。
 - 大型组件应拆为数据 Hook、命令处理函数和纯展示子组件。不要继续把独立功能塞进已超过约 500 行的组件。
 - 新样式优先使用现有 CSS 变量和设计 token。不要在 JSX 中新增硬编码主题颜色。
-- 所有对话框必须具备 `role="dialog"`、`aria-modal` 和可访问标题；后续统一加入焦点锁定与焦点恢复。
+- 所有对话框必须使用现有 `Modal` 及其 `useModalFocus`，保留 `role="dialog"`、`aria-modal`、可访问标题、焦点锁定和关闭后焦点恢复。
 
 ## Rust 后端约定
 
@@ -69,7 +69,7 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 cargo fmt --manifest-path src-tauri/Cargo.toml -- --check
 ```
 
-当前尚未完整接入 ESLint、Prettier、Clippy 和 rustfmt。新增这些门禁时，应先修复现有告警，再设为 CI 必过。
+ESLint、Prettier、Clippy 和 rustfmt 已接入 CI；相关告警必须保持为零。
 
 E2E 会改写 `docs/visual-baselines/`。如果只是验证而非有意更新视觉基线，测试后必须恢复这些生成文件，避免把测试副作用提交。
 
@@ -90,12 +90,10 @@ E2E 会改写 `docs/visual-baselines/`。如果只是验证而非有意更新视
 
 ## 当前质量债务与建议顺序
 
-1. P2：接入 ESLint、Prettier、Clippy、rustfmt，并加入 CI。
-2. P2：统一 Rust 的 Mutex 获取和 Git command/stream 执行层。
-3. P2：统一 repo Query invalidation、错误标准化、剪贴板和时间/大小格式化。
-4. P2：增强 Modal 可访问性和焦点管理。
-5. P2：逐步拆分 `read.rs`、`write.rs`、`Sidebar.tsx`、`SidebarSections.tsx`、`DiffViewer.tsx`、`GitHubPanel.tsx`。
-6. P3：为设置、错误映射、查询刷新、Modal 和 updater 网络失败补测试。
-7. P3：评估是否将全局 `styles.css` 按 feature 拆分；优先保持现有 CSS token 和视觉基线稳定。
+1. P2：按领域逐步拆分 `read.rs`、`write.rs`，每次迁移一个读取或写入子域。
+2. P2：逐步拆分 `Sidebar.tsx`、`SidebarSections.tsx`、`DiffViewer.tsx` 和 `GitHubPanel.tsx`。
+3. P3：补设置文件加载、持久化和损坏配置回退测试。
+4. P3：补 updater 网络失败和限频交互测试。
+5. P3：评估是否将全局 `styles.css` 按 feature 拆分；优先保持现有 CSS token 和视觉基线稳定。
 
 重构必须小步进行，每一步保持测试通过。禁止为了“整洁”一次性重写整个模块。

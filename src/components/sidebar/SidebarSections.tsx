@@ -282,7 +282,7 @@ export function RemoteSection({
         <button
           className="icon-btn"
           style={{ width: 20, height: 20 }}
-          title="添加远程"
+          title="管理远程"
           onClick={onAdd}
         >
           <Plus size={13} />
@@ -343,7 +343,7 @@ export function RemoteSection({
                   onPick={onPick}
                   onCheckout={onCheckout}
                   onContextMenu={(event, branch) => onContextMenu(event, branch, remote)}
-                  renderActions={(branch, shortName) => (
+                  renderActions={(branch) => (
                     <div className="row-actions">
                       <button
                         className="icon-btn"
@@ -362,7 +362,10 @@ export function RemoteSection({
                         title="删除远程分支"
                         onClick={(event) => {
                           event.stopPropagation()
-                          onDeleteBranch(remote, branch, shortName)
+                          const remoteBranch = branch.name.startsWith(`${remote.name}/`)
+                            ? branch.name.slice(remote.name.length + 1)
+                            : branch.name
+                          onDeleteBranch(remote, branch, remoteBranch)
                         }}
                       >
                         <Trash2 size={12} />

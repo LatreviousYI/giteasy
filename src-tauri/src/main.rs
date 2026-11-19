@@ -104,6 +104,7 @@ fn main() {
             write::stash_apply,
             write::stash_drop,
             write::remote_add,
+            write::remote_update,
             write::remote_remove,
             write::fetch,
             write::pull,
@@ -601,6 +602,94 @@ mod tests {
             .contains("远程分支 missing-remote/feature/partial-delete"));
         assert!(error.hint.unwrap_or_default().contains("未删除"));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn remote_crud_renames_and_updates_url() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+
+        write::remote_add_impl(&path, "temp", "git@example.com:demo/old.git")
+            .await
+            .unwrap();
+        write::remote_update_impl(&path, "temp", "renamed", "https://example.com/demo/new.git")
+            .await
+            .unwrap();
+
+        let url = util::git_trimmed(&path, &["remote", "get-url", "renamed"])
+            .await
+            .unwrap();
+        assert_eq!(url, "https://example.com/demo/new.git");
+
+        write::remote_remove_impl(&path, "renamed").await.unwrap();
+        let remotes = util::git(&path, &["remote"]).await.unwrap();
+        assert!(remotes.trim().is_empty());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn remote_operations_reject_empty_values() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+
+        assert!(
+            write::remote_add_impl(&path, " ", "git@example.com:demo/repo.git")
+                .await
+                .is_err()
+        );
+        assert!(write::remote_add_impl(&path, "temp", " ").await.is_err());
+        assert!(
+            write::remote_update_impl(&path, "temp", "", "git@example.com:demo/repo.git")
+                .await
+                .is_err()
+        );
+        assert!(write::remote_update_impl(&path, "temp", "renamed", " ")
+            .await
+            .is_err());
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    #[ignore = "requires explicit real repository and disposable remote configuration"]
+    async fn remote_update_manual_real_repo() {
+        let path = std::env::var("GIT_EASY_REAL_REPO")
+            .expect("GIT_EASY_REAL_REPO must point to a disposable real repository");
+        let name = std::env::var("GIT_EASY_REAL_TEMP_REMOTE")
+            .expect("GIT_EASY_REAL_TEMP_REMOTE must name a temporary remote");
+        let renamed = std::env::var("GIT_EASY_REAL_TEMP_REMOTE_RENAMED").expect(
+            "GIT_EASY_REAL_TEMP_REMOTE_RENAMED must name the temporary remote after update",
+        );
+        let url = std::env::var("GIT_EASY_REAL_TEMP_REMOTE_URL")
+            .expect("GIT_EASY_REAL_TEMP_REMOTE_URL must contain the updated URL");
+
+        write::remote_add_impl(&path, &name, "git@example.com:giteasy/old.git")
+            .await
+            .unwrap();
+        write::remote_update_impl(&path, &name, &renamed, &url)
+            .await
+            .unwrap();
+        assert_eq!(
+            util::git_trimmed(&path, &["remote", "get-url", &renamed])
+                .await
+                .unwrap(),
+            url
+        );
+        write::remote_remove_impl(&path, &renamed).await.unwrap();
+    }
+
+    #[tokio::test]
+    #[ignore = "requires explicit real repository, remote and disposable nested branch"]
+    async fn remote_branch_delete_manual_real_repo() {
+        let path = std::env::var("GIT_EASY_REAL_REPO")
+            .expect("GIT_EASY_REAL_REPO must point to a disposable real repository");
+        let remote = std::env::var("GIT_EASY_REAL_REMOTE")
+            .expect("GIT_EASY_REAL_REMOTE must name the real remote");
+        let branch = std::env::var("GIT_EASY_REAL_BRANCH")
+            .expect("GIT_EASY_REAL_BRANCH must name a disposable nested remote branch");
+
+        write::remote_branch_delete_impl(&path, &remote, &branch)
+            .await
+            .unwrap();
     }
 
     #[tokio::test]
