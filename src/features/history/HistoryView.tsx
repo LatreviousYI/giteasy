@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { copyTextWithToast } from '../../lib/clipboard'
-import { useInvalidateRepo, useLog, useStashes } from '../../lib/queries'
+import { useBranches, useInvalidateRepo, useLog, useStashes } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import { buildGraph, type GraphRow } from '../../lib/graph'
 import { relativeTime } from '../../lib/format'
@@ -77,9 +77,10 @@ export default function HistoryView() {
   )
 
   const { data, isLoading, isFetching, refetch } = useLog(repo.path, query)
+  const { data: branches = [] } = useBranches(repo.path)
   const { data: stashes = [] } = useStashes(repo.path)
   const commits = useMemo(() => data?.commits ?? [], [data?.commits])
-  const graph = useMemo(() => buildGraph(commits), [commits])
+  const graph = useMemo(() => buildGraph(commits, branches), [commits, branches])
   const rowByOid = useMemo(() => {
     const map = new Map<string, GraphRow>()
     for (const row of graph.rows) map.set(row.oid, row)
