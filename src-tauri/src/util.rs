@@ -38,6 +38,16 @@ pub fn git_command<S: AsRef<OsStr>>(
     for (key, value) in envs {
         command.env(key, value);
     }
+    command.kill_on_drop(true);
+    #[cfg(target_os = "linux")]
+    unsafe {
+        command.pre_exec(|| {
+            if libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM) == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
+    }
     command
 }
 
@@ -328,6 +338,7 @@ mod tests {
         );
         let envs: std::collections::HashMap<_, _> = command.as_std().get_envs().collect();
 
+        assert!(command.get_kill_on_drop());
         assert_eq!(
             envs.get(OsStr::new("GIT_TERMINAL_PROMPT"))
                 .and_then(|value| *value),
