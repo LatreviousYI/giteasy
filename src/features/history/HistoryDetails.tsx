@@ -13,7 +13,7 @@ import {
   Undo2
 } from 'lucide-react'
 import { useCommitDetail, useCommitDiff } from '../../lib/queries'
-import { laneColor, LANE_COLORS, type GraphRow } from '../../lib/graph'
+import { LANE_COLORS, type GraphRow } from '../../lib/graph'
 import { formatDate, initials, relativeTime } from '../../lib/format'
 import type { CommitDto } from '../../lib/types'
 import { Spinner } from '../../components/Empty'
@@ -57,7 +57,7 @@ export function GraphCell({ row }: { row: GraphRow }) {
           y1={0}
           x2={x(item.index)}
           y2={height}
-          stroke={LANE_COLORS[laneColor(item.oid as string)]}
+          stroke={LANE_COLORS[row.beforeColors[item.index] ?? row.color]}
           strokeWidth={2}
           opacity={0.75}
         />

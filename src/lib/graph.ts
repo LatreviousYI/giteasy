@@ -1,4 +1,4 @@
-import type { CommitDto } from './types'
+import type { BranchDto, CommitDto } from './types'
 
 export interface GraphEdge {
   from: number
@@ -12,9 +12,23 @@ export interface GraphRow {
   lane: number
   color: number
   before: (string | null)[]
+  beforeColors: (number | null)[]
   after: (string | null)[]
+  afterColors: (number | null)[]
   edges: GraphEdge[]
   laneCount: number
+}
+
+interface Lane {
+  oid: string
+  color: number
+}
+
+interface BranchColorEntry {
+  key: string
+  oid: string
+  priority: number
+  color: number
 }
 
 export const LANE_COLORS = [
@@ -28,65 +42,142 @@ export const LANE_COLORS = [
   '#0EA5A4'
 ]
 
-export function laneColor(oid: string): number {
+export function branchColorIndex(value: string): number {
   let hash = 0
-  for (let i = 0; i < oid.length; i += 1) {
-    hash = (hash * 31 + oid.charCodeAt(i)) >>> 0
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash * 31 + value.charCodeAt(i)) >>> 0
   }
   return hash % LANE_COLORS.length
 }
 
-export function buildGraph(commits: CommitDto[]): {
+function branchEntries(branches: BranchDto[]): BranchColorEntry[] {
+  return branches
+    .map((branch) => {
+      const priority = branch.isHead ? 0 : branch.isRemote ? 2 : 1
+      const key = `${branch.isRemote ? 'remote' : 'local'}:${branch.name}`
+      return {
+        key,
+        oid: branch.oid,
+        priority,
+        color: branchColorIndex(key)
+      }
+    })
+    .sort(
+      (left, right) =>
+        left.priority - right.priority ||
+        left.key.localeCompare(right.key) ||
+        left.oid.localeCompare(right.oid)
+    )
+}
+
+function assignBranchColors(branches: BranchDto[]): BranchColorEntry[] {
+  const used = new Set<number>()
+  return branchEntries(branches).map((entry) => {
+    let color = entry.color
+    if (used.size < LANE_COLORS.length) {
+      for (let offset = 0; offset < LANE_COLORS.length; offset += 1) {
+        const candidate = (entry.color + offset) % LANE_COLORS.length
+        if (!used.has(candidate)) {
+          color = candidate
+          break
+        }
+      }
+    }
+    used.add(color)
+    return { ...entry, color }
+  })
+}
+
+function fallbackColor(oid: string): number {
+  return branchColorIndex(`commit:${oid}`)
+}
+
+function commitColors(commits: CommitDto[], branches: BranchDto[]): Map<string, number> {
+  const colors = new Map<string, number>()
+
+  for (const branch of assignBranchColors(branches)) {
+    if (!colors.has(branch.oid)) colors.set(branch.oid, branch.color)
+  }
+
+  for (const commit of commits) {
+    const color = colors.get(commit.oid) ?? fallbackColor(commit.oid)
+    colors.set(commit.oid, color)
+
+    commit.parents.forEach((parent, index) => {
+      if (colors.has(parent)) return
+      colors.set(parent, index === 0 ? color : fallbackColor(parent))
+    })
+  }
+
+  return colors
+}
+
+function laneSnapshot(lanes: (Lane | null)[]) {
+  return {
+    oids: lanes.map((lane) => lane?.oid ?? null),
+    colors: lanes.map((lane) => lane?.color ?? null)
+  }
+}
+
+export function buildGraph(
+  commits: CommitDto[],
+  branches: BranchDto[] = []
+): {
   rows: GraphRow[]
   laneCount: number
 } {
-  const lanes: (string | null)[] = []
+  const colors = commitColors(commits, branches)
+  const lanes: (Lane | null)[] = []
   const rows: GraphRow[] = []
   let laneCount = 1
 
   for (const commit of commits) {
-    let lane = lanes.indexOf(commit.oid)
+    const color = colors.get(commit.oid) ?? fallbackColor(commit.oid)
+    let lane = lanes.findIndex((item) => item?.oid === commit.oid)
     if (lane === -1) {
       lane = lanes.findIndex((item) => item === null)
       if (lane === -1) {
         lane = lanes.length
         lanes.push(null)
       }
-      lanes[lane] = commit.oid
+      lanes[lane] = { oid: commit.oid, color }
+    } else {
+      lanes[lane] = { oid: commit.oid, color }
     }
 
-    const before = lanes.slice()
-    const color = laneColor(commit.oid)
+    const before = laneSnapshot(lanes)
     const edges: GraphEdge[] = []
     const parents = commit.parents
 
     if (parents.length > 0) {
       const primary = parents[0]
-      let primaryLane = lanes.indexOf(primary)
+      let primaryLane = lanes.findIndex((item) => item?.oid === primary)
+      const primaryColor = colors.get(primary) ?? color
       if (primaryLane === -1) {
         primaryLane = lane
-        lanes[lane] = primary
+        lanes[lane] = { oid: primary, color: primaryColor }
       } else if (primaryLane === lane) {
-        lanes[lane] = primary
+        lanes[lane] = { oid: primary, color: primaryColor }
       } else {
         lanes[lane] = null
       }
       edges.push({ from: lane, to: primaryLane, color, merge: false })
 
       for (const parent of parents.slice(1)) {
-        let parentLane = lanes.indexOf(parent)
+        const parentColor = colors.get(parent) ?? fallbackColor(parent)
+        let parentLane = lanes.findIndex((item) => item?.oid === parent)
         if (parentLane === -1) {
           parentLane = lanes.findIndex((item) => item === null)
           if (parentLane === -1) {
             parentLane = lanes.length
             lanes.push(null)
           }
-          lanes[parentLane] = parent
+          lanes[parentLane] = { oid: parent, color: parentColor }
         }
         edges.push({
           from: lane,
           to: parentLane,
-          color: laneColor(parent),
+          color: parentColor,
           merge: true
         })
       }
@@ -98,7 +189,8 @@ export function buildGraph(commits: CommitDto[]): {
       lanes.pop()
     }
 
-    laneCount = Math.max(laneCount, before.length, lanes.length, lane + 1)
+    const after = laneSnapshot(lanes)
+    laneCount = Math.max(laneCount, before.oids.length, after.oids.length, lane + 1)
     for (const edge of edges) {
       laneCount = Math.max(laneCount, edge.from + 1, edge.to + 1)
     }
@@ -107,8 +199,10 @@ export function buildGraph(commits: CommitDto[]): {
       oid: commit.oid,
       lane,
       color,
-      before,
-      after: lanes.slice(),
+      before: before.oids,
+      beforeColors: before.colors,
+      after: after.oids,
+      afterColors: after.colors,
       edges,
       laneCount
     })
