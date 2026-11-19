@@ -1,19 +1,14 @@
-import { useState } from 'react'
-import { Cloud, Plus, Trash2 } from 'lucide-react'
+import { useId, useState } from 'react'
+import { Cloud, Pencil, Plus, Trash2 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useInvalidateRepo, useRemotes } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 import { ConfirmDialog } from '../../components/Dialogs'
 import { Spinner } from '../../components/Empty'
+import type { RemoteDto } from '../../lib/types'
 
-export default function RemotesDialog({
-  onClose,
-  addOnly = false
-}: {
-  onClose: () => void
-  addOnly?: boolean
-}) {
+export default function RemotesDialog({ onClose }: { onClose: () => void }) {
   const repo = useApp((s) => s.repo)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
@@ -23,6 +18,11 @@ export default function RemotesDialog({
   const [url, setUrl] = useState('')
   const [busy, setBusy] = useState(false)
   const [removeTarget, setRemoveTarget] = useState<string | null>(null)
+  const [editing, setEditing] = useState<RemoteDto | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editUrl, setEditUrl] = useState('')
+  const editNameId = useId()
+  const editUrlId = useId()
 
   if (!repo) return null
 
@@ -35,7 +35,6 @@ export default function RemotesDialog({
       toast('success', `已添加远程 ${name.trim()}`)
       setName('')
       setUrl('')
-      if (addOnly) onClose()
     } catch (error) {
       errorToast(error)
     } finally {
@@ -50,7 +49,29 @@ export default function RemotesDialog({
       await ipc.remoteRemove(repo.path, removeTarget)
       invalidate()
       toast('success', `已删除远程 ${removeTarget}`)
+      if (editing?.name === removeTarget) setEditing(null)
       setRemoveTarget(null)
+    } catch (error) {
+      errorToast(error)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const startEdit = (remote: RemoteDto) => {
+    setEditing(remote)
+    setEditName(remote.name)
+    setEditUrl(remote.url)
+  }
+
+  const saveRemote = async () => {
+    if (!editing || !editName.trim() || !editUrl.trim() || busy) return
+    setBusy(true)
+    try {
+      await ipc.remoteUpdate(repo.path, editing.name, editName.trim(), editUrl.trim())
+      invalidate()
+      toast('success', `已更新远程 ${editName.trim()}`)
+      setEditing(null)
     } catch (error) {
       errorToast(error)
     } finally {
@@ -61,7 +82,7 @@ export default function RemotesDialog({
   return (
     <>
       <Modal
-        title={addOnly ? '添加远程' : '远程仓库'}
+        title="远程仓库"
         onClose={onClose}
         footer={
           <>
@@ -72,44 +93,90 @@ export default function RemotesDialog({
           </>
         }
       >
-        {!addOnly && (
-          <div className="field">
-            <div className="label">现有远程</div>
-            {isLoading ? (
-              <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
-                <Spinner /> 读取中…
-              </div>
-            ) : remotes.length === 0 ? (
-              <div className="text-[12px] text-[var(--text-subtle)]">尚未配置远程仓库。</div>
-            ) : (
-              <div className="flex flex-col gap-1">
-                {remotes.map((remote) => (
-                  <div key={remote.name} className="list-row" title={remote.url}>
-                    <Cloud size={13} className="text-subtle" />
-                    <span className="mono text-[12px]" style={{ width: 88, flex: '0 0 88px' }}>
-                      {remote.name}
-                    </span>
-                    <span
-                      className="truncate text-[11.5px] text-[var(--text-muted)]"
-                      style={{ flex: 1 }}
-                    >
-                      {remote.url}
-                    </span>
-                    <button
-                      className="icon-btn"
-                      title="删除远程"
-                      onClick={() => setRemoveTarget(remote.name)}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        <div className="field">
+          <div className="label">现有远程</div>
+          {isLoading ? (
+            <div className="flex items-center gap-2 text-[12px] text-[var(--text-muted)]">
+              <Spinner /> 读取中…
+            </div>
+          ) : remotes.length === 0 ? (
+            <div className="text-[12px] text-[var(--text-subtle)]">尚未配置远程仓库。</div>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {remotes.map((remote) => (
+                <div key={remote.name} className="list-row" title={remote.url}>
+                  <Cloud size={13} className="text-subtle" />
+                  <span className="mono text-[12px]" style={{ width: 88, flex: '0 0 88px' }}>
+                    {remote.name}
+                  </span>
+                  <span
+                    className="truncate text-[11.5px] text-[var(--text-muted)]"
+                    style={{ flex: 1 }}
+                  >
+                    {remote.url}
+                  </span>
+                  <button
+                    className="icon-btn"
+                    title={`编辑远程 ${remote.name}`}
+                    onClick={() => startEdit(remote)}
+                  >
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    className="icon-btn"
+                    title={`删除远程 ${remote.name}`}
+                    onClick={() => setRemoveTarget(remote.name)}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
-        {!addOnly && <div style={{ height: 1, background: 'var(--border)' }} />}
+          {editing && (
+            <div className="remote-edit-form">
+              <div className="field">
+                <label className="label" htmlFor={editNameId}>
+                  remote 名称
+                </label>
+                <input
+                  id={editNameId}
+                  className="input mono"
+                  value={editName}
+                  onChange={(event) => setEditName(event.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className="field">
+                <label className="label" htmlFor={editUrlId}>
+                  remote URL
+                </label>
+                <input
+                  id={editUrlId}
+                  className="input mono"
+                  value={editUrl}
+                  onChange={(event) => setEditUrl(event.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className="flex justify-end gap-2">
+                <button className="btn btn-sm" onClick={() => setEditing(null)} disabled={busy}>
+                  取消
+                </button>
+                <button
+                  className="btn btn-sm btn-primary"
+                  onClick={() => void saveRemote()}
+                  disabled={busy || !editName.trim() || !editUrl.trim()}
+                >
+                  {busy ? '保存中…' : '保存修改'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ height: 1, background: 'var(--border)' }} />
 
         <div className="field">
           <div className="label">添加远程</div>

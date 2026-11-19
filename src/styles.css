@@ -2175,6 +2175,16 @@ button {
   flex-direction: column;
   gap: 6px;
 }
+.remote-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-alt);
+}
 .label {
   font-size: 11.5px;
   font-weight: 600;

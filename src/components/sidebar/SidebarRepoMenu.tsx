@@ -5,6 +5,7 @@ import {
   FolderOpen,
   FolderSearch,
   Plus,
+  Settings2,
   Terminal
 } from 'lucide-react'
 import type { RecentRepo } from '../../lib/types'
@@ -20,6 +21,7 @@ interface SidebarRepoMenuProps {
   onOpenDirectory: () => void | Promise<void>
   onInitializeRepository: () => void | Promise<void>
   onDiscoverRepositories: () => void | Promise<void>
+  onManageRemotes: () => void | Promise<void>
   onOpenTerminal: () => void | Promise<void>
   onCloseRepository: () => void | Promise<void>
 }
@@ -32,6 +34,7 @@ export default function SidebarRepoMenu({
   onOpenDirectory,
   onInitializeRepository,
   onDiscoverRepositories,
+  onManageRemotes,
   onOpenTerminal,
   onCloseRepository
 }: SidebarRepoMenuProps) {
@@ -77,6 +80,10 @@ export default function SidebarRepoMenu({
         <button className={menuButtonClass} onClick={() => run(onDiscoverRepositories)}>
           <FolderSearch size={13} className="text-subtle" />
           扫描子仓库…
+        </button>
+        <button className={menuButtonClass} onClick={() => run(onManageRemotes)}>
+          <Settings2 size={13} className="text-subtle" />
+          管理远程…
         </button>
         <button className={menuButtonClass} onClick={() => run(onOpenTerminal)}>
           <Terminal size={13} className="text-subtle" />

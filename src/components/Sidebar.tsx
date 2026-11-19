@@ -96,7 +96,7 @@ export default function Sidebar() {
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [stashCreateOpen, setStashCreateOpen] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [addRemoteOpen, setAddRemoteOpen] = useState(false)
+  const [remotesOpen, setRemotesOpen] = useState(false)
   const [collapsedRemotes, setCollapsedRemotes] = useState<Record<string, boolean>>({})
   const [pushBranch, setPushBranch] = useState<BranchDto | null>(null)
   const [discoverRoot, setDiscoverRoot] = useState<string | null>(null)
@@ -306,6 +306,11 @@ export default function Sidebar() {
     if (dir) setDiscoverRoot(dir)
   }
 
+  const manageRemotes = () => {
+    setRepoMenu(false)
+    setRemotesOpen(true)
+  }
+
   const openRepositoryTerminal = async () => {
     setRepoMenu(false)
     try {
@@ -347,6 +352,7 @@ export default function Sidebar() {
             onOpenDirectory={openRepositoryDirectory}
             onInitializeRepository={initializeRepository}
             onDiscoverRepositories={discoverRepositories}
+            onManageRemotes={manageRemotes}
             onOpenTerminal={openRepositoryTerminal}
             onCloseRepository={closeRepository}
           />
@@ -402,7 +408,7 @@ export default function Sidebar() {
           branches={remoteBranches}
           picked={picked}
           collapsed={collapsedRemotes}
-          onAdd={() => setAddRemoteOpen(true)}
+          onAdd={() => setRemotesOpen(true)}
           onToggle={(name) =>
             setCollapsedRemotes((prev) => ({
               ...prev,
@@ -641,7 +647,7 @@ export default function Sidebar() {
         />
       )}
 
-      {addRemoteOpen && <RemotesDialog addOnly onClose={() => setAddRemoteOpen(false)} />}
+      {remotesOpen && <RemotesDialog onClose={() => setRemotesOpen(false)} />}
       {pushBranch && <PushBranchDialog branch={pushBranch} onClose={() => setPushBranch(null)} />}
       {remoteBranchCreate && (
         <RemoteBranchCreateDialog
