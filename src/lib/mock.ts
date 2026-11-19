@@ -306,11 +306,12 @@ const stashes: StashDto[] = [
 const conflicts: ConflictFile[] = [
   {
     path: 'conflict.txt',
-    ours: 'line 1\nline 2 from main\nline 3\n',
-    theirs: 'line 1\nline 2 from other\nline 3\n',
-    base: 'line 1\nline 2\nline 3\n',
+    ours: 'line 1\nours first\nline 3\nline 4\nline 5\nline 6\nours second\nline 8\nline 9\nline 10\nline 11\nours third\nline 13\n',
+    theirs:
+      'line 1\ntheirs first\nline 3\nline 4\nline 5\nline 6\ntheirs second\nline 8\nline 9\nline 10\nline 11\ntheirs third\nline 13\n',
+    base: 'line 1\nbase first\nline 3\nline 4\nline 5\nline 6\nbase second\nline 8\nline 9\nline 10\nline 11\nbase third\nline 13\n',
     result:
-      'line 1\n<<<<<<< HEAD\nline 2 from main\n=======\nline 2 from other\n>>>>>>> other\nline 3\n',
+      'line 1\n<<<<<<< HEAD\nours first\n=======\ntheirs first\n>>>>>>> other\nline 3\nline 4\nline 5\nline 6\n<<<<<<< HEAD\nours second\n=======\ntheirs second\n>>>>>>> other\nline 8\nline 9\nline 10\nline 11\n<<<<<<< HEAD\nours third\n=======\ntheirs third\n>>>>>>> other\nline 13\n',
     binary: false
   }
 ]
