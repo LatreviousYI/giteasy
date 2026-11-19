@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { AlertTriangle, CheckCircle2, ExternalLink, FileWarning, GitMerge } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useConflicts, useInvalidateRepo, useStatus } from '../../lib/queries'
@@ -10,6 +10,13 @@ import {
   resolveConflictBlock,
   type ConflictChoice
 } from '../../lib/conflict'
+import ConflictPaneSplitter from './ConflictPaneSplitter'
+import {
+  CONFLICT_PANE_STORAGE_KEY,
+  clampConflictVersionsPercent,
+  readConflictVersionsPercent,
+  resizeConflictVersionsPercent
+} from './conflictPaneSize'
 
 export default function ConflictsView() {
   const repo = useApp((s) => s.repo)!
@@ -23,6 +30,14 @@ export default function ConflictsView() {
   const [content, setContent] = useState('')
   const [showBase, setShowBase] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [versionsPercent, setVersionsPercent] = useState(() =>
+    readConflictVersionsPercent(window.localStorage.getItem(CONFLICT_PANE_STORAGE_KEY))
+  )
+  const conflictBodyRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    window.localStorage.setItem(CONFLICT_PANE_STORAGE_KEY, String(versionsPercent))
+  }, [versionsPercent])
 
   useEffect(() => {
     if (conflicts.length === 0) {
@@ -96,6 +111,29 @@ export default function ConflictsView() {
     setContent((prev) => resolveAllConflictBlocks(prev, choice).text)
   }
 
+  const startResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const body = conflictBodyRef.current
+    if (!body) return
+    event.preventDefault()
+    const startY = event.clientY
+    const startPercent = versionsPercent
+    const height = body.getBoundingClientRect().height
+    const onMove = (moveEvent: PointerEvent) => {
+      const next = resizeConflictVersionsPercent(startPercent, moveEvent.clientY - startY, height)
+      setVersionsPercent(clampConflictVersionsPercent(next))
+    }
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('pointerup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+    document.body.style.cursor = 'row-resize'
+    document.body.style.userSelect = 'none'
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('pointerup', onUp)
+  }
+
   return (
     <div className="content">
       <section className="file-panel" style={{ width: 268, flex: '0 0 268px' }}>
@@ -164,7 +202,11 @@ export default function ConflictsView() {
             }
           />
         ) : (
-          <div className="conflict-body">
+          <div
+            ref={conflictBodyRef}
+            className="conflict-body"
+            style={{ gridTemplateRows: `${versionsPercent}% 7px minmax(0, 1fr)` }}
+          >
             <div className="conflict-versions">
               <div className="conflict-side">
                 <div className="conflict-col-head">
@@ -197,6 +239,12 @@ export default function ConflictsView() {
                 </pre>
               </div>
             </div>
+
+            <ConflictPaneSplitter
+              percent={versionsPercent}
+              onChange={setVersionsPercent}
+              onPointerDown={startResize}
+            />
 
             <div className="conflict-result">
               <div className="conflict-col-head">

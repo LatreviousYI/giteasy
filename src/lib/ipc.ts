@@ -205,8 +205,13 @@ export const ipc = {
   branchCheckout: (path: string, name: string) =>
     invoke<RepoInfo>('branch_checkout', { path, name }),
   commitCheckout: (path: string, oid: string) => invoke<RepoInfo>('commit_checkout', { path, oid }),
-  branchDelete: (path: string, name: string, force: boolean) =>
-    invoke<void>('branch_delete', { path, name, force }),
+  branchDelete: (
+    path: string,
+    name: string,
+    force: boolean,
+    remote: string | null,
+    remoteBranch: string | null
+  ) => invoke<void>('branch_delete', { path, name, force, remote, remoteBranch }),
   branchRename: (path: string, oldName: string, newName: string) =>
     invoke<RepoInfo>('branch_rename', { path, oldName, newName }),
   branchSetUpstream: (path: string, name: string, upstream: string | null) =>

@@ -2519,14 +2519,41 @@ button {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-rows: minmax(150px, 30%) minmax(0, 1fr);
+  grid-template-rows: minmax(120px, 30%) 7px minmax(0, 1fr);
 }
 .conflict-versions {
   display: grid;
   grid-auto-flow: column;
   grid-auto-columns: minmax(0, 1fr);
   min-height: 0;
+}
+.conflict-splitter {
+  position: relative;
+  cursor: row-resize;
+  background: var(--bg-alt);
+  border-top: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
+  touch-action: none;
+  outline: none;
+}
+.conflict-splitter::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 2px;
+  width: 32px;
+  height: 2px;
+  transform: translateX(-50%);
+  border-radius: 2px;
+  background: var(--text-subtle);
+  opacity: 0.55;
+}
+.conflict-splitter:hover,
+.conflict-splitter:focus-visible {
+  background: var(--surface-hover);
+}
+.conflict-splitter:focus-visible {
+  box-shadow: inset 0 0 0 1px var(--accent-border);
 }
 .conflict-side {
   min-width: 0;

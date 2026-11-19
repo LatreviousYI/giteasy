@@ -69,6 +69,7 @@ describe('branch tree', () => {
         onToggle={vi.fn()}
         onPick={vi.fn()}
         onCheckout={vi.fn()}
+        onContextMenu={vi.fn()}
         onWorktree={vi.fn()}
         onDeleteRemote={vi.fn()}
         onDeleteBranch={vi.fn()}
@@ -102,6 +103,39 @@ describe('branch tree', () => {
     expect(onPick).toHaveBeenCalledWith(
       'local:feature/history',
       expect.objectContaining({ name: 'feature/history' })
+    )
+  })
+
+  it('passes a remote branch to the context-menu handler', () => {
+    const onContextMenu = vi.fn()
+    const remoteBranch = (name: string): BranchDto => ({
+      ...branch(name),
+      isRemote: true,
+      isHead: false
+    })
+
+    render(
+      <RemoteSection
+        remotes={[{ name: 'origin', url: 'git@example.com:demo/repo.git' }]}
+        branches={[remoteBranch('origin/feature/context')]}
+        picked={null}
+        collapsed={{}}
+        onAdd={vi.fn()}
+        onToggle={vi.fn()}
+        onPick={vi.fn()}
+        onCheckout={vi.fn()}
+        onContextMenu={onContextMenu}
+        onWorktree={vi.fn()}
+        onDeleteRemote={vi.fn()}
+        onDeleteBranch={vi.fn()}
+      />
+    )
+
+    fireEvent.contextMenu(screen.getByText('context'))
+    expect(onContextMenu).toHaveBeenCalledWith(
+      expect.any(Object),
+      expect.objectContaining({ name: 'origin/feature/context' }),
+      expect.objectContaining({ name: 'origin' })
     )
   })
 })

@@ -47,7 +47,7 @@ impl Default for Settings {
             font_size: 13,
             external_editor: String::new(),
             terminal: String::new(),
-            auto_fetch_minutes: 0,
+            auto_fetch_minutes: 60,
             gpg_sign: false,
             gpg_key: String::new(),
             external_diff_tools: Vec::new(),
@@ -175,4 +175,14 @@ pub async fn identity_set(name: String, email: String) -> Result<Identity, AppEr
         crate::util::git(".", &["config", "--global", "user.email", email.trim()]).await?;
     }
     identity_get().await
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Settings;
+
+    #[test]
+    fn auto_fetch_defaults_to_one_hour() {
+        assert_eq!(Settings::default().auto_fetch_minutes, 60);
+    }
 }

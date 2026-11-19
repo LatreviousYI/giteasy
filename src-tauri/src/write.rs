@@ -396,10 +396,47 @@ pub async fn branch_delete(
     path: String,
     name: String,
     force: bool,
+    remote: Option<String>,
+    remote_branch: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    branch_delete_impl(path, name, force, remote, remote_branch).await
+}
+
+pub(crate) async fn branch_delete_impl(
+    path: String,
+    name: String,
+    force: bool,
+    remote: Option<String>,
+    remote_branch: Option<String>,
+) -> Result<(), AppError> {
+    let remote = remote.filter(|value| !value.trim().is_empty());
+    let remote_branch = remote_branch.filter(|value| !value.trim().is_empty());
+    if remote.is_some() != remote_branch.is_some() {
+        return Err(AppError::user(
+            "删除远程分支时必须同时指定远程名称和分支名称",
+        ));
+    }
+
     let flag = if force { "-D" } else { "-d" };
     util::git(&path, &["branch", flag, name.as_str()]).await?;
+    if let (Some(remote), Some(remote_branch)) = (remote, remote_branch) {
+        if let Err(mut error) = util::git(
+            &path,
+            &["push", remote.as_str(), "--delete", remote_branch.as_str()],
+        )
+        .await
+        {
+            error.message = format!(
+                "本地分支 {name} 已删除，但远程分支 {remote}/{remote_branch} 删除失败：{}",
+                error.message
+            );
+            error.hint = Some(format!(
+                "远程分支 {remote}/{remote_branch} 未删除，请检查远程配置或网络后重试"
+            ));
+            return Err(error);
+        }
+    }
     Ok(())
 }
 

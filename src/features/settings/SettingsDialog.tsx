@@ -21,7 +21,7 @@ export default function SettingsDialog() {
       fontSize: 13,
       externalEditor: '',
       terminal: '',
-      autoFetchMinutes: 0,
+      autoFetchMinutes: 60,
       gpgSign: false,
       gpgKey: '',
       externalDiffTools: [],

@@ -4,9 +4,24 @@ import { useInvalidateRepo, useRemotes, useStatus } from './queries'
 import { isHostKeyError } from './errors'
 import { useApp } from '../store/app'
 import { effectivePullMode, isDiverged } from './pull'
-import type { ProgressEvent, PullMode } from './types'
+import { resolveTrackedRemote, type TrackedRemoteBranch } from './branch'
+import type { BranchDto, ProgressEvent, PullMode } from './types'
 
 export type RemoteAction = 'fetch' | 'pull' | 'push'
+
+interface PullTarget {
+  name: string
+  upstream: string
+}
+
+export async function checkoutThenPull(
+  isHead: boolean,
+  checkout: () => Promise<void>,
+  pull: () => Promise<void>
+): Promise<void> {
+  if (!isHead) await checkout()
+  await pull()
+}
 
 export function useRemoteActions() {
   const repo = useApp((s) => s.repo)
@@ -22,11 +37,17 @@ export function useRemoteActions() {
       kind: RemoteAction,
       force = false,
       targetRemote?: string | null,
-      requestedPullMode: PullMode = 'auto'
+      requestedPullMode: PullMode = 'auto',
+      pullTarget?: PullTarget
     ) => {
       if (!repo) return
-      const branch = status?.branch ?? repo.branch
-      const upstreamRemote = status?.upstream?.split('/')[0] ?? null
+      const branch = pullTarget?.name ?? status?.branch ?? repo.branch
+      const upstream = pullTarget?.upstream ?? status?.upstream ?? null
+      const tracked = resolveTrackedRemote(
+        upstream,
+        remotes.map((item) => item.name)
+      )
+      const upstreamRemote = tracked?.remote ?? null
       const preferredRemote =
         (upstreamRemote && remotes.some((item) => item.name === upstreamRemote)
           ? upstreamRemote
@@ -87,7 +108,7 @@ export function useRemoteActions() {
             }
           }
           // 已有上游时交给 git 使用默认 upstream，避免分支名不一致导致拉错
-          if (status?.upstream) await ipc.pull(repo.path, null, null, mode, onProgress)
+          if (upstream) await ipc.pull(repo.path, null, null, mode, onProgress)
           else await ipc.pull(repo.path, remoteName, branch, mode, onProgress)
         } else if (targetRemote) {
           // 显式推送到指定远程
@@ -141,5 +162,47 @@ export function useRemoteActions() {
     [repo, status, remotes, setProgress, toast, errorToast, invalidate]
   )
 
-  return { runRemote, hasRemote: remotes.length > 0, remotes }
+  const runBranchPull = useCallback(
+    async (branch: BranchDto, tracked: TrackedRemoteBranch) => {
+      if (!repo || !branch.upstream) {
+        errorToast({
+          kind: 'user',
+          code: 'E_NO_UPSTREAM',
+          message: '该分支没有追踪上游',
+          hint: '请先设置上游分支后再拉取'
+        })
+        return
+      }
+      const upstream = branch.upstream
+
+      try {
+        await checkoutThenPull(
+          branch.isHead,
+          async () => {
+            setProgress({
+              phase: 'start',
+              percent: null,
+              message: `切换到 ${branch.name}`,
+              done: false,
+              error: null
+            })
+            const info = await ipc.branchCheckout(repo.path, branch.name)
+            useApp.getState().setRepo(info)
+          },
+          async () => {
+            await runRemote('pull', false, tracked.remote, 'auto', {
+              name: branch.name,
+              upstream
+            })
+          }
+        )
+      } catch (error) {
+        setProgress(null)
+        errorToast(error)
+      }
+    },
+    [repo, setProgress, errorToast, runRemote]
+  )
+
+  return { runRemote, runBranchPull, hasRemote: remotes.length > 0, remotes }
 }
