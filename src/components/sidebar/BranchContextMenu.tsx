@@ -84,13 +84,7 @@ export default function BranchContextMenu({
   }
 
   return (
-    <ContextMenuSurface
-      x={menu.x}
-      y={menu.y}
-      estimatedHeight={520}
-      className="branch-context-menu"
-      onDismiss={onDismiss}
-    >
+    <ContextMenuSurface x={menu.x} y={menu.y} className="branch-context-menu" onDismiss={onDismiss}>
       <div className="px-2.5 py-1.5 text-[10.5px] text-[var(--text-subtle)]">
         {menu.scope === 'remote'
           ? `${menu.remote.name} / ${menu.branch.name.slice(menu.remote.name.length + 1)}`

@@ -78,13 +78,7 @@ export default function CommitContextMenu({
   }
 
   return (
-    <ContextMenuSurface
-      x={menu.x}
-      y={menu.y}
-      estimatedHeight={430}
-      className="commit-context-menu"
-      onDismiss={onDismiss}
-    >
+    <ContextMenuSurface x={menu.x} y={menu.y} className="commit-context-menu" onDismiss={onDismiss}>
       <div className="px-2.5 py-1.5 text-[10.5px] text-[var(--text-subtle)]">
         <span className="mono">{menu.commit.shortOid}</span>
         <span> · {menu.commit.subject || '(无提交信息)'}</span>

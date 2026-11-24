@@ -419,8 +419,8 @@ export default function Sidebar() {
           onContextMenu={(event, branch) => {
             event.preventDefault()
             setMenu({
-              x: Math.max(8, Math.min(event.clientX, window.innerWidth - 320)),
-              y: Math.max(8, Math.min(event.clientY, window.innerHeight - 520)),
+              x: event.clientX,
+              y: event.clientY,
               scope: 'local',
               branch
             })
@@ -449,8 +449,8 @@ export default function Sidebar() {
           onContextMenu={(event, branch, remote) => {
             event.preventDefault()
             setMenu({
-              x: Math.max(8, Math.min(event.clientX, window.innerWidth - 320)),
-              y: Math.max(8, Math.min(event.clientY, window.innerHeight - 520)),
+              x: event.clientX,
+              y: event.clientY,
               scope: 'remote',
               branch,
               remote

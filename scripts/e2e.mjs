@@ -57,6 +57,12 @@ try {
   const remoteMenuText = await driver.executeScript(
     "return document.querySelector('.branch-context-menu')?.textContent || ''"
   )
+  const remoteMenuIsPortal = await driver.executeScript(
+    "return document.querySelector('.branch-context-menu')?.parentElement === document.body"
+  )
+  if (!remoteMenuIsPortal) {
+    throw new Error('Branch context menu is not mounted in the viewport portal')
+  }
   for (const label of [
     '合并到当前分支',
     '变基当前分支到此分支',
@@ -194,8 +200,8 @@ try {
     row.dispatchEvent(new MouseEvent('contextmenu', {
       bubbles: true,
       cancelable: true,
-      clientX: 520,
-      clientY: 260,
+      clientX: 120,
+      clientY: 80,
       button: 2
     }));
     return shortOid;
@@ -216,6 +222,26 @@ try {
     if (!commitMenuText.includes(label)) {
       throw new Error(`Commit menu is missing ${label}`)
     }
+  }
+  const commitMenuGeometry = await driver.executeScript(`
+    const menu = document.querySelector('.commit-context-menu');
+    const rect = menu.getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      parentIsBody: menu.parentElement === document.body,
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight
+    };
+  `)
+  if (
+    !commitMenuGeometry.parentIsBody ||
+    Math.abs(commitMenuGeometry.left - 120) > 2 ||
+    Math.abs(commitMenuGeometry.top - 80) > 2
+  ) {
+    throw new Error(`Commit menu did not follow the pointer: ${JSON.stringify(commitMenuGeometry)}`)
   }
   const hoverTarget = await driver.findElement(
     By.xpath("//div[contains(@class, 'commit-context-menu')]//button[not(@disabled)][1]")
@@ -244,6 +270,40 @@ try {
     throw new Error('Commit tag dialog does not use the selected commit as its start point')
   }
   await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  await driver.executeScript(`
+    const row = document.querySelector('.commit-row:not(.stash-row)');
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: window.innerWidth - 2,
+      clientY: window.innerHeight - 2,
+      button: 2
+    }));
+  `)
+  const edgeMenuGeometry = await driver.executeScript(`
+    const rect = document.querySelector('.commit-context-menu').getBoundingClientRect();
+    return {
+      left: rect.left,
+      top: rect.top,
+      right: rect.right,
+      bottom: rect.bottom,
+      innerWidth: window.innerWidth,
+      innerHeight: window.innerHeight
+    };
+  `)
+  if (
+    edgeMenuGeometry.left < 7 ||
+    edgeMenuGeometry.top < 7 ||
+    edgeMenuGeometry.right > edgeMenuGeometry.innerWidth - 7 ||
+    edgeMenuGeometry.bottom > edgeMenuGeometry.innerHeight - 7
+  ) {
+    throw new Error(`Context menu escaped the viewport: ${JSON.stringify(edgeMenuGeometry)}`)
+  }
+  await driver.executeScript(`
+    document.querySelector('.fixed.inset-0.z-40')
+      .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  `)
 
   await driver.executeScript(`
     const row = document.querySelector('.commit-row:not(.stash-row)');
