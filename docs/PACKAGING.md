@@ -129,7 +129,7 @@ CI：
 .github/workflows/build-macos-arm64.yml
 ```
 
-CI 使用 GitHub 当前支持的 arm64 标准标签 `macos-15`。自动发布默认生成无签名 `.app` 和 `.dmg`。手动触发 `Publish GitHub Release` 时可勾选 Apple 签名选项，仅在该模式下注入 Apple 证书和公证 Secret。
+CI 使用 GitHub 当前 arm64 标准标签 `macos-latest`。自动发布默认生成无签名 `.app` 和 `.dmg`。手动触发 `Publish GitHub Release` 时可勾选 Apple 签名选项，仅在该模式下注入 Apple 证书和公证 Secret。
 
 合并到 `master` 后，DMG 会与 Ubuntu 安装包一起发布到 GitHub Release。Release 正文使用 `docs/DOWNLOADS.md`，其中说明每个系统应下载的包。
 

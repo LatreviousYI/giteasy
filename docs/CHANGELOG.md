@@ -4,6 +4,12 @@
 
 ## 2026-11-24
 
+### macOS 发布 runner 调整
+
+- 修复 GitHub Actions 中 macOS 任务长时间排队未分配 runner 后取消的问题，将 Apple Silicon 构建从 `macos-15` 切换到当前 arm64 标准标签 `macos-latest`。
+- 同步更新 macOS 打包文档，说明当前 `macos-latest` 对应 GitHub 的 arm64 macOS 运行镜像。
+- 验证：检查本次失败 run，macOS job 在 15 分钟内未获得 runner 且没有启动任何构建步骤；YAML 语法和仓库静态检查通过，新发布由 master 推送触发。
+
 ### 分支整合与提交操作
 
 - 本地和远程分支右键改为分组式两行菜单，解释 Merge、Rebase、Squash、Cherry-pick、Reset 和标签操作的执行结果。
