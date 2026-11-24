@@ -657,6 +657,9 @@ pub async fn log_query(path: String, query: LogQuery) -> Result<CommitPage, AppE
             args.push("-i".into());
         }
     }
+    if query.reverse.unwrap_or(false) {
+        args.push("--reverse".into());
+    }
     args.push(query.rev.clone().unwrap_or_else(|| "HEAD".to_string()));
     if let Some(file) = &query.file {
         args.push("--".into());
@@ -683,6 +686,7 @@ pub async fn file_history(
             author: None,
             query: None,
             file: Some(file),
+            reverse: None,
         },
     )
     .await
@@ -728,6 +732,18 @@ pub async fn line_history(
 #[tauri::command]
 pub async fn commit_detail(path: String, oid: String) -> Result<CommitDetail, AppError> {
     blocking_read(move || commit_detail_impl(path, oid)).await
+}
+
+#[tauri::command]
+pub async fn commit_is_ancestor(path: String, oid: String) -> Result<bool, AppError> {
+    blocking_read(move || commit_is_ancestor_inner(&path, &oid)).await
+}
+
+pub(crate) fn commit_is_ancestor_inner(path: &str, oid: &str) -> Result<bool, AppError> {
+    let repo = util::open_repo(path)?;
+    let head = repo.head()?.peel_to_commit()?;
+    let commit = repo.revparse_single(oid)?.peel_to_commit()?;
+    Ok(head.id() == commit.id() || repo.graph_descendant_of(head.id(), commit.id())?)
 }
 
 fn commit_detail_impl(path: String, oid: String) -> Result<CommitDetail, AppError> {

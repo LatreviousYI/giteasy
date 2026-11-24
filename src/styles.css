@@ -1682,6 +1682,108 @@ button {
   flex: 1;
 }
 
+.context-menu-surface {
+  width: min(300px, calc(100vw - 16px));
+  max-height: calc(100vh - 16px);
+  overflow-y: auto;
+}
+
+.context-menu-item {
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.context-menu-item:hover:not(:disabled),
+.context-menu-item:focus-visible {
+  background: var(--surface-hover);
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    var(--shadow-soft);
+  outline: none;
+}
+
+.context-menu-item:active:not(:disabled) {
+  background: var(--accent-soft);
+}
+
+.context-menu-description {
+  margin-top: 2px;
+  color: var(--text-subtle);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.context-menu-item:disabled .context-menu-description {
+  opacity: 0.8;
+}
+
+.branch-action-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg) 58%, var(--surface));
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.reset-mode-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reset-mode-option {
+  align-items: flex-start;
+  padding: 9px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.reset-mode-option > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.commit-selection-list {
+  max-height: min(54vh, 520px);
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+}
+
+.commit-selection-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+
+.commit-selection-row:last-child {
+  border-bottom: 0;
+}
+
+.commit-selection-row:hover {
+  background: var(--surface-hover);
+}
+
+.commit-selection-row.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.commit-selection-row input {
+  margin-top: 2px;
+  accent-color: var(--accent);
+}
+
 /* ---------- Pull strategy ---------- */
 .pull-menu-item {
   display: flex;

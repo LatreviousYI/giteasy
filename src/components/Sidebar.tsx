@@ -41,6 +41,7 @@ import SidebarRepoMenu from './sidebar/SidebarRepoMenu'
 import BranchContextMenu, { type BranchMenuState } from './sidebar/BranchContextMenu'
 import RemoteBranchCreateDialog from '../features/branches/RemoteBranchCreateDialog'
 import DeleteLocalBranchDialog from '../features/branches/DeleteLocalBranchDialog'
+import { useBranchActions } from '../features/branches/useBranchActions'
 
 type PromptKind = 'branch' | 'rename' | 'upstream'
 
@@ -86,6 +87,7 @@ export default function Sidebar() {
   const openRepo = useOpenRepo()
   const initRepo = useInitRepo()
   const { runBranchPull } = useRemoteActions()
+  const branchActions = useBranchActions()
 
   const [repoMenu, setRepoMenu] = useState(false)
   const [prompt, setPrompt] = useState<PromptState | null>(null)
@@ -267,6 +269,28 @@ export default function Sidebar() {
     }
   }
 
+  const confirmDeleteRemoteBranch = (remote: RemoteDto, branch: BranchDto, shortName: string) => {
+    setConfirm({
+      title: '删除远程分支',
+      message: (
+        <span>
+          将执行{' '}
+          <span className="mono">
+            git push {remote.name} --delete {shortName}
+          </span>
+          ，该分支会从远程服务器删除，无法通过本地操作恢复。
+        </span>
+      ),
+      confirmLabel: '删除远程分支',
+      danger: true,
+      action: async () => {
+        if (!path) return
+        await ipc.remoteBranchDelete(path, remote.name, shortName)
+        toast('success', `已删除远程分支 ${branch.name}`)
+      }
+    })
+  }
+
   const executeConfirm = async () => {
     if (!confirm) return
     setBusy(true)
@@ -395,8 +419,8 @@ export default function Sidebar() {
           onContextMenu={(event, branch) => {
             event.preventDefault()
             setMenu({
-              x: Math.min(event.clientX, window.innerWidth - 200),
-              y: Math.min(event.clientY, window.innerHeight - 320),
+              x: Math.max(8, Math.min(event.clientX, window.innerWidth - 320)),
+              y: Math.max(8, Math.min(event.clientY, window.innerHeight - 520)),
               scope: 'local',
               branch
             })
@@ -425,8 +449,8 @@ export default function Sidebar() {
           onContextMenu={(event, branch, remote) => {
             event.preventDefault()
             setMenu({
-              x: Math.min(event.clientX, window.innerWidth - 200),
-              y: Math.min(event.clientY, window.innerHeight - 150),
+              x: Math.max(8, Math.min(event.clientX, window.innerWidth - 320)),
+              y: Math.max(8, Math.min(event.clientY, window.innerHeight - 520)),
               scope: 'remote',
               branch,
               remote
@@ -450,26 +474,7 @@ export default function Sidebar() {
               }
             })
           }
-          onDeleteBranch={(remote, branch, shortName) =>
-            setConfirm({
-              title: '删除远程分支',
-              message: (
-                <span>
-                  将执行{' '}
-                  <span className="mono">
-                    git push {remote.name} --delete {shortName}
-                  </span>
-                  ，该分支会从远程服务器删除，无法通过本地操作恢复。
-                </span>
-              ),
-              confirmLabel: '删除远程分支',
-              danger: true,
-              action: async () => {
-                await ipc.remoteBranchDelete(repo.path, remote.name, shortName)
-                toast('success', `已删除远程分支 ${branch.name}`)
-              }
-            })
-          }
+          onDeleteBranch={confirmDeleteRemoteBranch}
         />
 
         <TagSection
@@ -583,6 +588,9 @@ export default function Sidebar() {
         <BranchContextMenu
           menu={menu}
           remoteNames={remoteNames}
+          currentBranch={branchActions.currentBranch}
+          currentUpstream={status?.upstream ?? null}
+          operationState={branchActions.operationState}
           onDismiss={() => setMenu(null)}
           onCreateFromRemote={(branch, remote) => setRemoteBranchCreate({ branch, remote })}
           onCheckout={(branch) =>
@@ -592,8 +600,21 @@ export default function Sidebar() {
             }, `已切换到 ${branch.name}`)
           }
           onPull={(branch, tracked) => void runBranchPull(branch, tracked)}
-          onMerge={(branch) =>
-            run(() => ipc.mergeBranch(repo.path, branch.name), `已合并 ${branch.name}`)
+          onPullRemote={branchActions.pullRemote}
+          onMerge={branchActions.merge}
+          onRebase={branchActions.rebase}
+          onSquash={branchActions.openSquash}
+          onCherryPick={branchActions.openCherryPick}
+          onReset={branchActions.openReset}
+          onCreateTag={branchActions.openTag}
+          onDeleteRemote={(branch, remote) =>
+            confirmDeleteRemoteBranch(
+              remote,
+              branch,
+              branch.name.startsWith(`${remote.name}/`)
+                ? branch.name.slice(remote.name.length + 1)
+                : branch.name
+            )
           }
           onPush={setPushBranch}
           onSetUpstream={(branch) => setPrompt({ kind: 'upstream', branch })}
@@ -670,6 +691,7 @@ export default function Sidebar() {
       )}
       {discoverRoot && <DiscoverDialog root={discoverRoot} onClose={() => setDiscoverRoot(null)} />}
       {tagDialogOpen && <TagDialog onClose={() => setTagDialogOpen(false)} />}
+      {branchActions.dialogs}
       {worktreeDialog && (
         <WorktreeDialog
           initialBranch={worktreeDialog.initialBranch}

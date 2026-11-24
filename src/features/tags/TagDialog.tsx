@@ -1,15 +1,23 @@
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { Tag as TagIcon } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { useInvalidateRepo } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import Modal from '../../components/Modal'
 
-export default function TagDialog({ onClose }: { onClose: () => void }) {
+interface TagDialogProps {
+  onClose: () => void
+  startPoint?: string | null
+  sourceLabel?: string | null
+}
+
+export default function TagDialog({ onClose, startPoint, sourceLabel }: TagDialogProps) {
   const repo = useApp((s) => s.repo)
   const toast = useApp((s) => s.toast)
   const errorToast = useApp((s) => s.errorToast)
   const invalidate = useInvalidateRepo(repo?.path ?? null)
+  const nameId = useId()
+  const messageId = useId()
   const [name, setName] = useState('')
   const [message, setMessage] = useState('')
   const [busy, setBusy] = useState(false)
@@ -20,7 +28,7 @@ export default function TagDialog({ onClose }: { onClose: () => void }) {
     if (!name.trim() || busy) return
     setBusy(true)
     try {
-      await ipc.tagCreate(repo.path, name.trim(), message.trim() || null)
+      await ipc.tagCreate(repo.path, name.trim(), message.trim() || null, startPoint ?? null)
       invalidate()
       toast('success', `已创建标签 ${name.trim()}`)
       onClose()
@@ -53,8 +61,11 @@ export default function TagDialog({ onClose }: { onClose: () => void }) {
       }
     >
       <div className="field">
-        <label className="label">标签名称</label>
+        <label className="label" htmlFor={nameId}>
+          标签名称
+        </label>
         <input
+          id={nameId}
           className="input"
           autoFocus
           value={name}
@@ -66,8 +77,11 @@ export default function TagDialog({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="field">
-        <label className="label">标签说明（可选，填写后创建附注标签）</label>
+        <label className="label" htmlFor={messageId}>
+          标签说明（可选，填写后创建附注标签）
+        </label>
         <textarea
+          id={messageId}
           className="textarea"
           value={message}
           placeholder="例如：首个稳定版本"
@@ -75,7 +89,8 @@ export default function TagDialog({ onClose }: { onClose: () => void }) {
         />
       </div>
       <div className="text-[11px] text-[var(--text-subtle)]">
-        标签将创建在当前 HEAD 上；留空说明则为轻量标签。
+        标签将创建在 <span className="mono">{sourceLabel ?? startPoint ?? '当前 HEAD'}</span>
+        上；留空说明则为轻量标签。
       </div>
     </Modal>
   )

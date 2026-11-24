@@ -217,10 +217,13 @@ export const ipc = {
     invoke<RepoInfo>('branch_rename', { path, oldName, newName }),
   branchSetUpstream: (path: string, name: string, upstream: string | null) =>
     invoke<void>('branch_set_upstream', { path, name, upstream }),
-  mergeBranch: (path: string, name: string) => invoke<void>('merge_branch', { path, name }),
+  mergeBranch: (path: string, name: string) => invoke<RepoInfo>('merge_branch', { path, name }),
+  rebaseBranch: (path: string, onto: string) => invoke<RepoInfo>('rebase_branch', { path, onto }),
+  squashMergeBranch: (path: string, source: string, message: string) =>
+    invoke<RepoInfo>('squash_merge_branch', { path, source, message }),
 
-  tagCreate: (path: string, name: string, message?: string | null) =>
-    invoke<void>('tag_create', { path, name, message }),
+  tagCreate: (path: string, name: string, message?: string | null, startPoint?: string | null) =>
+    invoke<void>('tag_create', { path, name, message, startPoint }),
   tagDelete: (path: string, name: string) => invoke<void>('tag_delete', { path, name }),
   tagPush: (path: string, name: string, remote?: string | null) =>
     invoke<void>('tag_push', { path, name, remote }),
@@ -228,9 +231,11 @@ export const ipc = {
     invoke<void>('remote_branch_delete', { path, remote, branch }),
 
   reset: (path: string, oid: string, mode: 'soft' | 'mixed' | 'hard') =>
-    invoke<void>('reset', { path, oid, mode }),
-  cherryPick: (path: string, oid: string) => invoke<void>('cherry_pick', { path, oid }),
-  revert: (path: string, oid: string) => invoke<void>('revert', { path, oid }),
+    invoke<RepoInfo>('reset', { path, oid, mode }),
+  cherryPick: (path: string, oids: string[]) => invoke<RepoInfo>('cherry_pick', { path, oids }),
+  revert: (path: string, oids: string[]) => invoke<RepoInfo>('revert', { path, oids }),
+  commitIsAncestor: (path: string, oid: string) =>
+    invoke<boolean>('commit_is_ancestor', { path, oid }),
 
   rebaseTodo: (path: string, base: string) => invoke<RebaseCommit[]>('rebase_todo', { path, base }),
   rebaseStart: (

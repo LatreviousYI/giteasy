@@ -647,6 +647,15 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
       if (branch) branch.name = newName
       return activateMockBranch(newName) as T
     }
+    case 'merge_branch':
+    case 'rebase_branch':
+    case 'squash_merge_branch':
+    case 'reset':
+    case 'cherry_pick':
+    case 'revert':
+      return { ...mockRepoInfo } as T
+    case 'commit_is_ancestor':
+      return true as T
     case 'commit_checkout':
       return detachMockCommit(String(payload.oid ?? oid(12))) as T
     case 'branches_list':
@@ -668,11 +677,17 @@ export async function mockInvoke<T>(command: string, args?: Record<string, unkno
         { path: '/tmp/giteasy-demo', head: oid(12), branch: 'main', bare: false, detached: false }
       ] as unknown as T
     case 'log_query': {
-      const query = (payload.query ?? {}) as { limit?: number; skip?: number; query?: string }
+      const query = (payload.query ?? {}) as {
+        limit?: number
+        skip?: number
+        query?: string
+        reverse?: boolean
+      }
       const keyword = (query.query ?? '').toLowerCase()
-      const filtered = keyword
+      let filtered = keyword
         ? commits.filter((commit) => commit.subject.toLowerCase().includes(keyword))
         : commits
+      if (query.reverse) filtered = [...filtered].reverse()
       const limit = query.limit ?? 300
       const skip = query.skip ?? 0
       return {

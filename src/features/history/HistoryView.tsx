@@ -8,11 +8,12 @@ import {
   RefreshCw,
   RotateCcw,
   Search,
+  Undo2,
   UserRound
 } from 'lucide-react'
 import { ipc } from '../../lib/ipc'
 import { copyTextWithToast } from '../../lib/clipboard'
-import { useBranches, useInvalidateRepo, useLog, useStashes } from '../../lib/queries'
+import { useBranches, useInvalidateRepo, useLog, useStashes, useStatus } from '../../lib/queries'
 import { useApp } from '../../store/app'
 import { buildGraph, type GraphRow } from '../../lib/graph'
 import { relativeTime } from '../../lib/format'
@@ -24,12 +25,15 @@ import { CommitDetailPane, GraphCell } from './HistoryDetails'
 import CompareDialog from '../compare/CompareDialog'
 import ReflogDialog from '../reflog/ReflogDialog'
 import StashModal from '../stashes/StashModal'
+import CommitSelectionDialog from '../branches/CommitSelectionDialog'
+import { useHistoryCommitActions } from './useHistoryCommitActions'
 
 export default function HistoryView() {
   const repo = useApp((s) => s.repo)!
   const selectedCommit = useApp((s) => s.selectedCommit)
   const selectCommit = useApp((s) => s.selectCommit)
   const setRepo = useApp((s) => s.setRepo)
+  const setView = useApp((s) => s.setView)
   const ignoreWhitespace = useApp((s) => s.diffIgnoreWhitespace)
   const setIgnoreWhitespace = useApp((s) => s.setDiffIgnoreWhitespace)
   const contextLines = useApp((s) => s.diffContextLines)
@@ -50,10 +54,12 @@ export default function HistoryView() {
   const [compareOpen, setCompareOpen] = useState(false)
   const [compareLeft, setCompareLeft] = useState('HEAD~1')
   const [reflogOpen, setReflogOpen] = useState(false)
+  const [revertOpen, setRevertOpen] = useState(false)
   const [stashPreview, setStashPreview] = useState<StashDto | null>(null)
   const [busy, setBusy] = useState(false)
   const [focusMode, setFocusMode] = useState(false)
   const commitListRef = useRef<HTMLDivElement>(null)
+  const commitActions = useHistoryCommitActions()
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -77,6 +83,7 @@ export default function HistoryView() {
   )
 
   const { data, isLoading, isFetching, refetch } = useLog(repo.path, query)
+  const { data: status } = useStatus(repo.path)
   const { data: branches = [] } = useBranches(repo.path)
   const { data: stashes = [] } = useStashes(repo.path)
   const commits = useMemo(() => data?.commits ?? [], [data?.commits])
@@ -137,17 +144,29 @@ export default function HistoryView() {
     })
   }
 
-  const run = async (action: () => Promise<unknown>, message: string) => {
+  const run = async (
+    action: () => Promise<unknown>,
+    message: string
+  ): Promise<'success' | 'conflict' | 'error'> => {
     setBusy(true)
     try {
       await action()
       invalidate()
       toast('success', message)
+      return 'success'
     } catch (error) {
+      if ((error as { kind?: string })?.kind === 'conflict') {
+        invalidate()
+        setView('conflicts')
+        toast('warn', '操作产生冲突', {
+          message: '请在冲突页解决并标记全部文件后继续操作。'
+        })
+        return 'conflict'
+      }
       errorToast(error)
+      return 'error'
     } finally {
       setBusy(false)
-      setResetMode(null)
     }
   }
 
@@ -163,6 +182,21 @@ export default function HistoryView() {
           提交历史
           <span className="spacer" />
           {isFetching && <Spinner />}
+          <button
+            className="icon-btn"
+            title={
+              !status?.branch
+                ? '请先检出本地分支'
+                : status.state !== 'clean'
+                  ? `仓库正在 ${status.state}，请先完成或中止当前操作`
+                  : '选择提交创建反向提交'
+            }
+            aria-label="Revert 提交"
+            disabled={!status?.branch || status.state !== 'clean' || busy}
+            onClick={() => setRevertOpen(true)}
+          >
+            <Undo2 size={13} />
+          </button>
           <button
             className="icon-btn"
             title="比较 Ref"
@@ -293,8 +327,20 @@ export default function HistoryView() {
                         transform: `translateY(${virtualRow.start}px)`
                       }}
                       onClick={() => selectCommit(commit.oid)}
+                      onContextMenu={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        commitActions.openMenu(commit, event.clientX, event.clientY)
+                      }}
                       onKeyDown={(event) => {
-                        if (event.key === 'ArrowDown') {
+                        if (
+                          event.key === 'ContextMenu' ||
+                          (event.shiftKey && event.key === 'F10')
+                        ) {
+                          event.preventDefault()
+                          const rect = event.currentTarget.getBoundingClientRect()
+                          commitActions.openMenu(commit, rect.left + 32, rect.top + 24)
+                        } else if (event.key === 'ArrowDown') {
                           event.preventDefault()
                           focusEntry(Math.min(listEntries.length - 1, virtualRow.index + 1))
                         } else if (event.key === 'ArrowUp') {
@@ -355,6 +401,8 @@ export default function HistoryView() {
           <CommitDetailPane
             repoPath={repo.path}
             oid={selectedCommit}
+            currentBranch={status?.branch ?? repo.branch}
+            operationState={status?.state ?? repo.state}
             focusMode={focusMode}
             onToggleFocus={() => setFocusMode((value) => !value)}
             busy={busy}
@@ -369,9 +417,17 @@ export default function HistoryView() {
               }, '已检出该提交（分离头指针）')
             }
             onCherryPick={() =>
-              run(() => ipc.cherryPick(repo.path, selectedCommit), '已拣选该提交')
+              run(async () => {
+                const info = await ipc.cherryPick(repo.path, [selectedCommit])
+                setRepo(info)
+              }, '已拣选该提交')
             }
-            onRevert={() => run(() => ipc.revert(repo.path, selectedCommit), '已回滚该提交')}
+            onRevert={() =>
+              run(async () => {
+                const info = await ipc.revert(repo.path, [selectedCommit])
+                setRepo(info)
+              }, '已回滚该提交')
+            }
             onRebase={() => setRebaseOpen(true)}
             onCopy={() => copyOid(selectedCommit)}
             onReset={(mode) => setResetMode(mode)}
@@ -398,11 +454,37 @@ export default function HistoryView() {
           </div>
         }
         onCancel={() => setResetMode(null)}
-        onConfirm={() =>
-          resetMode &&
-          run(() => ipc.reset(repo.path, selectedCommit!, resetMode), `已重置（${resetMode}）`)
-        }
+        onConfirm={() => {
+          if (!resetMode) return
+          void run(async () => {
+            const info = await ipc.reset(repo.path, selectedCommit!, resetMode)
+            setRepo(info)
+          }, `已重置（${resetMode}）`).then((result) => {
+            if (result !== 'error') setResetMode(null)
+          })
+        }}
       />
+
+      {revertOpen && status?.branch && (
+        <CommitSelectionDialog
+          repoPath={repo.path}
+          mode="revert"
+          sourceRef="HEAD"
+          sourceLabel={status.branch}
+          currentBranch={status.branch}
+          busy={busy}
+          onCancel={() => setRevertOpen(false)}
+          onSubmit={(oids) => {
+            void run(async () => {
+              const info = await ipc.revert(repo.path, oids)
+              setRepo(info)
+            }, `已回滚 ${oids.length} 个提交`).then((result) => {
+              if (result !== 'error') setRevertOpen(false)
+            })
+          }}
+        />
+      )}
+      {commitActions.overlays}
 
       {rebaseOpen && selectedCommit && (
         <RebaseDialog

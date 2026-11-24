@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod activity;
+mod branch_ops;
 mod error;
 mod github;
 mod model;
@@ -57,6 +58,7 @@ fn main() {
             read::file_history,
             read::line_history,
             read::commit_detail,
+            read::commit_is_ancestor,
             read::compare_refs,
             read::diff_range,
             read::commit_tree,
@@ -90,14 +92,16 @@ fn main() {
             write::branch_delete,
             write::branch_rename,
             write::branch_set_upstream,
-            write::merge_branch,
+            branch_ops::merge_branch,
+            branch_ops::rebase_branch,
+            branch_ops::squash_merge_branch,
             write::tag_create,
             write::tag_delete,
             write::tag_push,
             write::remote_branch_delete,
-            write::reset,
-            write::cherry_pick,
-            write::revert,
+            branch_ops::reset,
+            branch_ops::cherry_pick,
+            branch_ops::revert,
             rebase::rebase_todo,
             rebase::rebase_start,
             write::stash_save,
@@ -194,6 +198,32 @@ mod tests {
         base
     }
 
+    fn commit_file(dir: &Path, file: &str, content: &str, message: &str) -> String {
+        std::fs::write(dir.join(file), content).unwrap();
+        git(dir, &["add", "--", file]);
+        git(dir, &["commit", "-q", "-m", message]);
+        git_output(dir, &["rev-parse", "HEAD"]).trim().to_string()
+    }
+
+    fn git_output(dir: &Path, args: &[&str]) -> String {
+        let output = Command::new("git")
+            .current_dir(dir)
+            .args(args)
+            .env("GIT_AUTHOR_NAME", "Test User")
+            .env("GIT_AUTHOR_EMAIL", "test@example.com")
+            .env("GIT_COMMITTER_NAME", "Test User")
+            .env("GIT_COMMITTER_EMAIL", "test@example.com")
+            .output()
+            .expect("run git");
+        assert!(
+            output.status.success(),
+            "git {:?} failed: {}",
+            args,
+            String::from_utf8_lossy(&output.stderr)
+        );
+        String::from_utf8_lossy(&output.stdout).to_string()
+    }
+
     #[tokio::test]
     async fn repo_flow_status_stage_commit_and_log() {
         let dir = fixture();
@@ -273,6 +303,7 @@ mod tests {
                 author: None,
                 query: None,
                 file: None,
+                reverse: None,
             },
         )
         .await
@@ -601,6 +632,361 @@ mod tests {
             .message
             .contains("远程分支 missing-remote/feature/partial-delete"));
         assert!(error.hint.unwrap_or_default().contains("未删除"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn merge_and_rebase_use_selected_branch_as_source() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/integration"]);
+        commit_file(
+            &dir,
+            "feature.txt",
+            "feature\n",
+            "test: add feature integration",
+        );
+        git(&dir, &["switch", "main"]);
+        commit_file(&dir, "main.txt", "main\n", "test: advance main");
+
+        let info = branch_ops::merge_branch_impl(path.clone(), "feature/integration".into())
+            .await
+            .unwrap();
+        assert_eq!(info.branch.as_deref(), Some("main"));
+        let parents = git_output(&dir, &["rev-list", "--parents", "-n", "1", "HEAD"]);
+        assert_eq!(parents.split_whitespace().count(), 3);
+
+        git(&dir, &["switch", "feature/integration"]);
+        commit_file(
+            &dir,
+            "feature-2.txt",
+            "feature two\n",
+            "test: feature follow-up",
+        );
+        branch_ops::rebase_branch_impl(path, "main".into())
+            .await
+            .unwrap();
+        assert!(Command::new("git")
+            .current_dir(&dir)
+            .args(["merge-base", "--is-ancestor", "main", "feature/integration"])
+            .status()
+            .unwrap()
+            .success());
+        assert_eq!(
+            git_output(&dir, &["rev-list", "--count", "main..feature/integration"]).trim(),
+            "1"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn squash_merge_creates_one_commit() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let before = git_output(&dir, &["rev-list", "--count", "HEAD"])
+            .trim()
+            .parse::<usize>()
+            .unwrap();
+        git(&dir, &["switch", "-c", "feature/squash"]);
+        commit_file(&dir, "one.txt", "one\n", "test: squash one");
+        commit_file(&dir, "two.txt", "two\n", "test: squash two");
+        git(&dir, &["switch", "main"]);
+
+        let info = branch_ops::squash_merge_branch_impl(
+            path,
+            "feature/squash".into(),
+            "test: squash merge feature".into(),
+        )
+        .await
+        .unwrap();
+        assert_eq!(info.branch.as_deref(), Some("main"));
+        let after = git_output(&dir, &["rev-list", "--count", "HEAD"])
+            .trim()
+            .parse::<usize>()
+            .unwrap();
+        assert_eq!(after, before + 1);
+        assert_eq!(
+            git_output(&dir, &["log", "-1", "--format=%s"]).trim(),
+            "test: squash merge feature"
+        );
+        assert_eq!(
+            git_output(&dir, &["rev-list", "--parents", "-n", "1", "HEAD"])
+                .split_whitespace()
+                .count(),
+            2
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn squash_merge_keeps_staged_changes_when_commit_fails() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/squash-fail"]);
+        commit_file(
+            &dir,
+            "squash.txt",
+            "squash\n",
+            "test: squash failure source",
+        );
+        git(&dir, &["switch", "main"]);
+
+        let hook = dir.join(".git/hooks/pre-commit");
+        std::fs::write(&hook, "#!/bin/sh\nexit 1\n").unwrap();
+        let mut permissions = std::fs::metadata(&hook).unwrap().permissions();
+        permissions.set_mode(0o755);
+        std::fs::set_permissions(&hook, permissions).unwrap();
+
+        let error = branch_ops::squash_merge_branch_impl(
+            path.clone(),
+            "feature/squash-fail".into(),
+            "test: rejected squash".into(),
+        )
+        .await
+        .err()
+        .unwrap();
+        assert!(error.message.contains("差异已暂存"));
+        assert!(read::status_get_impl(path)
+            .unwrap()
+            .files
+            .iter()
+            .any(|file| file.staged));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn cherry_pick_multiple_commits_preserves_selected_order() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/cherry"]);
+        let first = commit_file(&dir, "first.txt", "first\n", "test: cherry first");
+        let second = commit_file(&dir, "second.txt", "second\n", "test: cherry second");
+        git(&dir, &["switch", "main"]);
+
+        let info = branch_ops::cherry_pick_impl(path, vec![first, second])
+            .await
+            .unwrap();
+        assert_eq!(info.branch.as_deref(), Some("main"));
+        let subjects = git_output(&dir, &["log", "-2", "--format=%s"]);
+        let subjects: Vec<&str> = subjects.lines().collect();
+        assert_eq!(subjects, vec!["test: cherry second", "test: cherry first"]);
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn cherry_pick_conflict_can_continue() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/conflict"]);
+        let feature = commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nfeature change\n",
+            "test: conflicting feature",
+        );
+        git(&dir, &["switch", "main"]);
+        commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nmain change\n",
+            "test: conflicting main",
+        );
+
+        let error = branch_ops::cherry_pick_impl(path.clone(), vec![feature])
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error.kind, "conflict");
+        std::fs::write(dir.join("hello.txt"), "line one\nresolved\n").unwrap();
+        git(&dir, &["add", "hello.txt"]);
+        write::op_continue_impl(&path, "cherry-pick").await.unwrap();
+        assert!(read::status_get_impl(path).unwrap().clean);
+        assert_eq!(
+            std::fs::read_to_string(dir.join("hello.txt")).unwrap(),
+            "line one\nresolved\n"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn cherry_pick_conflict_can_abort() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        git(&dir, &["switch", "-c", "feature/abort-conflict"]);
+        let feature = commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nfeature abort\n",
+            "test: aborting feature",
+        );
+        git(&dir, &["switch", "main"]);
+        commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nmain abort\n",
+            "test: aborting main",
+        );
+        let before = git_output(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+
+        let error = branch_ops::cherry_pick_impl(path.clone(), vec![feature])
+            .await
+            .err()
+            .unwrap();
+        assert_eq!(error.kind, "conflict");
+        write::op_abort_impl(&path, "cherry-pick").await.unwrap();
+        assert!(read::status_get_impl(path).unwrap().clean);
+        assert_eq!(
+            git_output(&dir, &["rev-parse", "HEAD"]).trim(),
+            before.as_str()
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn revert_multiple_commits_and_reject_non_ancestor() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let first = commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nchanged once\n",
+            "test: revert one",
+        );
+        let second = commit_file(
+            &dir,
+            "hello.txt",
+            "line one\nchanged twice\n",
+            "test: revert two",
+        );
+
+        git(&dir, &["switch", "-c", "feature/non-ancestor"]);
+        let outside = commit_file(
+            &dir,
+            "outside.txt",
+            "outside\n",
+            "test: outside current branch",
+        );
+        git(&dir, &["switch", "main"]);
+
+        let error = branch_ops::revert_impl(path.clone(), vec![outside])
+            .await
+            .err()
+            .unwrap();
+        assert!(error.message.contains("不在当前分支历史中"));
+
+        branch_ops::revert_impl(path, vec![second, first])
+            .await
+            .unwrap();
+        assert_eq!(
+            std::fs::read_to_string(dir.join("hello.txt")).unwrap(),
+            "line one\nline two\n"
+        );
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn commit_list_validation_rejects_empty_merge_and_oversized_input() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        assert!(branch_ops::cherry_pick_impl(path.clone(), Vec::new())
+            .await
+            .is_err());
+        assert!(
+            branch_ops::cherry_pick_impl(path.clone(), vec!["not-an-oid".into()])
+                .await
+                .is_err()
+        );
+        let oversized: Vec<String> = (0..101).map(|index| format!("{index:040x}")).collect();
+        let error = branch_ops::cherry_pick_impl(path.clone(), oversized)
+            .await
+            .err()
+            .unwrap();
+        assert!(error.message.contains("最多处理 100"));
+
+        git(&dir, &["switch", "-c", "feature/merge-commit"]);
+        commit_file(&dir, "feature.txt", "feature\n", "test: merge source");
+        git(&dir, &["switch", "main"]);
+        commit_file(&dir, "main.txt", "main\n", "test: main before merge");
+        git(&dir, &["merge", "--no-edit", "feature/merge-commit"]);
+        let merge_oid = git_output(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+        let error = branch_ops::cherry_pick_impl(path, vec![merge_oid])
+            .await
+            .err()
+            .unwrap();
+        assert!(error.message.contains("Merge 提交"));
+        let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[tokio::test]
+    async fn reset_modes_preserve_or_discard_expected_changes() {
+        for mode in ["soft", "mixed", "hard"] {
+            let dir = fixture();
+            let path = dir.to_string_lossy().to_string();
+            let target = git_output(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+            commit_file(
+                &dir,
+                "hello.txt",
+                "line one\ncommitted change\n",
+                "test: reset base",
+            );
+            std::fs::write(dir.join("hello.txt"), "line one\nworktree\n").unwrap();
+            std::fs::write(dir.join("staged.txt"), "staged\n").unwrap();
+            git(&dir, &["add", "staged.txt"]);
+
+            branch_ops::reset_impl(path.clone(), target, mode.into())
+                .await
+                .unwrap();
+            let files = read::status_get_impl(path).unwrap().files;
+            match mode {
+                "soft" => {
+                    assert!(files
+                        .iter()
+                        .any(|file| file.path == "staged.txt" && file.staged));
+                    assert!(files
+                        .iter()
+                        .any(|file| file.path == "hello.txt" && file.unstaged));
+                }
+                "mixed" => {
+                    assert!(files
+                        .iter()
+                        .any(|file| file.path == "staged.txt" && file.unstaged));
+                    assert!(files
+                        .iter()
+                        .any(|file| file.path == "hello.txt" && file.unstaged));
+                }
+                "hard" => assert!(files.is_empty()),
+                _ => unreachable!(),
+            }
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
+    #[tokio::test]
+    async fn tag_and_ancestor_helpers_use_selected_start_point() {
+        let dir = fixture();
+        let path = dir.to_string_lossy().to_string();
+        let initial = git_output(&dir, &["rev-parse", "HEAD"]).trim().to_string();
+        git(&dir, &["switch", "-c", "feature/tag"]);
+        let feature = commit_file(&dir, "tag.txt", "tag\n", "test: tag source");
+        git(&dir, &["switch", "main"]);
+
+        write::tag_create_impl(
+            path.clone(),
+            "v-test".into(),
+            Some("annotated".into()),
+            Some("feature/tag".into()),
+        )
+        .await
+        .unwrap();
+        let tagged = git_output(&dir, &["rev-list", "-n", "1", "v-test"])
+            .trim()
+            .to_string();
+        assert_eq!(tagged, feature);
+        assert!(read::commit_is_ancestor_inner(&path, &initial).unwrap());
+        assert!(!read::commit_is_ancestor_inner(&path, &feature).unwrap());
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -1021,6 +1407,7 @@ mod tests {
                 author: None,
                 query: None,
                 file: None,
+                reverse: None,
             },
         )
         .await
@@ -1050,6 +1437,7 @@ mod tests {
                 author: None,
                 query: None,
                 file: None,
+                reverse: None,
             },
         )
         .await

@@ -353,6 +353,7 @@ export interface LogQuery {
   author?: string | null
   query?: string | null
   file?: string | null
+  reverse?: boolean
 }
 
 export interface Selection {

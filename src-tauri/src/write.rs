@@ -474,33 +474,41 @@ pub async fn branch_set_upstream(
 }
 
 #[tauri::command]
-pub async fn merge_branch(
-    state: State<'_, crate::AppState>,
-    path: String,
-    name: String,
-) -> Result<(), AppError> {
-    let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(&path, &["merge", "--no-edit", name.as_str()]).await?;
-    Ok(())
-}
-
-#[tauri::command]
 pub async fn tag_create(
     state: State<'_, crate::AppState>,
     path: String,
     name: String,
     message: Option<String>,
+    start_point: Option<String>,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
+    tag_create_impl(path, name, message, start_point).await
+}
+
+pub(crate) async fn tag_create_impl(
+    path: String,
+    name: String,
+    message: Option<String>,
+    start_point: Option<String>,
+) -> Result<(), AppError> {
     let annotated = message
         .as_deref()
         .map(|m| !m.trim().is_empty())
         .unwrap_or(false);
+    let start_point = start_point.filter(|value| !value.trim().is_empty());
     if annotated {
         let msg = message.unwrap_or_default();
-        util::git(&path, &["tag", "-a", name.as_str(), "-m", msg.as_str()]).await?;
+        let mut args = vec!["tag", "-a", name.as_str(), "-m", msg.as_str()];
+        if let Some(start_point) = start_point.as_deref() {
+            args.push(start_point);
+        }
+        util::git(&path, &args).await?;
     } else {
-        util::git(&path, &["tag", name.as_str()]).await?;
+        let mut args = vec!["tag", name.as_str()];
+        if let Some(start_point) = start_point.as_deref() {
+            args.push(start_point);
+        }
+        util::git(&path, &args).await?;
     }
     Ok(())
 }
@@ -549,45 +557,6 @@ pub(crate) async fn remote_branch_delete_impl(
     branch: &str,
 ) -> Result<(), AppError> {
     util::git(path, &["push", remote, "--delete", branch]).await?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn reset(
-    state: State<'_, crate::AppState>,
-    path: String,
-    oid: String,
-    mode: String,
-) -> Result<(), AppError> {
-    let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    let mode = match mode.as_str() {
-        "soft" | "mixed" | "hard" => mode,
-        _ => return Err(AppError::user("不支持的 reset 模式")),
-    };
-    let flag = format!("--{mode}");
-    util::git(&path, &["reset", flag.as_str(), oid.as_str()]).await?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn cherry_pick(
-    state: State<'_, crate::AppState>,
-    path: String,
-    oid: String,
-) -> Result<(), AppError> {
-    let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(&path, &["cherry-pick", oid.as_str()]).await?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn revert(
-    state: State<'_, crate::AppState>,
-    path: String,
-    oid: String,
-) -> Result<(), AppError> {
-    let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    util::git(&path, &["revert", "--no-edit", oid.as_str()]).await?;
     Ok(())
 }
 
@@ -893,11 +862,15 @@ pub async fn op_abort(
     op: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    match op.as_str() {
+    op_abort_impl(&path, &op).await
+}
+
+pub(crate) async fn op_abort_impl(path: &str, op: &str) -> Result<(), AppError> {
+    match op {
         "merge" | "rebase" | "cherry-pick" | "revert" => {}
         _ => return Err(AppError::user("不支持的操作")),
     }
-    util::git(&path, &[op.as_str(), "--abort"]).await?;
+    util::git(path, &[op, "--abort"]).await?;
     Ok(())
 }
 
@@ -908,12 +881,16 @@ pub async fn op_continue(
     op: String,
 ) -> Result<(), AppError> {
     let _guard = crate::session::acquire_repo_write(&state, &path).await;
-    match op.as_str() {
+    op_continue_impl(&path, &op).await
+}
+
+pub(crate) async fn op_continue_impl(path: &str, op: &str) -> Result<(), AppError> {
+    match op {
         "merge" => {
-            util::git(&path, &["commit", "--no-edit"]).await?;
+            util::git(path, &["commit", "--no-edit"]).await?;
         }
         "rebase" | "cherry-pick" | "revert" => {
-            util::git(&path, &[op.as_str(), "--continue"]).await?;
+            util::git(path, &[op, "--continue"]).await?;
         }
         _ => return Err(AppError::user("不支持的操作")),
     }
