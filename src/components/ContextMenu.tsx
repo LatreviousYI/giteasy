@@ -1,11 +1,10 @@
-import type { ReactNode } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { clampContextMenuPosition } from '../lib/contextMenu'
 
 interface ContextMenuSurfaceProps {
   x: number
   y: number
-  width?: number
-  estimatedHeight: number
   className?: string
   onDismiss: () => void
   children: ReactNode
@@ -14,18 +13,41 @@ interface ContextMenuSurfaceProps {
 export function ContextMenuSurface({
   x,
   y,
-  width = 300,
-  estimatedHeight,
   className = '',
   onDismiss,
   children
 }: ContextMenuSurfaceProps) {
-  const position = clampContextMenuPosition(x, y, width, estimatedHeight, {
-    width: window.innerWidth,
-    height: window.innerHeight
-  })
+  const menuRef = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ x: 0, y: 0, ready: false })
 
-  return (
+  const updatePosition = useCallback(() => {
+    const menu = menuRef.current
+    if (!menu) return
+    const rect = menu.getBoundingClientRect()
+    const next = clampContextMenuPosition(x, y, rect.width, rect.height, {
+      width: window.innerWidth,
+      height: window.innerHeight
+    })
+    setPosition({ ...next, ready: true })
+  }, [x, y])
+
+  useLayoutEffect(() => {
+    updatePosition()
+  }, [updatePosition])
+
+  useEffect(() => {
+    const menu = menuRef.current
+    const observer =
+      menu && typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updatePosition) : null
+    if (menu && observer) observer.observe(menu)
+    window.addEventListener('resize', updatePosition)
+    return () => {
+      observer?.disconnect()
+      window.removeEventListener('resize', updatePosition)
+    }
+  }, [updatePosition])
+
+  return createPortal(
     <>
       <div
         className="fixed inset-0 z-40"
@@ -36,10 +58,13 @@ export function ContextMenuSurface({
         }}
       />
       <div
+        ref={menuRef}
         className={`context-menu-surface fixed z-50 rounded-[10px] p-1.5 ${className}`}
+        role="menu"
         style={{
           left: position.x,
           top: position.y,
+          visibility: position.ready ? 'visible' : 'hidden',
           background: 'var(--surface)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-pop)'
@@ -47,7 +72,8 @@ export function ContextMenuSurface({
       >
         {children}
       </div>
-    </>
+    </>,
+    document.body
   )
 }
 
