@@ -12,7 +12,7 @@ import {
   RotateCcw,
   Undo2
 } from 'lucide-react'
-import { useCommitDetail, useCommitDiff } from '../../lib/queries'
+import { useCommitDetail, useCommitDiff, useCommitIsAncestor } from '../../lib/queries'
 import { LANE_COLORS, type GraphRow } from '../../lib/graph'
 import { formatDate, initials, relativeTime } from '../../lib/format'
 import type { CommitDto } from '../../lib/types'
@@ -110,6 +110,8 @@ interface CommitDetailPaneProps {
   repoPath: string
   oid: string
   busy: boolean
+  currentBranch: string | null
+  operationState: string
   ignoreWhitespace: boolean
   onToggleWhitespace: (value: boolean) => void
   contextLines: number
@@ -128,6 +130,8 @@ export function CommitDetailPane({
   repoPath,
   oid,
   busy,
+  currentBranch,
+  operationState,
   ignoreWhitespace,
   onToggleWhitespace,
   contextLines,
@@ -148,8 +152,22 @@ export function CommitDetailPane({
   const [filesHeight, setFilesHeight] = useState(() => readCommitFilesHeight(repoPath))
   const filesHeightRepoRef = useRef<string | null>(null)
   const diffQuery = useCommitDiff(repoPath, oid, selectedPath, ignoreWhitespace, contextLines)
+  const { data: isAncestor, isLoading: ancestorLoading } = useCommitIsAncestor(repoPath, oid)
   const detailOid = detail?.commit.oid
   const firstDetailPath = detail?.files[0]?.path ?? null
+  const operationInProgress = operationState !== 'clean'
+  const branchOperationDisabled = busy || !currentBranch || operationInProgress
+  const revertDisabled = branchOperationDisabled || ancestorLoading || isAncestor === false
+  const branchOperationTitle = !currentBranch
+    ? '请先检出本地分支'
+    : operationInProgress
+      ? `仓库正在 ${operationState}，请先完成或中止当前操作`
+      : undefined
+  const revertTitle =
+    branchOperationTitle ??
+    (isAncestor === false
+      ? '该提交不在当前分支历史中，无法回滚。可以改用 Cherry-pick。'
+      : undefined)
 
   useEffect(() => {
     if (detailOid) setSelectedPath(firstDetailPath)
@@ -250,7 +268,12 @@ export function CommitDetailPane({
             <GitBranch size={13} />
             检出
           </button>
-          <button className="btn btn-sm" onClick={onCherryPick} disabled={busy}>
+          <button
+            className="btn btn-sm"
+            onClick={onCherryPick}
+            disabled={branchOperationDisabled}
+            title={branchOperationTitle}
+          >
             <GitCommitHorizontal size={13} />
             拣选
           </button>
@@ -280,6 +303,8 @@ export function CommitDetailPane({
                       setActionsOpen(false)
                       onRevert()
                     }}
+                    disabled={revertDisabled}
+                    title={revertTitle}
                   >
                     <Undo2 size={13} />
                     回滚提交
@@ -303,6 +328,8 @@ export function CommitDetailPane({
                         setActionsOpen(false)
                         onReset(mode)
                       }}
+                      disabled={branchOperationDisabled}
+                      title={branchOperationTitle}
                     >
                       <RotateCcw size={13} />
                       重置到此处（{mode}）

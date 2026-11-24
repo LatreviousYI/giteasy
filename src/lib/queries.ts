@@ -14,6 +14,7 @@ export const REPO_QUERY_DOMAINS = [
   'submodules',
   'worktrees',
   'commit',
+  'commitAncestor',
   'diff',
   'repoStats',
   'blame',
@@ -133,6 +134,15 @@ export function useCommitDetail(path: string | null, oid: string | null) {
     queryKey: repoQueryKey('commit', path, oid),
     queryFn: () => ipc.commitDetail(path as string, oid as string),
     enabled: !!path && !!oid
+  })
+}
+
+export function useCommitIsAncestor(path: string | null, oid: string | null) {
+  return useQuery({
+    queryKey: repoQueryKey('commitAncestor', path, oid),
+    queryFn: () => ipc.commitIsAncestor(path as string, oid as string),
+    enabled: !!path && !!oid,
+    retry: false
   })
 }
 

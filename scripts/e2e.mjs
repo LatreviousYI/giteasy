@@ -54,6 +54,29 @@ try {
       button: 2
     }));
   `)
+  const remoteMenuText = await driver.executeScript(
+    "return document.querySelector('.branch-context-menu')?.textContent || ''"
+  )
+  for (const label of [
+    '合并到当前分支',
+    '变基当前分支到此分支',
+    'Squash 合并到当前分支',
+    'Cherry-pick 提交',
+    '重置当前分支到此分支',
+    '创建标签',
+    '从该远程分支拉取当前分支',
+    '删除远程分支'
+  ]) {
+    if (!remoteMenuText.includes(label)) {
+      throw new Error(`Remote branch menu is missing ${label}`)
+    }
+  }
+  const remotePull = await driver.findElement(
+    By.xpath("//button[contains(., '从该远程分支拉取当前分支')]")
+  )
+  if (!(await remotePull.isEnabled())) {
+    throw new Error('Remote pull should be enabled for the tracked origin/main branch')
+  }
   await driver.wait(until.elementLocated(By.xpath("//button[contains(., '创建本地分支')]")), 5_000)
   await driver.findElement(By.xpath("//button[contains(., '创建本地分支')]")).click()
   await driver.wait(until.elementLocated(By.css('.modal')), 5_000)
@@ -81,7 +104,7 @@ try {
     }));
   `)
   const disabledPull = await driver.wait(
-    until.elementLocated(By.xpath("//button[contains(., '无追踪上游')]")),
+    until.elementLocated(By.xpath("//button[contains(., '该分支没有追踪上游')]")),
     5_000
   )
   if (await disabledPull.isEnabled()) {
@@ -164,6 +187,136 @@ try {
       `History diff row background is too narrow: ${JSON.stringify(historyRowFillCheck)}`
     )
   }
+
+  const openedCommitShort = await driver.executeScript(`
+    const row = document.querySelector('.commit-row:not(.stash-row)');
+    const shortOid = row.querySelector('.commit-meta .mono').textContent;
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 520,
+      clientY: 260,
+      button: 2
+    }));
+    return shortOid;
+  `)
+  const commitMenuText = await driver.executeScript(
+    "return document.querySelector('.commit-context-menu')?.textContent || ''"
+  )
+  for (const label of [
+    'Cherry-pick 到当前分支',
+    '回滚此提交',
+    '重置当前分支到此提交',
+    '从此提交后交互式变基',
+    '创建并检出分支',
+    '在此外创建标签',
+    '检出此提交',
+    '复制完整哈希'
+  ]) {
+    if (!commitMenuText.includes(label)) {
+      throw new Error(`Commit menu is missing ${label}`)
+    }
+  }
+  const hoverTarget = await driver.findElement(
+    By.xpath("//div[contains(@class, 'commit-context-menu')]//button[not(@disabled)][1]")
+  )
+  await driver.actions().move({ origin: hoverTarget }).perform()
+  const hoverStyle = await driver.executeScript(
+    `
+      const style = getComputedStyle(arguments[0]);
+      return {
+        background: style.backgroundColor,
+        boxShadow: style.boxShadow
+      };
+    `,
+    hoverTarget
+  )
+  if (
+    hoverStyle.background === 'rgba(0, 0, 0, 0)' ||
+    !hoverStyle.boxShadow ||
+    hoverStyle.boxShadow === 'none'
+  ) {
+    throw new Error(`Context menu item hover state is missing: ${JSON.stringify(hoverStyle)}`)
+  }
+  await driver.findElement(By.xpath("//button[contains(., '在此外创建标签')]")).click()
+  const tagDialogText = await driver.findElement(By.css('.modal')).getText()
+  if (!tagDialogText.includes(openedCommitShort)) {
+    throw new Error('Commit tag dialog does not use the selected commit as its start point')
+  }
+  await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  await driver.executeScript(`
+    const row = document.querySelector('.commit-row:not(.stash-row)');
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 520,
+      clientY: 260,
+      button: 2
+    }));
+  `)
+  await driver.findElement(By.xpath("//button[contains(., '创建并检出分支')]")).click()
+  const branchDefault = await driver.findElement(By.css('.modal input.input')).getAttribute('value')
+  if (branchDefault !== `branch-from-${openedCommitShort}`) {
+    throw new Error(`Unexpected branch default: ${branchDefault}`)
+  }
+  await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  await driver.executeScript(`
+    const row = document.querySelector('.commit-row:not(.stash-row)');
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 520,
+      clientY: 260,
+      button: 2
+    }));
+  `)
+  await driver.findElement(By.xpath("//button[contains(., '重置当前分支到此提交')]")).click()
+  const resetDialogText = await driver.findElement(By.css('.modal')).getText()
+  if (!resetDialogText.includes(openedCommitShort)) {
+    throw new Error('Commit reset dialog does not show the selected commit')
+  }
+  await driver.findElement(By.css('.modal-head .icon-btn')).click()
+
+  await driver.executeScript(`
+    const row = document.querySelector('.commit-row:not(.stash-row)');
+    row.focus();
+    row.dispatchEvent(new KeyboardEvent('keydown', {
+      key: 'F10',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true
+    }));
+  `)
+  await driver.wait(until.elementLocated(By.css('.commit-context-menu')), 5_000)
+  await driver.executeScript(`
+    document.querySelector('.fixed.inset-0.z-40')
+      .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  `)
+
+  await driver.executeScript(`
+    const row = [...document.querySelectorAll('.commit-row:not(.stash-row)')]
+      .find((item) => item.textContent.includes('merge:'));
+    row.dispatchEvent(new MouseEvent('contextmenu', {
+      bubbles: true,
+      cancelable: true,
+      clientX: 520,
+      clientY: 300,
+      button: 2
+    }));
+  `)
+  const mergeCherryPick = await driver.findElement(
+    By.xpath("//button[contains(., 'Cherry-pick 到当前分支')]")
+  )
+  const mergeRevert = await driver.findElement(By.xpath("//button[contains(., '回滚此提交')]"))
+  if ((await mergeCherryPick.isEnabled()) || (await mergeRevert.isEnabled())) {
+    throw new Error('Merge commit should not allow cherry-pick or revert')
+  }
+  await driver.executeScript(`
+    document.querySelector('.fixed.inset-0.z-40')
+      .dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+  `)
   await shot('light/history-1440.png', 1440, 900)
 
   const initialFilesHeight = await driver.executeScript(`

@@ -340,6 +340,7 @@ pub struct LogQuery {
     pub author: Option<String>,
     pub query: Option<String>,
     pub file: Option<String>,
+    pub reverse: Option<bool>,
 }
 
 #[derive(Deserialize)]
